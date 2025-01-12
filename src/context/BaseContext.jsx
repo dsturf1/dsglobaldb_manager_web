@@ -26,6 +26,8 @@ export const BaseProvider = ({ children}) => {
       const dsBaseJson = await loadFromS3(`public/base/${courseId}/dsbase.json`);
       const dsTaskJson = await loadFromS3(`public/base/${courseId}/dstask.json`);
 
+      console.log('In Base COntext', dsTaskJson);
+
       if (dsBaseJson && dsTaskJson) {
         parseBaseJson(dsBaseJson);
         parseTaskJson(dsTaskJson);
@@ -81,7 +83,8 @@ export const BaseProvider = ({ children}) => {
   const parseTaskJson = (jsonString) => {
     try {
       const data = JSON.parse(jsonString);
-      setDsTaskList(data.dsTaskList || []);
+      // console.log(data);
+      setDsTaskList(data || []);
       console.log("Task configuration loaded successfully.");
     } catch (error) {
       console.error("Failed to parse dstask.json:", error);

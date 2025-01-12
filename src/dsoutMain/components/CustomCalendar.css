@@ -1,0 +1,60 @@
+/* 점(dot) 컨테이너 */
+.dot-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 5px;
+  max-width: 48px; /* 점들이 한 줄에 최대 4개씩 배치되도록 너비 조정 */
+  min-height: 24px; /* 기록이 없는 날도 동일한 공간을 차지하도록 설정 */
+}
+
+/* 기본 점 스타일 */
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  /* margin: 2px; */
+}
+
+/* 더보기 기호 스타일 */
+.more-dots-icon {
+  font-size: 10px;
+  line-height: 1;
+  color: #666;
+  margin-top: 2px;
+}
+
+/* 빈 점 컨테이너 */
+.dot-container.empty {
+  background-color: transparent;
+}
+
+/* 선택된 날짜 스타일 */
+.selected-date {
+  background-color: #0fbcf9 !important;
+  color: white;
+  border-radius: 50%;
+}
+/* Calendar 사이즈 조정 */
+.react-calendar {
+  width: 100%; /* 부모 컨테이너 너비에 맞게 조정 */
+  max-width: 300px; /* 최대 너비 설정 */
+  font-size: 12px; /* 폰트 크기 조정 */
+}
+
+.react-calendar__tile {
+  height: 100%; /* 날짜 타일 높이 줄이기 */
+  font-size: 12px; /* 타일 폰트 크기 줄이기 */
+}
+
+/* 상단 네비게이션 바 조정 */
+.react-calendar__navigation button {
+  min-width: 30px;
+  font-size: 12px;
+}
+
+/* 날짜 셀 간격 줄이기 */
+.react-calendar__month-view__days__day {
+  padding: 5px;
+}
