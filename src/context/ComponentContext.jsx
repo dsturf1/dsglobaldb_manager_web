@@ -5,7 +5,7 @@ import { useBase } from './BaseContext';
 const ComponentContext = createContext();
 
 const apiClient = axios.create({
-  baseURL: 'https://spcxatxbph.execute-api.us-east-1.amazonaws.com/dev',
+  baseURL: 'https://jyipsj28s9.execute-api.us-east-1.amazonaws.com/dev',
   headers: { 'Content-Type': 'application/json; charset=utf-8' },
 });
 
@@ -18,13 +18,12 @@ export const ComponentProvider = ({ children }) => {
   // Fetch Chemicals
   const fetchChemicals = async () => {
     try {
-      const response = await apiClient.get('/localchemical', {
-        params: { mapdscourseid: mapdscourseid },
-      });
+      const response = await apiClient.get('/dschemical',);
       const res_ = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-      const body = res_.body;
+      const body = res_;// 이상하게 Proxy를 사용하면 {status:200, body:} 가 아닌, 
       const data = typeof body === 'string' ? JSON.parse(body) : body;
       setChemicals(data);
+      console.log('In First Chemmical Fetch in ComponentContext', data);
     } catch (err) {
       console.error('Error fetching chemicals:', err);
     }
@@ -33,9 +32,10 @@ export const ComponentProvider = ({ children }) => {
   // Fetch Equipments
   const fetchEquipments = async () => {
     try {
-      const response = await apiClient.get('/localequipment', {
-        params: { mapdscourseid: mapdscourseid },
-      });
+      // const response = await apiClient.get('/equipment', {
+      //   params: { mapdscourseid: mapdscourseid },
+      // });
+      const response = await apiClient.get('/equipment');
       const res_ = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
       const body = res_.body;
       const data = typeof body === 'string' ? JSON.parse(body) : body;
@@ -48,9 +48,7 @@ export const ComponentProvider = ({ children }) => {
   // Fetch Workforces
   const fetchWorkforces = async () => {
     try {
-      const response = await apiClient.get('/localworkforce', {
-        params: { mapdscourseid: mapdscourseid },
-      });
+      const response = await apiClient.get('/dsworkforce');
       const res_ = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
       const body = res_.body;
       const data = typeof body === 'string' ? JSON.parse(body) : body;
@@ -102,13 +100,16 @@ export const ComponentProvider = ({ children }) => {
   // Update Chemical
   const updateChemical = async (chemical) => {
     try {
-      await apiClient.put('/localchemical', chemical, {
-        params: { mapdscourseid: mapdscourseid },
-      });
-      setChemicals((prev) => prev.map((item) => (item.dsids === chemical.dsids ? chemical : item)));
-      console.log(`Chemical with id ${chemical.dsids} updated successfully.`);
+      const response = await apiClient.put('/dschemical', chemical);
+      if (response.status === 200) {
+        console.log(`Chemical with id ${chemical.dsids} updated successfully.`);
+        return true;
+      } else {
+        return { success: false, error: 'Update failed' };
+      }
     } catch (err) {
       console.error('Error updating chemical:', err);
+      return false;
     }
   };
 
@@ -181,6 +182,7 @@ export const ComponentProvider = ({ children }) => {
     <ComponentContext.Provider
       value={{
         chemicals,
+        setChemicals,
         equipments,
         workforces,
         fetchChemicals,

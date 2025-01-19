@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { useBase } from '../context/BaseContext';
 import { useDayRecord } from '../context/DayRecordContext';
 import { useComponent } from '../context/ComponentContext';
-import { fetchUserAttributes } from 'aws-amplify/auth';
+import { fetchUserAttributes, signOut } from 'aws-amplify/auth';
+import ChemicalsTable from '../dsGchemical/ChemicalsTable';
 
 export default function Layout({ children }) {
     const {
@@ -11,7 +12,8 @@ export default function Layout({ children }) {
       dsOrgOrder,
       dsTaskList,
       loadConfig,
-      mapdscourseid
+      mapdscourseid,
+      dsOrgList
     } = useBase();
   
     const {
@@ -29,6 +31,8 @@ export default function Layout({ children }) {
     } =  useComponent();
   
     const [loading, setLoading] = useState(true);
+    const [userEmail, setUserEmail] = useState('');
+    const [orgName, setOrgName] = useState('');
   
     // 초기화 로직: getUserInfo -> mapdscourseid로 설정 로드 및 DayRecord 가져오기
     useEffect(() => {
@@ -42,7 +46,7 @@ export default function Layout({ children }) {
             await loadConfig(courseId);
   
             // DayRecord 데이터 가져오기
-            await fetchDayRecords(courseId);
+            // await fetchDayRecords(courseId);
   
           } else {
             console.error('No mapdscourseid found for user.');
@@ -58,10 +62,10 @@ export default function Layout({ children }) {
     }, []);
   
     useEffect(() => {
-      if (mapdscourseid!='MGC999') {
+      if (mapdscourseid=='MGC999') {
         fetchChemicals();
-        fetchEquipments();
-        fetchWorkforces();
+        // fetchEquipments();
+        // fetchWorkforces();
       }
 
     }, [mapdscourseid]);
@@ -78,6 +82,9 @@ export default function Layout({ children }) {
         const user = await fetchUserAttributes();
         console.log('User Info:', user);
     
+        // 이메일 저장
+        setUserEmail(user.email || '');
+        
         // 커스텀 속성 가져오기
         const customTag = user['custom:org']|| null;
         console.log('Custom Tag:', customTag);
@@ -87,13 +94,44 @@ export default function Layout({ children }) {
         console.error('Error fetching user info:', error);
       }
     };
+
+    // handleSignOut 함수 추가
+    const handleSignOut = async () => {
+        try {
+            await signOut();
+            // 로그아웃 후 페이지 새로고침
+            window.location.reload();
+        } catch (error) {
+            console.error('로그아웃 중 오류 발생:', error);
+        }
+    };
+
+    // 조직명 설정을 위한 useEffect 추가
+    useEffect(() => {
+      if (dsOrgList && mapdscourseid) {
+        const org = dsOrgList.find(org => org.mapdscourseid === mapdscourseid);
+        console.log(org)
+        if (org) {
+          setOrgName(org.org);
+        }
+      }
+    }, [dsOrgList, mapdscourseid]);
+
   return (
     <div className="h-screen flex flex-col">
       {/* Navbar */}
       <nav className="bg-white text-gray-800 border-b border-gray-300 p-2 fixed w-full z-10 shadow-md">
         <div className="flex justify-between items-center">
-          <h1 className="text-sm font-semibold">동성 그린 {mapdscourseid}</h1>
-          <div className="space-x-3">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-xl font-extrabold text-blue-800 tracking-wide">
+              동성 그린
+            </h1>
+            <h2 className="text-lg font-semibold text-gray-700">
+              담당부서: {orgName ? `${orgName}(${mapdscourseid})` : mapdscourseid}
+            </h2>
+            <span className="text-sm text-gray-600">({userEmail})</span>
+          </div>
+          <div className="flex items-center space-x-3">
             <Link to="/" className="text-gray-500 hover:text-blue-500 text-sm">
               Home
             </Link>
@@ -103,6 +141,12 @@ export default function Layout({ children }) {
             <Link to="/settings" className="text-gray-500 hover:text-blue-500 text-sm">
               Settings
             </Link>
+            <button 
+                onClick={handleSignOut}
+                className="text-gray-500 hover:text-blue-500 text-sm"
+            >
+                Logout
+            </button>
           </div>
         </div>
       </nav>
