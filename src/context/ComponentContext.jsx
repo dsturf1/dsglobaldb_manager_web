@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { useBase } from './BaseContext';
 
@@ -14,6 +14,11 @@ export const ComponentProvider = ({ children }) => {
   const [equipments, setEquipments] = useState([]);
   const [workforces, setWorkforces] = useState([]);
   const { mapdscourseid } = useBase();
+
+  // chemicals 변경 감지를 위한 useEffect 추가
+  useEffect(() => {
+    console.log('Chemicals updated:', chemicals);
+  }, [chemicals]);
 
   // Fetch Chemicals
   const fetchChemicals = async () => {
@@ -140,15 +145,19 @@ export const ComponentProvider = ({ children }) => {
   };
 
   // Delete Chemical
-  const deleteChemical = async (chemicalId) => {
+  const deleteChemical = async (dsids) => {
     try {
-      await apiClient.delete('/localchemical', {
-        params: { id: chemicalId, mapdscourseid: mapdscourseid },
+      const response = await apiClient.delete('/dschemical', {
+        params: { id: dsids }
       });
-      setChemicals((prev) => prev.filter((item) => item.dsids !== chemicalId));
-      console.log(`Chemical with id ${chemicalId} deleted successfully.`);
+      if (response.status === 200) {
+        console.log(`Chemical with id ${dsids} deleted successfully.`);
+        return true;
+      }
+      return false;
     } catch (err) {
       console.error('Error deleting chemical:', err);
+      return false;
     }
   };
 
