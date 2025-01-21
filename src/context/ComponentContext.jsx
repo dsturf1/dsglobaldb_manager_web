@@ -45,6 +45,7 @@ export const ComponentProvider = ({ children }) => {
       const body = res_.body;
       const data = typeof body === 'string' ? JSON.parse(body) : body;
       setEquipments(data);
+      console.log('In First Equipment Fetch in ComponentContext', data);
     } catch (err) {
       console.error('Error fetching equipments:', err);
     }
@@ -58,6 +59,7 @@ export const ComponentProvider = ({ children }) => {
       const body = res_.body;
       const data = typeof body === 'string' ? JSON.parse(body) : body;
       setWorkforces(data);
+      console.log('In First Workforce Fetch in ComponentContext', data);
     } catch (err) {
       console.error('Error fetching workforces:', err);
     }
@@ -66,10 +68,8 @@ export const ComponentProvider = ({ children }) => {
   // Add Chemical
   const addChemical = async (chemical) => {
     try {
-      await apiClient.post('/localchemical', chemical, {
-        params: { mapdscourseid: mapdscourseid },
-      });
-      setChemicals((prev) => [...prev, chemical]);
+      await apiClient.post('/dschemical', chemical);
+
       console.log(`Chemical with id ${chemical.dsids} inserted successfully.`);
     } catch (err) {
       console.error('Error adding chemical:', err);
@@ -79,10 +79,8 @@ export const ComponentProvider = ({ children }) => {
   // Add Equipment
   const addEquipment = async (equipment) => {
     try {
-      await apiClient.post('/localequipment', equipment, {
-        params: { mapdscourseid: mapdscourseid },
-      });
-      setEquipments((prev) => [...prev, equipment]);
+      await apiClient.post('/equipment', equipment);
+
       console.log(`Equipment with id ${equipment.id} inserted successfully.`);
     } catch (err) {
       console.error('Error adding equipment:', err);
@@ -92,10 +90,8 @@ export const ComponentProvider = ({ children }) => {
   // Add Workforce
   const addWorkforce = async (workforce) => {
     try {
-      await apiClient.post('/localworkforce', workforce, {
-        params:{ mapdscourseid: mapdscourseid },
-      });
-      setWorkforces((prev) => [...prev, workforce]);
+      await apiClient.post('/dsworkforce', workforce);
+
       console.log(`Workforce with id ${workforce.id} inserted successfully.`);
     } catch (err) {
       console.error('Error adding workforce:', err);
@@ -121,10 +117,8 @@ export const ComponentProvider = ({ children }) => {
   // Update Equipment
   const updateEquipment = async (equipment) => {
     try {
-      await apiClient.put('/localequipment', equipment, {
-        params: { mapdscourseid: mapdscourseid },
-      });
-      setEquipments((prev) => prev.map((item) => (item.id === equipment.id ? equipment : item)));
+      await apiClient.put('/equipment', equipment);
+      // setEquipments((prev) => prev.map((item) => (item.id === equipment.id ? equipment : item)));
       console.log(`Equipment with id ${equipment.id} updated successfully.`);
     } catch (err) {
       console.error('Error updating equipment:', err);
@@ -134,10 +128,10 @@ export const ComponentProvider = ({ children }) => {
   // Update Workforce
   const updateWorkforce = async (workforce) => {
     try {
-      await apiClient.put('/localworkforce', workforce, {
+      await apiClient.put('/dsworkforce', workforce, {
         params: { mapdscourseid: mapdscourseid },
       });
-      setWorkforces((prev) => prev.map((item) => (item.id === workforce.id ? workforce : item)));
+      // setWorkforces((prev) => prev.map((item) => (item.id === workforce.id ? workforce : item)));
       console.log(`Workforce with id ${workforce.id} updated successfully.`);
     } catch (err) {
       console.error('Error updating workforce:', err);
@@ -164,10 +158,9 @@ export const ComponentProvider = ({ children }) => {
   // Delete Equipment
   const deleteEquipment = async (equipmentId) => {
     try {
-      await apiClient.delete('/localequipment', {
-        params: { id: equipmentId, mapdscourseid: mapdscourseid },
+      await apiClient.delete('/equipment', {
+        params: { id: equipmentId }
       });
-      setEquipments((prev) => prev.filter((item) => item.id !== equipmentId));
       console.log(`Equipment with id ${equipmentId} deleted successfully.`);
     } catch (err) {
       console.error('Error deleting equipment:', err);
@@ -177,10 +170,10 @@ export const ComponentProvider = ({ children }) => {
   // Delete Workforce
   const deleteWorkforce = async (workforceId) => {
     try {
-      await apiClient.delete('/localworkforce', {
-        params: { id: workforceId, mapdscourseid: mapdscourseid},
+      await apiClient.delete('/dsworkforce', {
+        params: { id: workforceId},
       });
-      setWorkforces((prev) => prev.filter((item) => item.id !== workforceId));
+
       console.log(`Workforce with id ${workforceId} deleted successfully.`);
     } catch (err) {
       console.error('Error deleting workforce:', err);

@@ -1,7 +1,9 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useComponent } from '../context/ComponentContext';
 
-export default function ChemicalsTable() {
+
+export default function DSChemicalsTable() {
+  
   const { chemicals, setChemicals, updateChemical, deleteChemical } = useComponent();
   
   // 검색어 상태 추가
@@ -18,11 +20,42 @@ export default function ChemicalsTable() {
   });
 
   // 고유한 필터 옵션 추출
-  const filterOptions = useMemo(() => ({
-    infoL3: ['all', ...new Set(chemicals.map(c => c.infoL3))],
-    infoL2: ['all', ...new Set(chemicals.map(c => c.infoL2))], // 대분류
-    infoL1: ['all', ...new Set(chemicals.map(c => c.infoL1))]  // 중분류
-  }), [chemicals]);
+  const filterOptions = useMemo(() => {
+    const defaultL3 = ['all', '중요도1', '중요도2', '중요도3', '중요도4', '중요도5'];
+    const defaultL2 = ['all', '농약', '비료', '기타약재'];
+    const defaultL1 = {
+      '농약': ['all', '살균제', '살충제', '제초제'],
+      '비료': ['all', '비료'],
+      '기타약재': ['all', '기타약재']
+    };
+    
+    const uniqueL3 = [...new Set(chemicals.map(c => c.infoL3))];
+    const uniqueL2 = [...new Set(chemicals.map(c => c.infoL2))];
+    const uniqueL1 = [...new Set(chemicals.map(c => c.infoL1))];
+    
+    const filteredL3 = uniqueL3.filter(item => !defaultL3.includes(item));
+    const filteredL2 = uniqueL2.filter(item => !defaultL2.includes(item));
+    const filteredL1 = uniqueL1.filter(item => !Object.values(defaultL1).flat().includes(item));
+
+    // 현재 선택된 대분류에 따른 중분류 옵션 결정
+    const getL1Options = (selectedL2) => {
+      if (selectedL2 === 'all') {
+        return ['all', ...new Set([
+          ...defaultL1['농약'],
+          ...defaultL1['비료'],
+          ...defaultL1['기타약재'],
+          ...filteredL1
+        ].filter(item => item !== 'all'))];
+      }
+      return defaultL1[selectedL2] || ['all'];
+    };
+
+    return {
+      infoL3: [...defaultL3, ...filteredL3],
+      infoL2: [...defaultL2, ...filteredL2],
+      infoL1: getL1Options(filters.infoL2)  // 현재 선택된 대분류에 따른 중분류 옵션
+    };
+  }, [chemicals, filters.infoL2]);  // filters.infoL2 의존성 추가
 
   // 필터 변경 핸들러
   const handleFilterChange = (filterType, value) => {
@@ -34,6 +67,24 @@ export default function ChemicalsTable() {
 
   // 필터링 및 정렬된 데이터에 검색 기능 추가
   const filteredAndSortedChemicals = useMemo(() => {
+    // 대분류 우선순위 정의
+    const infoL2Priority = {
+      '농약': 1,
+      '비료': 2,
+      '기타약재': 3,
+      '': 9999
+    };
+
+    // 중분류 우선순위 정의
+    const infoL1Priority = {
+      '살균제': 1,
+      '살충제': 2,
+      '제초제': 3,
+      '비료': 4,
+      '기타약재': 5,
+      '': 9999
+    };
+
     return [...chemicals]
       .filter(chemical => {
         const searchMatch = searchTerm === '' || 
@@ -48,21 +99,34 @@ export default function ChemicalsTable() {
                infoL3Match && infoL1Match && infoL2Match;
       })
       .sort((a, b) => {
-        // 새로 추가된 항목 (임시 ID를 가진 항목)을 먼저 표시
-        const isNewA = a.dsids.toString().length >= 13; // timestamp 길이
-        const isNewB = b.dsids.toString().length >= 13;
-        if (isNewA && !isNewB) return -1;
-        if (!isNewA && isNewB) return 1;
-
-        // 기존 정렬 로직
+        // 1. 중요도 순서로 정렬
         const priorityPattern = /중요도(\d+)/;
         const matchA = a.infoL3.match(priorityPattern);
         const matchB = b.infoL3.match(priorityPattern);
+        
+        const priorityA = matchA ? parseInt(matchA[1]) : 9999;
+        const priorityB = matchB ? parseInt(matchB[1]) : 9999;
+        
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
 
-        if (matchA && matchB) return parseInt(matchA[1]) - parseInt(matchB[1]);
-        if (matchA) return -1;
-        if (matchB) return 1;
-        return a.infoL3.localeCompare(b.infoL3);
+        // 2. 대분류 순서로 정렬
+        const infoL2A = infoL2Priority[a.infoL2] || 9999;
+        const infoL2B = infoL2Priority[b.infoL2] || 9999;
+        if (infoL2A !== infoL2B) {
+          return infoL2A - infoL2B;
+        }
+
+        // 3. 중분류 순서로 정렬
+        const infoL1A = infoL1Priority[a.infoL1] || 9999;
+        const infoL1B = infoL1Priority[b.infoL1] || 9999;
+        if (infoL1A !== infoL1B) {
+          return infoL1A - infoL1B;
+        }
+
+        // 4. 코드순
+        return a.dsids.localeCompare(b.dsids);
       });
   }, [chemicals, filters, searchTerm]);
 
@@ -230,10 +294,42 @@ export default function ChemicalsTable() {
 
   // UnitInput 컴포넌트 수정
   const UnitInput = React.memo(({ value = '0ｇ', onChange }) => {
-    // 숫자와 단위 분리
+    // 단위 표준화 함수 추가
+    const standardizeUnit = (unit) => {
+      const unitMap = {
+        'ton': 'Ton',
+        'TON': 'Ton',
+        'Ton': 'Ton',
+        'ｇ': 'ｇ',
+        'g': 'ｇ',
+        '㎏': '㎏',
+        'kg': '㎏',
+        'KG': '㎏',
+        '㎎': '㎎',
+        'mg': '㎎',
+        'ℓ': 'ℓ',
+        'L': 'ℓ',
+        'l': 'ℓ',
+        '㎖': '㎖',
+        'ml': '㎖',
+        '㎡': '㎡',
+        'm2': '㎡',
+        'EA': 'EA',
+        'ea': 'EA',
+        '원': '원',
+        '건': '건'
+      };
+      return unitMap[unit] || unit;
+    };
+
+    // 숫자와 단위 분리 - 숫자가 없는 경우도 처리
     const parseUnit = (str = '0ｇ') => {
-      const match = str.toString().match(/^(\d+)(.*)$/);
-      return match ? { number: parseInt(match[1]), unit: match[2] } : { number: 0, unit: 'ｇ' };
+      const match = str.toString().match(/^(\d*)(.*)$/);
+      if (!match) return { number: '', unit: 'ｇ' };
+      
+      const number = match[1] === '' ? '' : parseInt(match[1]);
+      const unit = standardizeUnit(match[2] || 'ｇ');  // 단위 표준화 적용
+      return { number, unit };
     };
 
     const { number, unit } = parseUnit(value);
@@ -248,17 +344,20 @@ export default function ChemicalsTable() {
 
     const handleNumberKeyDown = (e) => {
       if (e.key === 'Enter') {
-        onChange(`${localNumber}${unit}`);
+        const finalValue = localNumber === '' ? unit : `${localNumber}${unit}`;
+        onChange(finalValue);
         inputRef.current?.blur();
       }
     };
 
     const handleNumberBlur = () => {
-      onChange(`${localNumber}${unit}`);
+      const finalValue = localNumber === '' ? unit : `${localNumber}${unit}`;
+      onChange(finalValue);
     };
 
     const handleUnitChange = (newUnit) => {
-      onChange(`${localNumber}${newUnit}`);
+      const finalValue = localNumber === '' ? newUnit : `${localNumber}${newUnit}`;
+      onChange(finalValue);
     };
 
     useEffect(() => {
@@ -289,6 +388,9 @@ export default function ChemicalsTable() {
           <option value="ℓ">ℓ</option>
           <option value="㎖">㎖</option>
           <option value="㎡">㎡</option>
+          <option value="EA">EA</option>
+          <option value="원">원</option>
+          <option value="건">건</option>
         </select>
       </div>
     );
@@ -574,13 +676,14 @@ export default function ChemicalsTable() {
   };
 
   // 행 렌더링 컴포넌트
-  const TableRow = ({ chemical }) => {
+  const TableRow = ({ chemical, index }) => {
     const isEditing = editingRows.has(chemical.dsids);
     const editedData = editedChemicals[chemical.dsids];
 
     if (isEditing) {
       return (
         <tr key={chemical.dsids}>
+          <td className="w-12 text-center">{index + 1}</td>
           <td className="w-32">
             <select 
               className="select select-bordered select-sm w-full"
@@ -707,6 +810,7 @@ export default function ChemicalsTable() {
         onDoubleClick={() => handleStartEdit(chemical.dsids)}
         className="cursor-pointer hover:bg-gray-100"
       >
+        <td className="w-12 text-center">{index + 1}</td>
         <td className="w-32">
           <span className="badge badge-ghost">{chemical.infoL3}</span>
         </td>
@@ -826,6 +930,7 @@ export default function ChemicalsTable() {
         <table className="table table-zebra w-full">
           <thead>
             <tr>
+              <th className="w-12 text-center">No.</th>
               <th className="w-32">중요도</th>
               <th className="w-32">대분류</th>
               <th className="w-32">중분류</th>
@@ -842,8 +947,12 @@ export default function ChemicalsTable() {
             </tr>
           </thead>
           <tbody>
-            {filteredAndSortedChemicals.map((chemical) => (
-              <TableRow key={chemical.dsids} chemical={chemical} />
+            {filteredAndSortedChemicals.map((chemical, index) => (
+              <TableRow 
+                key={chemical.dsids} 
+                chemical={chemical} 
+                index={index}
+              />
             ))}
           </tbody>
         </table>

@@ -4,7 +4,7 @@ import { useBase } from '../context/BaseContext';
 import { useDayRecord } from '../context/DayRecordContext';
 import { useComponent } from '../context/ComponentContext';
 import { fetchUserAttributes, signOut } from 'aws-amplify/auth';
-import ChemicalsTable from '../dsGchemical/ChemicalsTable';
+
 
 export default function Layout({ children }) {
     const {
@@ -64,8 +64,8 @@ export default function Layout({ children }) {
     useEffect(() => {
       if (mapdscourseid=='MGC999') {
         fetchChemicals();
-        // fetchEquipments();
-        // fetchWorkforces();
+        fetchEquipments();
+        fetchWorkforces();
       }
 
     }, [mapdscourseid]);
@@ -118,7 +118,7 @@ export default function Layout({ children }) {
     }, [dsOrgList, mapdscourseid]);
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Navbar */}
       <nav className="bg-white text-gray-800 border-b border-gray-300 p-2 fixed w-full z-10 shadow-md">
         <div className="flex justify-between items-center">
@@ -132,14 +132,8 @@ export default function Layout({ children }) {
             <span className="text-sm text-gray-600">({userEmail})</span>
           </div>
           <div className="flex items-center space-x-3">
-            <Link to="/" className="text-gray-500 hover:text-blue-500 text-sm">
-              Home
-            </Link>
-            <Link to="/profile" className="text-gray-500 hover:text-blue-500 text-sm">
-              Profile
-            </Link>
-            <Link to="/settings" className="text-gray-500 hover:text-blue-500 text-sm">
-              Settings
+            <Link to="/dsdb" className="text-gray-500 hover:text-blue-500 text-sm">
+              동성Database
             </Link>
             <button 
                 onClick={handleSignOut}
@@ -152,7 +146,7 @@ export default function Layout({ children }) {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-grow pt-16">{children}</main>
+      <main className="flex-grow pt-16 h-[calc(100vh-4rem)]">{children}</main>
     </div>
   );
 }
