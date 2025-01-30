@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { useComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/ComponentContext';
 import { useBase } from '../context/BaseContext';
 import EditEquipmentDialog from './EditEquipmentDialog';
 import { NumberInput, TextInput, UnitInput, formatUTCToLocal } from '../components/DSInputs';
 
 export default function DSEquipmentTable() {
-  const { equipments, updateEquipment, deleteEquipment, addEquipment } = useComponent();
+  const { globalEquipments, updateGlobalEquipment, deleteGlobalEquipment, addGlobalEquipment } = useGlobalComponent();
   const { dsOrgList } = useBase();
   
   // 검색어 상태
@@ -38,7 +38,7 @@ export default function DSEquipmentTable() {
   // 고유한 필터 옵션 추출
   const filterOptions = useMemo(() => {
     // 분류 옵션을 우선순위에 따라 정렬
-    const categories = ['all', ...new Set(equipments.map(e => e.category))]
+    const categories = ['all', ...new Set(globalEquipments.map(e => e.category))]
       .sort((a, b) => {
         if (a === 'all') return -1;
         if (b === 'all') return 1;
@@ -48,10 +48,10 @@ export default function DSEquipmentTable() {
     // 선택된 카테고리에 따른 유형 옵션 추출
     const getTypeOptions = (selectedCategory) => {
       if (selectedCategory === 'all') {
-        return ['all', ...new Set(equipments.map(e => e.type))];
+        return ['all', ...new Set(globalEquipments.map(e => e.type))];
       }
       return ['all', ...new Set(
-        equipments
+        globalEquipments
           .filter(e => e.category === selectedCategory)
           .map(e => e.type)
       )];
@@ -61,11 +61,11 @@ export default function DSEquipmentTable() {
       category: categories,
       type: getTypeOptions(filters.category)
     };
-  }, [equipments, filters.category]);
+  }, [globalEquipments, filters.category]);
 
   // 필터링 및 정렬된 데이터
   const filteredAndSortedEquipments = useMemo(() => {
-    return [...equipments]
+    return [...globalEquipments]
       .filter(equipment => {
         const searchMatch = searchTerm === '' || 
           equipment.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -85,7 +85,7 @@ export default function DSEquipmentTable() {
         // 3. 같은 유형 내에서는 이름순
         return a.name.localeCompare(b.name);
       });
-  }, [equipments, filters, searchTerm]);
+  }, [globalEquipments, filters, searchTerm]);
 
   // 필터 선택 컴포넌트
   const FilterSelect = ({ label, value, onChange, options }) => (
@@ -161,7 +161,7 @@ export default function DSEquipmentTable() {
   const handleDelete = async (id) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
-        const result = await deleteEquipment(id);
+        const result = await deleteGlobalEquipment(id);
         if (!result){
           alert('삭제에 실패했습니다.');
         }

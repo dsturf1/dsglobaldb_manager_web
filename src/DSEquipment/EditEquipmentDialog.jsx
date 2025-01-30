@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { getUrl, uploadData } from 'aws-amplify/storage';
-import { useComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/ComponentContext';
 import { useBase } from '../context/BaseContext';
 import { NumberInput, TextInput, UnitInput, formatUTCToLocal, formatLocalToUTC } from '../components/DSInputs';
 import defaultImage from '../assets/logo192.png';
@@ -25,7 +25,7 @@ const processImage = async (file) => {
 };
 
 export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd }) {
-  const { updateEquipment, addEquipment, equipments } = useComponent();
+  const { updateGlobalEquipment, addGlobalEquipment, globalEquipments } = useGlobalComponent();
   const { dsOrgList } = useBase();
   const [form, setForm] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -38,7 +38,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
   // 카테고리와 타입의 unique한 조합 추출
   const categoryTypeMap = useMemo(() => {
     const map = new Map();
-    equipments.forEach(eq => {
+    globalEquipments.forEach(eq => {
       if (!map.has(eq.category)) {
         map.set(eq.category, new Set());
       }
@@ -50,7 +50,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
       obj[category] = Array.from(types);
       return obj;
     }, {});
-  }, [equipments]);
+  }, [globalEquipments]);
 
   // 현재 선택 가능한 모든 카테고리
   const categories = useMemo(() => 
@@ -137,7 +137,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
           ...form,
           id: uuidv4()
         };
-        await addEquipment(newEquipment);
+        await addGlobalEquipment(newEquipment);
         if (pendingImage && newEquipment.mapdscourseid) {
           const result = await uploadData({
             path: `public/equipment/${newEquipment.mapdscourseid}/${newEquipment.id}.png`,
@@ -193,7 +193,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
           }).result;
           console.log('New image uploaded:', result);
         }
-        await updateEquipment(form);
+        await updateGlobalEquipment(form);
       }
       onClose();
     } catch (error) {

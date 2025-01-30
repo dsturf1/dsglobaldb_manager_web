@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/ComponentContext';
 import { useBase } from '../context/BaseContext';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 export default function AddWorkforceDialog({ isOpen, onClose }) {
-  const { workforces, addWorkforce } = useComponent();
+  const { globalWorkforces, addGlobalWorkforce } = useGlobalComponent();
   const { dsOrgOrder, dsrankOrder } = useBase();
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
@@ -19,7 +19,7 @@ export default function AddWorkforceDialog({ isOpen, onClose }) {
   const generateNewId = () => {
     const randomNum = Math.floor(Math.random() * 10000000).toString().padStart(7, '0');
     const newId = `DS${randomNum}`;
-    workforces.forEach(workforce => {
+    globalWorkforces.forEach(workforce => {
       if (workforce.id === newId) {
         return generateNewId();
       }
@@ -45,7 +45,7 @@ export default function AddWorkforceDialog({ isOpen, onClose }) {
         id: generateNewId(),
         category: getCategory(form.rank)
       };
-      await addWorkforce(newWorkforce);
+      await addGlobalWorkforce(newWorkforce);
       onClose();
     } catch (error) {
       console.error('Failed to add workforce:', error);

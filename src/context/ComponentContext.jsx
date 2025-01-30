@@ -2,228 +2,224 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { useBase } from './BaseContext';
 
-const ComponentContext = createContext();
+const GlobalComponentContext = createContext();
 
 const apiClient = axios.create({
   baseURL: 'https://jyipsj28s9.execute-api.us-east-1.amazonaws.com/dev',
   headers: { 'Content-Type': 'application/json; charset=utf-8' },
 });
 
-export const ComponentProvider = ({ children }) => {
-  const [chemicals, setChemicals] = useState([]);
-  const [equipments, setEquipments] = useState([]);
-  const [workforces, setWorkforces] = useState([]);
+export const GlobalComponentProvider = ({ children }) => {
+  const [globalChemicals, setGlobalChemicals] = useState([]);
+  const [globalEquipments, setGlobalEquipments] = useState([]);
+  const [globalWorkforces, setGlobalWorkforces] = useState([]);
   const { mapdscourseid } = useBase();
 
   // chemicals 변경 감지를 위한 useEffect 추가
   useEffect(() => {
-    console.log('Chemicals updated:', chemicals);
-  }, [chemicals]);
+    console.log('Global Chemicals updated:', globalChemicals);
+  }, [globalChemicals]);
 
-  // Fetch Chemicals
-  const fetchChemicals = async () => {
+  // Fetch Global Chemicals
+  const fetchGlobalChemicals = async () => {
     try {
       const response = await apiClient.get('/dschemical',);
       const res_ = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
       const body = res_.body;
       const data = typeof body === 'string' ? JSON.parse(body) : body;
-      setChemicals(data);
-      console.log('In First Chemmical Fetch in ComponentContext', data);
+      setGlobalChemicals(data);
+      console.log('In First Global Chemical Fetch in GlobalComponentContext', data);
     } catch (err) {
-      console.error('Error fetching chemicals:', err);
+      console.error('Error fetching global chemicals:', err);
     }
   };
 
-  // Fetch Equipments
-  const fetchEquipments = async () => {
+  // Fetch Global Equipments
+  const fetchGlobalEquipments = async () => {
     try {
-      // const response = await apiClient.get('/equipment', {
-      //   params: { mapdscourseid: mapdscourseid },
-      // });
       const response = await apiClient.get('/equipment');
       const res_ = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
       const body = res_.body;
       const data = typeof body === 'string' ? JSON.parse(body) : body;
-      setEquipments(data);
-      console.log('In First Equipment Fetch in ComponentContext', data);
+      setGlobalEquipments(data);
+      console.log('In First Global Equipment Fetch in GlobalComponentContext', data);
     } catch (err) {
-      console.error('Error fetching equipments:', err);
+      console.error('Error fetching global equipments:', err);
     }
   };
 
-  // Fetch Workforces
-  const fetchWorkforces = async () => {
+  // Fetch Global Workforces
+  const fetchGlobalWorkforces = async () => {
     try {
       const response = await apiClient.get('/dsworkforce');
       const res_ = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
       const body = res_.body;
       const data = typeof body === 'string' ? JSON.parse(body) : body;
-      setWorkforces(data);
-      console.log('In First Workforce Fetch in ComponentContext', data);
+      setGlobalWorkforces(data);
+      console.log('In First Global Workforce Fetch in GlobalComponentContext', data);
     } catch (err) {
-      console.error('Error fetching workforces:', err);
+      console.error('Error fetching global workforces:', err);
     }
   };
 
-  // Add Chemical
-  const addChemical = async (chemical) => {
+  // Add Global Chemical
+  const addGlobalChemical = async (chemical) => {
     try {
       await apiClient.post('/dschemical', chemical);
-      setChemicals(prev => [...prev, chemical]);
-      console.log(`Chemical with id ${chemical.dsids} inserted successfully.`);
+      setGlobalChemicals(prev => [...prev, chemical]);
+      console.log(`Global Chemical with id ${chemical.dsids} inserted successfully.`);
     } catch (err) {
-      console.error('Error adding chemical:', err);
+      console.error('Error adding global chemical:', err);
     }
   };
 
-  // Add Equipment
-  const addEquipment = async (equipment) => {
+  // Add Global Equipment
+  const addGlobalEquipment = async (equipment) => {
     try {
       await apiClient.post('/equipment', equipment);  
-      setEquipments(prev => [...prev, equipment]);
-      console.log(`Equipment with id ${equipment.id} inserted successfully.`);
+      setGlobalEquipments(prev => [...prev, equipment]);
+      console.log(`Global Equipment with id ${equipment.id} inserted successfully.`);
     } catch (err) {
-      console.error('Error adding equipment:', err);
+      console.error('Error adding global equipment:', err);
     }
   };
 
-  // Add Workforce
-  const addWorkforce = async (workforce) => {
+  // Add Global Workforce
+  const addGlobalWorkforce = async (workforce) => {
     try {
       await apiClient.post('/dsworkforce', workforce);
-      setWorkforces(prev => [...prev, workforce]);
-      console.log(`Workforce with id ${workforce.id} inserted successfully.`);
+      setGlobalWorkforces(prev => [...prev, workforce]);
+      console.log(`Global Workforce with id ${workforce.id} inserted successfully.`);
     } catch (err) {
-      console.error('Error adding workforce:', err);
+      console.error('Error adding global workforce:', err);
     }
   };
 
-  // Update Chemical
-  const updateChemical = async (_chemical) => {
+  // Update Global Chemical
+  const updateGlobalChemical = async (_chemical) => {
     try {
       const response = await apiClient.put('/dschemical', _chemical);
       if (response.status === 200) {
-
-        setChemicals(prev => 
+        setGlobalChemicals(prev => 
           prev.map(chemical => 
             chemical.dsids === _chemical.dsids ? _chemical : chemical
           )
         );
-        console.log(`Chemical with id ${_chemical.dsids} updated successfully.`);
+        console.log(`Global Chemical with id ${_chemical.dsids} updated successfully.`);
         return true;
       } else {
         return { success: false, error: 'Update failed' };
       }
     } catch (err) {
-      console.error('Error updating chemical:', err);
+      console.error('Error updating global chemical:', err);
       return false;
     }
   };
 
-  // Update Equipment
-  const updateEquipment = async (equipment) => {
+  // Update Global Equipment
+  const updateGlobalEquipment = async (equipment) => {
     try {
       await apiClient.put('/equipment', equipment);
-      setEquipments((prev) => prev.map((item) => (item.id === equipment.id ? equipment : item)));  
-      console.log(`Equipment with id ${equipment.id} updated successfully.`);
+      setGlobalEquipments((prev) => prev.map((item) => (item.id === equipment.id ? equipment : item)));  
+      console.log(`Global Equipment with id ${equipment.id} updated successfully.`);
     } catch (err) {
-      console.error('Error updating equipment:', err);
+      console.error('Error updating global equipment:', err);
     }
   };
 
-  // Update Workforce
-  const updateWorkforce = async (workforce) => {
+  // Update Global Workforce
+  const updateGlobalWorkforce = async (workforce) => {
     try {
       await apiClient.put('/dsworkforce', workforce, {
         params: { mapdscourseid: mapdscourseid },
       });
-      setWorkforces((prev) => prev.map((item) => (item.id === workforce.id ? workforce : item)));
-      console.log(`Workforce with id ${workforce.id} updated successfully.`);
+      setGlobalWorkforces((prev) => prev.map((item) => (item.id === workforce.id ? workforce : item)));
+      console.log(`Global Workforce with id ${workforce.id} updated successfully.`);
     } catch (err) {
-      console.error('Error updating workforce:', err);
+      console.error('Error updating global workforce:', err);
     }
   };
 
-  // Delete Chemical
-  const deleteChemical = async (dsids) => {
+  // Delete Global Chemical
+  const deleteGlobalChemical = async (dsids) => {
     try {
       const response = await apiClient.delete('/dschemical', {
         params: { id: dsids }
       });
       if (response.status === 200) {
-        setChemicals(prev => prev.filter(chemical => chemical.dsids !== dsids));
-        console.log(`Chemical with id ${dsids} deleted successfully.`,response);
+        setGlobalChemicals(prev => prev.filter(chemical => chemical.dsids !== dsids));
+        console.log(`Global Chemical with id ${dsids} deleted successfully.`,response);
         return true;
       }
       return false;
     } catch (err) {
-      console.error('Error deleting chemical:', err);
+      console.error('Error deleting global chemical:', err);
       return false;
     }
   };
 
-  // Delete Equipment
-  const deleteEquipment = async (equipmentId) => {
+  // Delete Global Equipment
+  const deleteGlobalEquipment = async (equipmentId) => {
     try {
       const response = await apiClient.delete('/equipment', {
         params: { id: equipmentId }
       });
       if (response.status === 200) {
-        setEquipments(prev => prev.filter(equipment => equipment.id !== equipmentId));
-        console.log(`Equipment with id ${equipmentId} deleted successfully.`);
+        setGlobalEquipments(prev => prev.filter(equipment => equipment.id !== equipmentId));
+        console.log(`Global Equipment with id ${equipmentId} deleted successfully.`);
         return true;
       }
       return false;
     } catch (err) {
-      console.error('Error deleting equipment:', err);
+      console.error('Error deleting global equipment:', err);
       return false;
     }
   };
 
-  // Delete Workforce
-  const deleteWorkforce = async (workforceId) => {
+  // Delete Global Workforce
+  const deleteGlobalWorkforce = async (workforceId) => {
     try {
       const response = await apiClient.delete('/dsworkforce', {
         params: { id: workforceId},
       });
       if (response.status === 200) {
-        setWorkforces(prev => prev.filter(workforce => workforce.id !== workforceId));
-        console.log(`Workforce with id ${workforceId} deleted successfully.`);
+        setGlobalWorkforces(prev => prev.filter(workforce => workforce.id !== workforceId));
+        console.log(`Global Workforce with id ${workforceId} deleted successfully.`);
         return true;
       }
       return false;
     } catch (err) {
-      console.error('Error deleting workforce:', err);
+      console.error('Error deleting global workforce:', err);
       return false;
     }
   };
 
   return (
-    <ComponentContext.Provider
+    <GlobalComponentContext.Provider
       value={{
-        chemicals,
-        setChemicals,
-        equipments,
-        workforces,
-        fetchChemicals,
-        fetchEquipments,
-        fetchWorkforces,
-        addChemical,
-        addEquipment,
-        addWorkforce,
-        updateChemical,
-        updateEquipment,
-        updateWorkforce,
-        deleteChemical,
-        deleteEquipment,
-        deleteWorkforce,
+        globalChemicals,
+        setGlobalChemicals,
+        globalEquipments,
+        globalWorkforces,
+        fetchGlobalChemicals,
+        fetchGlobalEquipments,
+        fetchGlobalWorkforces,
+        addGlobalChemical,
+        addGlobalEquipment,
+        addGlobalWorkforce,
+        updateGlobalChemical,
+        updateGlobalEquipment,
+        updateGlobalWorkforce,
+        deleteGlobalChemical,
+        deleteGlobalEquipment,
+        deleteGlobalWorkforce,
       }}
     >
       {children}
-    </ComponentContext.Provider>
+    </GlobalComponentContext.Provider>
   );
 };
 
-export const useComponent = () => {
-  return useContext(ComponentContext);
+export const useGlobalComponent = () => {
+  return useContext(GlobalComponentContext);
 };

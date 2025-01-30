@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from "react-router-dom";
 import { useBase } from '../context/BaseContext';
 import { useDayRecord } from '../context/DayRecordContext';
-import { useComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/ComponentContext';
 import { fetchUserAttributes, signOut } from 'aws-amplify/auth';
 
 
@@ -22,13 +22,10 @@ export default function Layout({ children }) {
     } = useDayRecord();
   
     const {
-      chemicals,
-      equipments,
-      workforces,
-      fetchChemicals,
-      fetchEquipments,
-      fetchWorkforces,
-    } =  useComponent();
+      fetchGlobalChemicals,
+      fetchGlobalEquipments,
+      fetchGlobalWorkforces,
+    } =  useGlobalComponent();
   
     const [loading, setLoading] = useState(true);
     const [userEmail, setUserEmail] = useState('');
@@ -63,9 +60,9 @@ export default function Layout({ children }) {
   
     useEffect(() => {
       if (mapdscourseid=='MGC999') {
-        fetchChemicals();
-        fetchEquipments();
-        fetchWorkforces();
+        fetchGlobalChemicals();
+        fetchGlobalEquipments();
+        fetchGlobalWorkforces();
       }
 
     }, [mapdscourseid]);

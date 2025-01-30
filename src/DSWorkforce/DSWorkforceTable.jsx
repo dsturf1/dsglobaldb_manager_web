@@ -1,11 +1,11 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { useComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/ComponentContext';
 import { useBase } from '../context/BaseContext';
 import AddWorkforceDialog from './AddWorkforceDialog';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 export default function DSWorkforceTable() {
-  const { workforces, updateWorkforce, deleteWorkforce, setWorkforces } = useComponent();
+  const { globalWorkforces, updateGlobalWorkforce, deleteGlobalWorkforce, setGlobalWorkforces } = useGlobalComponent();
   const { dsOrgOrder, dsrankOrder } = useBase();
   
   // 검색어 상태
@@ -24,13 +24,13 @@ export default function DSWorkforceTable() {
 
   // 고유한 필터 옵션 추출
   const filterOptions = useMemo(() => ({
-    org: ['all', ...new Set(workforces.map(w => w.org))],
-    category: ['all', ...new Set(workforces.map(w => w.category))]
-  }), [workforces]);
+    org: ['all', ...new Set(globalWorkforces.map(w => w.org))],
+    category: ['all', ...new Set(globalWorkforces.map(w => w.category))]
+  }), [globalWorkforces]);
 
   // 필터링 및 정렬된 데이터
   const filteredAndSortedWorkforces = useMemo(() => {
-    return [...workforces]
+    return [...globalWorkforces]
       .filter(workforce => {
         const searchMatch = searchTerm === '' || 
           workforce.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -39,7 +39,7 @@ export default function DSWorkforceTable() {
         return searchMatch && orgMatch && categoryMatch;
       })
       .sort((a, b) => a.id.localeCompare(b.id));
-  }, [workforces, filters, searchTerm]);
+  }, [globalWorkforces, filters, searchTerm]);
 
   // 필터 선택 컴포넌트
   const FilterSelect = ({ label, value, onChange, options }) => (
@@ -72,7 +72,7 @@ export default function DSWorkforceTable() {
     setEditingRows(prev => new Set(prev).add(id));
     setEditedWorkforces(prev => ({
       ...prev,
-      [id]: { ...workforces.find(w => w.id === id) }
+      [id]: { ...globalWorkforces.find(w => w.id === id) }
     }));
   };
 
@@ -104,7 +104,7 @@ export default function DSWorkforceTable() {
   const handleSave = async (id) => {
     setSavingRows(prev => new Set([...prev, id]));
     try {
-      await updateWorkforce(editedWorkforces[id]);
+      await updateGlobalWorkforce(editedWorkforces[id]);
       setEditingRows(prev => {
         const next = new Set(prev);
         next.delete(id);
@@ -143,7 +143,7 @@ export default function DSWorkforceTable() {
   const handleDelete = async (id) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
-        const result = await deleteWorkforce(id);
+        const result = await deleteGlobalWorkforce(id);
         if (!result){
           alert('삭제에 실패했습니다.');
         }

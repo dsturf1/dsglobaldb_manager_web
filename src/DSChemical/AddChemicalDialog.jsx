@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/ComponentContext';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 export default function AddChemicalDialog({ isOpen, onClose }) {
-  const { addChemical, chemicals } = useComponent();
+  const { addGlobalChemical, globalChemicals } = useGlobalComponent();
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
     infoL3: '중요도1',
@@ -40,7 +40,7 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
     const currentName = form.name.trim();
 
     // 1. 동일한 이름을 가진 항목들 찾기
-    const sameNameItems = chemicals.filter(item => 
+    const sameNameItems = globalChemicals.filter(item => 
       item.name.trim() === currentName
     );
 
@@ -53,8 +53,8 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
     return `${prefix}${(maxNumber + 1).toString().padStart(4, '0')}`;
     } else {
       // 동일한 이름이 없는 경우: 전체 항목 중 가장 큰 3자리 숫자 + 1
-      const maxNumber = chemicals.length > 0 
-        ? Math.max(...chemicals.map(item => parseInt(item.dsids.slice(-4, -1))))
+      const maxNumber = globalChemicals.length > 0 
+        ? Math.max(...globalChemicals.map(item => parseInt(item.dsids.slice(-4, -1))))
         : 0;
       return `${prefix}${(maxNumber + 1).toString().padStart(3, '0')}0`;
     }
@@ -70,7 +70,7 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
         ...form,
         dsids: getPreviewCode()
       };
-      await addChemical(newChemical);
+      await addGlobalChemical(newChemical);
       onClose();
     } catch (error) {
       console.error('Failed to add chemical:', error);

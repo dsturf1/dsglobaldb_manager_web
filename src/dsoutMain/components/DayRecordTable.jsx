@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useBase } from '../../context/BaseContext'; // dsTask 가져오기
-import { useComponent } from '../../context/ComponentContext';
+import { useGlobalComponent } from '../../context/ComponentContext';
 import { useDayRecord } from '../../context/DayRecordContext'; // 추가
 import LocationTree from './LocationTree';
 import WorkforceDialog from './WorkforceDialog';
@@ -9,7 +9,7 @@ import ChemicalDialog from './ChemicalDialog';
 
 const DayRecordTable = ({ record }) => {
   const { dsTaskList } = useBase();
-  const { workforces, equipments, chemicals } = useComponent();
+  const { globalWorkforces, globalEquipments, globalChemicals } = useGlobalComponent();
   const { selectedDayRecord, updateDayRecord } = useDayRecord(); // useDayRecord 추가
 
   // 상태 초기화
@@ -228,7 +228,7 @@ const DayRecordTable = ({ record }) => {
               </button>
               {isWorkforceDialogOpen && (
                 <WorkforceDialog
-                  availableWorkforces={workforces}
+                  availableWorkforces={globalWorkforces}
                   selectedWorkforces={workforce}
                   onClose={() => setIsWorkforceDialogOpen(false)}
                   onSave={handleWorkforceChange}
@@ -250,7 +250,7 @@ const DayRecordTable = ({ record }) => {
               </button>
               {isEquipmentDialogOpen && (
                 <EquipmentDialog
-                  availableEquipments={equipments}
+                  availableEquipments={globalEquipments}
                   selectedEquipments={equipment}
                   onClose={() => setIsEquipmentDialogOpen(false)}
                   onSave={handleEquipmentChange}
@@ -309,7 +309,7 @@ const DayRecordTable = ({ record }) => {
               </button>
               {isChemicalDialogOpen && (
                 <ChemicalDialog
-                  availableChemicals={chemicals}
+                  availableChemicals={globalChemicals}
                   selectedChemicals={chemical}
                   onClose={() => setIsChemicalDialogOpen(false)}
                   onSave={handleChemicalAdd}

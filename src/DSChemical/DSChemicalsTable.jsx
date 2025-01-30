@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { useComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/ComponentContext';
 import AddChemicalDialog from './AddChemicalDialog';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
@@ -12,7 +12,7 @@ import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 export default function DSChemicalsTable() {
   
-  const { chemicals, setChemicals, updateChemical, deleteChemical } = useComponent();
+  const { globalChemicals, setGlobalChemicals, updateGlobalChemical, deleteGlobalChemical } = useGlobalComponent();
   
   // 검색어 상태 추가
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,9 +37,9 @@ export default function DSChemicalsTable() {
       '기타약재': ['all', '기타약재']
     };
     
-    const uniqueL3 = [...new Set(chemicals.map(c => c.infoL3))];
-    const uniqueL2 = [...new Set(chemicals.map(c => c.infoL2))];
-    const uniqueL1 = [...new Set(chemicals.map(c => c.infoL1))];
+    const uniqueL3 = [...new Set(globalChemicals.map(c => c.infoL3))];
+    const uniqueL2 = [...new Set(globalChemicals.map(c => c.infoL2))];
+    const uniqueL1 = [...new Set(globalChemicals.map(c => c.infoL1))];
     
     const filteredL3 = uniqueL3.filter(item => !defaultL3.includes(item));
     const filteredL2 = uniqueL2.filter(item => !defaultL2.includes(item));
@@ -63,7 +63,7 @@ export default function DSChemicalsTable() {
       infoL2: [...defaultL2, ...filteredL2],
       infoL1: getL1Options(filters.infoL2)  // 현재 선택된 대분류에 따른 중분류 옵션
     };
-  }, [chemicals, filters.infoL2]);  // filters.infoL2 의존성 추가
+  }, [globalChemicals, filters.infoL2]);  // filters.infoL2 의존성 추가
 
   // 필터 변경 핸들러
   const handleFilterChange = (filterType, value) => {
@@ -93,7 +93,7 @@ export default function DSChemicalsTable() {
       '': 9999
     };
 
-    return [...chemicals]
+    return [...globalChemicals]
       .filter(chemical => {
         const searchMatch = searchTerm === '' || 
           chemical.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -136,7 +136,7 @@ export default function DSChemicalsTable() {
         // 4. 코드순
         return a.dsids.localeCompare(b.dsids);
       });
-  }, [chemicals, filters, searchTerm]);
+  }, [globalChemicals, filters, searchTerm]);
 
   // 필터 선택 컴포넌트
   const FilterSelect = ({ label, value, onChange, options }) => (
@@ -162,7 +162,7 @@ export default function DSChemicalsTable() {
     setEditingRows(prev => new Set(prev).add(dsids));
     setEditedChemicals(prev => ({
       ...prev,
-      [dsids]: { ...chemicals.find(c => c.dsids === dsids) }
+      [dsids]: { ...globalChemicals.find(c => c.dsids === dsids) }
     }));
   };
 
@@ -178,7 +178,7 @@ export default function DSChemicalsTable() {
   const handleSave = async (dsids) => {
     setSavingRows(prev => new Set([...prev, dsids]));
     try {
-      const success = await updateChemical(editedChemicals[dsids]);
+      const success = await updateGlobalChemical(editedChemicals[dsids]);
       if (success) {
         setEditingRows(prev => {
           const next = new Set(prev);
@@ -243,7 +243,7 @@ export default function DSChemicalsTable() {
       OUT_PRICE1: Number(formData.OUT_PRICE1)
     });
     
-    setChemicals(prev => [newChemical, ...prev]);
+    setGlobalChemicals(prev => [newChemical, ...prev]);
     console.log('New Chemical:', newChemical);
     setIsAddModalOpen(false);
   };
@@ -275,7 +275,7 @@ export default function DSChemicalsTable() {
 
     // 3~5 digit 생성 (기존 코드 중 가장 큰 번호 + 1)
     const getNextSequence = () => {
-      const sequences = chemicals
+      const sequences = globalChemicals
         .map(c => {
           const match = c.dsids.match(/^[A-C][0-3](\d{3})/);
           return match ? parseInt(match[1]) : 0;
@@ -288,7 +288,7 @@ export default function DSChemicalsTable() {
 
     // 마지막 digit 결정 (같은 이름의 용량 다른 제품 순서)
     const getLastDigit = (name) => {
-      const sameNameItems = chemicals
+      const sameNameItems = globalChemicals
         .filter(c => c.name === name)
         .map(c => {
           const lastDigit = c.dsids.slice(-1);
@@ -326,7 +326,7 @@ export default function DSChemicalsTable() {
   const handleDelete = async (dsids) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
-        const result = await deleteChemical(dsids);
+        const result = await deleteGlobalChemical(dsids);
         if (!result)  {
           alert('삭제에 실패했습니다.');
         }
