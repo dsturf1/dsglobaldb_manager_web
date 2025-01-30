@@ -1,11 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import { useComponent } from '../context/ComponentContext';
+import { useBase } from '../context/BaseContext';
+import EditEquipmentDialog from './EditEquipmentDialog';
+import { NumberInput, TextInput, UnitInput, formatUTCToLocal } from '../components/DSInputs';
 
 export default function DSEquipmentTable() {
-  const { equipments } = useComponent();
+  const { equipments, updateEquipment, deleteEquipment, addEquipment } = useComponent();
+  const { dsOrgList } = useBase();
   
   // 검색어 상태
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // 편집 모달 상태
+  const [editingEquipment, setEditingEquipment] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
   // 필터 상태
   const [filters, setFilters] = useState({
@@ -118,6 +126,52 @@ export default function DSEquipmentTable() {
     return amount?.toLocaleString('ko-KR') + '원';
   };
 
+  // 신규 장비 추가 핸들러
+  const handleAddNew = () => {
+    setEditingEquipment({
+      category: '',
+      type: '',
+      name: '',
+      modelNumber: '',
+      manufacturer: '',
+      seller: '',
+      purchaseDate: '',
+      cost: 0,
+      owner: '',
+      location: '',
+      desc: '',
+      id: '',
+      mapdscourseid: ''
+    });
+    setIsAddModalOpen(true);
+  };
+
+  // 모달 닫기 핸들러
+  const handleCloseModal = () => {
+    setEditingEquipment(null);
+    setIsAddModalOpen(false);
+  };
+
+  // mapdscourseid를 org로 변환하는 함수
+  const getOrgName = (mapdscourseid) => {
+    const org = dsOrgList.find(item => item.mapdscourseid === mapdscourseid);
+    return org?.org || '-';
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('정말 삭제하시겠습니까?')) {
+      try {
+        const result = await deleteEquipment(id);
+        if (!result){
+          alert('삭제에 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('Error deleting equipment:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+      }
+    }
+  };
+
   return (
     <div className="p-4">
       {/* 검색 및 필터 UI */}
@@ -136,6 +190,12 @@ export default function DSEquipmentTable() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <button 
+              className="btn btn-primary btn-sm"
+              onClick={handleAddNew}
+            >
+              신규 추가
+            </button>
           </div>
 
           {/* 오른쪽: 필터들 */}
@@ -171,7 +231,7 @@ export default function DSEquipmentTable() {
               <th className="w-32">구매일자</th>
               <th className="w-32 text-right">구매가격</th>
               <th className="w-24">소유자</th>
-              <th className="w-32">위치</th>
+              <th className="w-32">담당 부서</th>
               <th className="w-28">작업</th>
             </tr>
           </thead>
@@ -188,10 +248,24 @@ export default function DSEquipmentTable() {
                 <td>{formatDate(equipment.purchaseDate)}</td>
                 <td className="text-right">{formatCurrency(equipment.cost)}</td>
                 <td>{equipment.owner}</td>
-                <td>{equipment.location}</td>
+                <td>{getOrgName(equipment.mapdscourseid)}</td>
                 <td>
                   <div className="flex gap-2">
-                    <button className="btn btn-xs btn-error">삭제</button>
+                    <button 
+                      className="btn btn-xs btn-info"
+                      onClick={() => setEditingEquipment(equipment)}
+                    >
+                      수정
+                    </button>
+                    <button 
+                      className="btn btn-xs btn-error"
+                      onClick={(e) => {
+                        e.stopPropagation();  // 더블클릭 이벤트 전파 방지
+                        handleDelete(equipment.id);
+                      }}
+                    >
+                      삭제
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -199,6 +273,14 @@ export default function DSEquipmentTable() {
           </tbody>
         </table>
       </div>
+
+      {/* 편집 Modal */}
+      <EditEquipmentDialog
+        isOpen={!!editingEquipment || isAddModalOpen}
+        equipment={editingEquipment}
+        onClose={handleCloseModal}
+        isAdd={isAddModalOpen}
+      />
     </div>
   );
 } 

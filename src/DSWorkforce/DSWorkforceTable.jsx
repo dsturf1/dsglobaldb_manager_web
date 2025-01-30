@@ -1,8 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useComponent } from '../context/ComponentContext';
+import { useBase } from '../context/BaseContext';
+import AddWorkforceDialog from './AddWorkforceDialog';
+import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 export default function DSWorkforceTable() {
-  const { workforces } = useComponent();
+  const { workforces, updateWorkforce, deleteWorkforce, setWorkforces } = useComponent();
+  const { dsOrgOrder, dsrankOrder } = useBase();
   
   // 검색어 상태
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,6 +16,11 @@ export default function DSWorkforceTable() {
     org: 'all',    
     category: 'all'
   });
+
+  // 편집 상태 관리
+  const [editingRows, setEditingRows] = useState(new Set());
+  const [editedWorkforces, setEditedWorkforces] = useState({});
+  const [savingRows, setSavingRows] = useState(new Set());
 
   // 고유한 필터 옵션 추출
   const filterOptions = useMemo(() => ({
@@ -58,6 +67,201 @@ export default function DSWorkforceTable() {
     }));
   };
 
+  // 행 편집 시작
+  const handleStartEdit = (id) => {
+    setEditingRows(prev => new Set(prev).add(id));
+    setEditedWorkforces(prev => ({
+      ...prev,
+      [id]: { ...workforces.find(w => w.id === id) }
+    }));
+  };
+
+  // 편집 데이터 변경 핸들러
+  const handleEditChange = (id, field, value) => {
+    setEditedWorkforces(prev => {
+      const updated = {
+        ...prev,
+        [id]: { 
+          ...prev[id], 
+          [field]: value,
+          // 직급 변경 시 분류 자동 업데이트
+          ...(field === 'rank' ? { category: getCategory(value) } : {})
+        }
+      };
+      return updated;
+    });
+  };
+
+  // 직급에 따른 분류 결정
+  const getCategory = (rank) => {
+    if (rank === '계약직') return '계약직';
+    if (rank === '일용남') return '일용남';
+    if (rank === '일용여') return '일용여';
+    return '정규직';
+  };
+
+  // 변경사항 저장
+  const handleSave = async (id) => {
+    setSavingRows(prev => new Set([...prev, id]));
+    try {
+      await updateWorkforce(editedWorkforces[id]);
+      setEditingRows(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      setEditedWorkforces(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (error) {
+      console.error('Failed to save:', error);
+    } finally {
+      setSavingRows(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
+  // 편집 취소
+  const handleCancel = (id) => {
+    setEditingRows(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setEditedWorkforces(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('정말 삭제하시겠습니까?')) {
+      try {
+        const result = await deleteWorkforce(id);
+        if (!result){
+          alert('삭제에 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('Error deleting workforce:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+      }
+    }
+  };
+
+  // 행 렌더링 컴포넌트
+  const TableRow = ({ workforce, index }) => {
+    const isEditing = editingRows.has(workforce.id);
+    const editedData = editedWorkforces[workforce.id];
+
+    if (isEditing) {
+      return (
+        <tr>
+          <td className="text-center">{index + 1}</td>
+          <td>{workforce.id}</td>
+          <td>
+            <select
+              className="select select-bordered select-sm w-full"
+              value={editedData.org}
+              onChange={(e) => handleEditChange(workforce.id, 'org', e.target.value)}
+            >
+              {dsOrgOrder.map(org => (
+                <option key={org} value={org}>{org}</option>
+              ))}
+            </select>
+          </td>
+          <td>{editedData.category}</td>
+          <td>
+            <TextInput
+              value={editedData.name}
+              onChange={(value) => handleEditChange(workforce.id, 'name', value)}
+              className="input input-bordered input-sm w-full"
+            />
+          </td>
+          <td>
+            <select
+              className="select select-bordered select-sm w-full"
+              value={editedData.rank}
+              onChange={(e) => handleEditChange(workforce.id, 'rank', e.target.value)}
+            >
+              {dsrankOrder.map(rank => (
+                <option key={rank} value={rank}>{rank}</option>
+              ))}
+            </select>
+          </td>
+          <td>
+            <TextInput
+              value={editedData.Email}
+              onChange={(value) => handleEditChange(workforce.id, 'Email', value)}
+              className="input input-bordered input-sm w-full"
+            />
+          </td>
+          <td>
+            <div className="flex gap-2">
+              <button 
+                className="btn btn-xs btn-primary"
+                onClick={() => handleSave(workforce.id)}
+                disabled={savingRows.has(workforce.id)}
+              >
+                {savingRows.has(workforce.id) ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs"></span>
+                    저장
+                  </>
+                ) : (
+                  '저장'
+                )}
+              </button>
+              <button 
+                className="btn btn-xs"
+                onClick={() => handleCancel(workforce.id)}
+                disabled={savingRows.has(workforce.id)}
+              >
+                취소
+              </button>
+            </div>
+          </td>
+        </tr>
+      );
+    }
+
+    return (
+      <tr 
+        key={workforce.id}
+        onDoubleClick={() => handleStartEdit(workforce.id)}
+        className="cursor-pointer hover:bg-gray-100"
+      >
+        <td className="text-center">{index + 1}</td>
+        <td>{workforce.id}</td>
+        <td>{workforce.org}</td>
+        <td>{workforce.category}</td>
+        <td>{workforce.name}</td>
+        <td>{workforce.rank}</td>
+        <td>{workforce.Email}</td>
+        <td>
+          <div className="flex gap-2">
+            <button 
+              className="btn btn-xs btn-error"
+              onClick={(e) => {
+                e.stopPropagation();  // 더블클릭 이벤트 전파 방지
+                handleDelete(workforce.id);
+              }}
+            >
+              삭제
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
   return (
     <div className="p-4">
       {/* 검색 및 필터 UI */}
@@ -76,6 +280,12 @@ export default function DSWorkforceTable() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <button 
+              className="btn btn-primary btn-sm"
+              onClick={() => setIsAddModalOpen(true)}
+            >
+              신규 인력
+            </button>
           </div>
 
           {/* 오른쪽: 필터들 */}
@@ -105,7 +315,7 @@ export default function DSWorkforceTable() {
               <th className="w-28">코드</th>
               <th className="w-32">소속</th>
               <th className="w-24">분류</th>
-              <th>이름</th>
+              <th className="w-80">이름</th>
               <th className="w-24">직급</th>
               <th className="w-48">이메일</th>
               <th className="w-28">작업</th>
@@ -113,24 +323,20 @@ export default function DSWorkforceTable() {
           </thead>
           <tbody>
             {filteredAndSortedWorkforces.map((workforce, index) => (
-              <tr key={workforce.id}>
-                <td className="text-center">{index + 1}</td>
-                <td>{workforce.id}</td>
-                <td>{workforce.org}</td>
-                <td>{workforce.category}</td>
-                <td>{workforce.name}</td>
-                <td>{workforce.rank}</td>
-                <td>{workforce.Email}</td>
-                <td>
-                  <div className="flex gap-2">
-                    <button className="btn btn-xs btn-error">삭제</button>
-                  </div>
-                </td>
-              </tr>
+              <TableRow 
+                key={workforce.id} 
+                workforce={workforce} 
+                index={index}
+              />
             ))}
           </tbody>
         </table>
       </div>
+
+      <AddWorkforceDialog
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+      />
     </div>
   );
 } 

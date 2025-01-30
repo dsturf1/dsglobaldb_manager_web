@@ -25,7 +25,7 @@ export const ComponentProvider = ({ children }) => {
     try {
       const response = await apiClient.get('/dschemical',);
       const res_ = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-      const body = res_;// 이상하게 Proxy를 사용하면 {status:200, body:} 가 아닌, 
+      const body = res_.body;
       const data = typeof body === 'string' ? JSON.parse(body) : body;
       setChemicals(data);
       console.log('In First Chemmical Fetch in ComponentContext', data);
@@ -69,7 +69,7 @@ export const ComponentProvider = ({ children }) => {
   const addChemical = async (chemical) => {
     try {
       await apiClient.post('/dschemical', chemical);
-
+      setChemicals(prev => [...prev, chemical]);
       console.log(`Chemical with id ${chemical.dsids} inserted successfully.`);
     } catch (err) {
       console.error('Error adding chemical:', err);
@@ -79,8 +79,8 @@ export const ComponentProvider = ({ children }) => {
   // Add Equipment
   const addEquipment = async (equipment) => {
     try {
-      await apiClient.post('/equipment', equipment);
-
+      await apiClient.post('/equipment', equipment);  
+      setEquipments(prev => [...prev, equipment]);
       console.log(`Equipment with id ${equipment.id} inserted successfully.`);
     } catch (err) {
       console.error('Error adding equipment:', err);
@@ -91,7 +91,7 @@ export const ComponentProvider = ({ children }) => {
   const addWorkforce = async (workforce) => {
     try {
       await apiClient.post('/dsworkforce', workforce);
-
+      setWorkforces(prev => [...prev, workforce]);
       console.log(`Workforce with id ${workforce.id} inserted successfully.`);
     } catch (err) {
       console.error('Error adding workforce:', err);
@@ -99,11 +99,17 @@ export const ComponentProvider = ({ children }) => {
   };
 
   // Update Chemical
-  const updateChemical = async (chemical) => {
+  const updateChemical = async (_chemical) => {
     try {
-      const response = await apiClient.put('/dschemical', chemical);
+      const response = await apiClient.put('/dschemical', _chemical);
       if (response.status === 200) {
-        console.log(`Chemical with id ${chemical.dsids} updated successfully.`);
+
+        setChemicals(prev => 
+          prev.map(chemical => 
+            chemical.dsids === _chemical.dsids ? _chemical : chemical
+          )
+        );
+        console.log(`Chemical with id ${_chemical.dsids} updated successfully.`);
         return true;
       } else {
         return { success: false, error: 'Update failed' };
@@ -118,7 +124,7 @@ export const ComponentProvider = ({ children }) => {
   const updateEquipment = async (equipment) => {
     try {
       await apiClient.put('/equipment', equipment);
-      // setEquipments((prev) => prev.map((item) => (item.id === equipment.id ? equipment : item)));
+      setEquipments((prev) => prev.map((item) => (item.id === equipment.id ? equipment : item)));  
       console.log(`Equipment with id ${equipment.id} updated successfully.`);
     } catch (err) {
       console.error('Error updating equipment:', err);
@@ -131,7 +137,7 @@ export const ComponentProvider = ({ children }) => {
       await apiClient.put('/dsworkforce', workforce, {
         params: { mapdscourseid: mapdscourseid },
       });
-      // setWorkforces((prev) => prev.map((item) => (item.id === workforce.id ? workforce : item)));
+      setWorkforces((prev) => prev.map((item) => (item.id === workforce.id ? workforce : item)));
       console.log(`Workforce with id ${workforce.id} updated successfully.`);
     } catch (err) {
       console.error('Error updating workforce:', err);
@@ -145,7 +151,8 @@ export const ComponentProvider = ({ children }) => {
         params: { id: dsids }
       });
       if (response.status === 200) {
-        console.log(`Chemical with id ${dsids} deleted successfully.`);
+        setChemicals(prev => prev.filter(chemical => chemical.dsids !== dsids));
+        console.log(`Chemical with id ${dsids} deleted successfully.`,response);
         return true;
       }
       return false;
@@ -158,25 +165,36 @@ export const ComponentProvider = ({ children }) => {
   // Delete Equipment
   const deleteEquipment = async (equipmentId) => {
     try {
-      await apiClient.delete('/equipment', {
+      const response = await apiClient.delete('/equipment', {
         params: { id: equipmentId }
       });
-      console.log(`Equipment with id ${equipmentId} deleted successfully.`);
+      if (response.status === 200) {
+        setEquipments(prev => prev.filter(equipment => equipment.id !== equipmentId));
+        console.log(`Equipment with id ${equipmentId} deleted successfully.`);
+        return true;
+      }
+      return false;
     } catch (err) {
       console.error('Error deleting equipment:', err);
+      return false;
     }
   };
 
   // Delete Workforce
   const deleteWorkforce = async (workforceId) => {
     try {
-      await apiClient.delete('/dsworkforce', {
+      const response = await apiClient.delete('/dsworkforce', {
         params: { id: workforceId},
       });
-
-      console.log(`Workforce with id ${workforceId} deleted successfully.`);
+      if (response.status === 200) {
+        setWorkforces(prev => prev.filter(workforce => workforce.id !== workforceId));
+        console.log(`Workforce with id ${workforceId} deleted successfully.`);
+        return true;
+      }
+      return false;
     } catch (err) {
       console.error('Error deleting workforce:', err);
+      return false;
     }
   };
 

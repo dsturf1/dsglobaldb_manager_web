@@ -1,5 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { downloadData } from '@aws-amplify/storage'; // 최신 다운로드 API 사용
+import axios from 'axios';
+
+// Axios 클라이언트 설정
+const apiClient = axios.create({
+  baseURL: 'https://spcxatxbph.execute-api.us-east-1.amazonaws.com/dev',
+  headers: { 'Content-Type': 'application/json; charset=utf-8' },
+});
 
 // Context 생성
 const BaseContext = createContext();
@@ -9,7 +15,8 @@ export const BaseProvider = ({ children}) => {
   // 상태 관리
   const [dsrankOrder, setDsrankOrder] = useState([]);
   const [dsOrgOrder, setDsOrgOrder] = useState([]);
-  const [dstypeOrder, setDstypeOrder] = useState([]);
+  const [dstypeOrder, setDstypeOrder] = useState([]); 
+  const [dsEQtypeOrder, setDsEQtypeOrder] = useState([]);
   const [dssclearConditions, setDssclearConditions] = useState([]);
   const [dsprecipitationConditions, setDsprecipitationConditions] = useState([]);
   const [dswindConditions, setDswindConditions] = useState([]);
@@ -20,17 +27,19 @@ export const BaseProvider = ({ children}) => {
   // Config 파일 로드 함수
   const loadConfig = useCallback(async (courseId) => {
     if (!courseId) return;
-    setMapdscourseid(courseId)    
+    setMapdscourseid(courseId);
 
     try {
-      const dsBaseJson = await loadFromS3(`public/base/${courseId}/dsbase.json`);
-      const dsTaskJson = await loadFromS3(`public/base/${courseId}/dstask.json`);
+      const response = await apiClient.get('/baseinfo', {
+        params: { mapdscourseid: courseId },
+      });
 
-      // console.log('In Base COntext', dsTaskJson);
+      const res_ = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+      console.log(res_);
+      const body = typeof res_.body === 'string' ? JSON.parse(res_.body) : res_.body;
 
-      if (dsBaseJson && dsTaskJson) {
-        parseBaseJson(dsBaseJson);
-        parseTaskJson(dsTaskJson);
+      if (body) {
+        parseBaseJson(body);
       } else {
         console.error("Failed to load configuration.");
       }
@@ -38,56 +47,26 @@ export const BaseProvider = ({ children}) => {
       console.error("Error loading configuration:", error);
     }
   }, []);
+  
 
-  // S3에서 파일 로드 함수
-  const loadFromS3 = async (s3Key) => {
-    try {
-      const { body } = await downloadData({
-        path: s3Key,
-        options: {
-          onProgress: (event) => {
-            console.log(`Downloaded ${event.transferredBytes} bytes`);
-          },
-        },
-      }).result;
-
-      // UTF-8로 디코딩
-      const textData = new TextDecoder('utf-8').decode(await body.arrayBuffer());
-      return textData;
-    } catch (error) {
-      console.error(`Failed to load ${s3Key} from S3:`, error);
-      return null;
-    }
-  };
 
   // dsbase.json 파싱 함수
-  const parseBaseJson = (jsonString) => {
+  const parseBaseJson = (data) => {
     try {
-      const data = JSON.parse(jsonString);
+      // const data = JSON.parse(jsonString);
 
       setDsrankOrder(data.dsrankOrder || []);
       setDsOrgOrder(data.dsOrgOrder || []);
       setDstypeOrder(data.dstypeOrder || []);
+      setDsEQtypeOrder(data.dsEQtypeOrder || []);
       setDssclearConditions(data.dssclearConditions || []);
       setDsprecipitationConditions(data.dsprecipitationConditions || []);
       setDswindConditions(data.dswindConditions || []);
       setDsOrgList(data.dsOrgList || []);
-
-      console.log("Base configuration loaded successfully.", data.dsOrgList);
+      setDsTaskList(data.dstask || []);
+      console.log("Base & Task configuration loaded successfully.", data);
     } catch (error) {
       console.error("Failed to parse dsbase.json:", error);
-    }
-  };
-
-  // dstask.json 파싱 함수
-  const parseTaskJson = (jsonString) => {
-    try {
-      const data = JSON.parse(jsonString);
-      // console.log(data);
-      setDsTaskList(data || []);
-      console.log("Task configuration loaded successfully.");
-    } catch (error) {
-      console.error("Failed to parse dstask.json:", error);
     }
   };
 
@@ -97,6 +76,7 @@ export const BaseProvider = ({ children}) => {
     dsrankOrder,
     dsOrgOrder,
     dstypeOrder,
+    dsEQtypeOrder,
     dssclearConditions,
     dsprecipitationConditions,
     dswindConditions,

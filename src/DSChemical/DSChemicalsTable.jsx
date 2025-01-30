@@ -1,5 +1,13 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useComponent } from '../context/ComponentContext';
+import AddChemicalDialog from './AddChemicalDialog';
+import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
+
+/**
+ * 
+ * 약품을 정보를 Edit, Add, Delete 할 수 있는 테이블
+ * Add기능은 일단 로컬 메모리에 저장하고, 나중에 서버에 저장하는 하는것은 수정 저장과 같은 방식으로 처리.
+ */
 
 
 export default function DSChemicalsTable() {
@@ -145,8 +153,9 @@ export default function DSChemicalsTable() {
     </select>
   );
 
-  const [editingRows, setEditingRows] = useState(new Set());  // 편집 중인 행들의 ID를 저장
-  const [editedChemicals, setEditedChemicals] = useState({});  // 편집된 데이터를 저장
+  const [editingRows, setEditingRows] = useState(new Set());
+  const [editedChemicals, setEditedChemicals] = useState({});
+  const [savingRows, setSavingRows] = useState(new Set());  // 저장 중인 행 추적
 
   // 행 편집 시작
   const handleStartEdit = (dsids) => {
@@ -167,35 +176,29 @@ export default function DSChemicalsTable() {
 
   // 변경사항 저장
   const handleSave = async (dsids) => {
+    setSavingRows(prev => new Set([...prev, dsids]));
     try {
-      const updatedChemical = editedChemicals[dsids];
-      const result = await updateChemical(updatedChemical);
-      
-      if (result) {  // 성공 시에만 로컬 상태 업데이트
-        // 로컬 상태 업데이트
-        setChemicals(prev => 
-          prev.map(chemical => 
-            chemical.dsids === dsids ? updatedChemical : chemical
-          )
-        );
-        
-        // 편집 상태 초기화
+      const success = await updateChemical(editedChemicals[dsids]);
+      if (success) {
         setEditingRows(prev => {
           const next = new Set(prev);
           next.delete(dsids);
           return next;
         });
         setEditedChemicals(prev => {
-          const { [dsids]: removed, ...rest } = prev;
-          return rest;
+          const next = { ...prev };
+          delete next[dsids];
+          return next;
         });
-      } else {
-        console.error('Failed to update chemical');
-        alert('저장에 실패했습니다.');  // 사용자에게 실패 알림
       }
     } catch (error) {
-      console.error('Error saving chemical:', error);
-      alert('저장 중 오류가 발생했습니다.');  // 사용자에게 에러 알림
+      console.error('Failed to save:', error);
+    } finally {
+      setSavingRows(prev => {
+        const next = new Set(prev);
+        next.delete(dsids);
+        return next;
+      });
     }
   };
 
@@ -212,349 +215,10 @@ export default function DSChemicalsTable() {
     });
   };
 
-  // PriceInput 컴포넌트 수정
-  const PriceInput = React.memo(({ value = 0, onChange }) => {
-    const [localValue, setLocalValue] = useState(value.toString());
-    const inputRef = useRef(null);
-
-    const handleChange = (e) => {
-      // 숫자와 쉼표만 허용
-      const sanitizedValue = e.target.value.replace(/[^\d,]/g, '');
-      setLocalValue(sanitizedValue);
-    };
-
-    const handleKeyDown = (e) => {
-      if (e.key === 'Enter') {
-        const numericValue = Number(localValue.replace(/,/g, ''));
-        onChange(numericValue);
-        inputRef.current?.blur();
-      }
-    };
-
-    const handleBlur = () => {
-      const numericValue = Number(localValue.replace(/,/g, ''));
-      onChange(numericValue);
-      setLocalValue(numericValue.toLocaleString());
-    };
-
-    // 외부 value가 변경되면 localValue 업데이트
-    useEffect(() => {
-      setLocalValue(value.toLocaleString());
-    }, [value]);
-
-    return (
-      <input
-        ref={inputRef}
-        type="text"
-        className="input input-bordered input-sm w-full text-right"
-        value={localValue}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        onBlur={handleBlur}
-      />
-    );
-  });
-
-  // TextInput 컴포넌트 수정
-  const TextInput = React.memo(({ value = '', onChange }) => {
-    const [localValue, setLocalValue] = useState(value);
-    const inputRef = useRef(null);
-
-    const handleChange = (e) => {
-      setLocalValue(e.target.value);
-    };
-
-    const handleKeyDown = (e) => {
-      if (e.key === 'Enter') {
-        onChange(localValue);
-        inputRef.current?.blur();
-      }
-    };
-
-    const handleBlur = () => {
-      onChange(localValue);
-    };
-
-    useEffect(() => {
-      setLocalValue(value);
-    }, [value]);
-
-    return (
-      <input
-        ref={inputRef}
-        type="text"
-        className="input input-bordered input-sm w-full"
-        value={localValue}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        onBlur={handleBlur}
-      />
-    );
-  });
-
-  // UnitInput 컴포넌트 수정
-  const UnitInput = React.memo(({ value = '0ｇ', onChange }) => {
-    // 단위 표준화 함수 추가
-    const standardizeUnit = (unit) => {
-      const unitMap = {
-        'ton': 'Ton',
-        'TON': 'Ton',
-        'Ton': 'Ton',
-        'ｇ': 'ｇ',
-        'g': 'ｇ',
-        '㎏': '㎏',
-        'kg': '㎏',
-        'KG': '㎏',
-        '㎎': '㎎',
-        'mg': '㎎',
-        'ℓ': 'ℓ',
-        'L': 'ℓ',
-        'l': 'ℓ',
-        '㎖': '㎖',
-        'ml': '㎖',
-        '㎡': '㎡',
-        'm2': '㎡',
-        'EA': 'EA',
-        'ea': 'EA',
-        '원': '원',
-        '건': '건'
-      };
-      return unitMap[unit] || unit;
-    };
-
-    // 숫자와 단위 분리 - 숫자가 없는 경우도 처리
-    const parseUnit = (str = '0ｇ') => {
-      const match = str.toString().match(/^(\d*)(.*)$/);
-      if (!match) return { number: '', unit: 'ｇ' };
-      
-      const number = match[1] === '' ? '' : parseInt(match[1]);
-      const unit = standardizeUnit(match[2] || 'ｇ');  // 단위 표준화 적용
-      return { number, unit };
-    };
-
-    const { number, unit } = parseUnit(value);
-    const [localNumber, setLocalNumber] = useState(number);
-    const inputRef = useRef(null);
-
-    const handleNumberChange = (e) => {
-      // 숫자만 허용
-      const sanitizedValue = e.target.value.replace(/[^\d]/g, '');
-      setLocalNumber(sanitizedValue);
-    };
-
-    const handleNumberKeyDown = (e) => {
-      if (e.key === 'Enter') {
-        const finalValue = localNumber === '' ? unit : `${localNumber}${unit}`;
-        onChange(finalValue);
-        inputRef.current?.blur();
-      }
-    };
-
-    const handleNumberBlur = () => {
-      const finalValue = localNumber === '' ? unit : `${localNumber}${unit}`;
-      onChange(finalValue);
-    };
-
-    const handleUnitChange = (newUnit) => {
-      const finalValue = localNumber === '' ? newUnit : `${localNumber}${newUnit}`;
-      onChange(finalValue);
-    };
-
-    useEffect(() => {
-      const { number: newNumber } = parseUnit(value);
-      setLocalNumber(newNumber);
-    }, [value]);
-
-    return (
-      <div className="flex gap-1">
-        <input
-          ref={inputRef}
-          type="text"
-          className="input input-bordered input-sm w-20 text-right"
-          value={localNumber}
-          onChange={handleNumberChange}
-          onKeyDown={handleNumberKeyDown}
-          onBlur={handleNumberBlur}
-        />
-        <select
-          className="select select-bordered select-sm w-16"
-          value={unit}
-          onChange={(e) => handleUnitChange(e.target.value)}
-        >
-          <option value="Ton">Ton</option>
-          <option value="㎏">㎏</option>
-          <option value="ｇ">ｇ</option>
-          <option value="㎎">㎎</option>
-          <option value="ℓ">ℓ</option>
-          <option value="㎖">㎖</option>
-          <option value="㎡">㎡</option>
-          <option value="EA">EA</option>
-          <option value="원">원</option>
-          <option value="건">건</option>
-        </select>
-      </div>
-    );
-  });
-
   // getFirstOption 함수 추가
   const getFirstOption = (options) => {
     const realOptions = options.filter(opt => opt !== 'all');
     return realOptions.length > 0 ? realOptions[0] : '';
-  };
-
-  // 신규 추가를 위한 모달 컴포넌트 추가
-  const AddChemicalModal = ({ isOpen, onClose, onAdd }) => {
-    const [form, setForm] = useState({
-      infoL2: '농약',
-      infoL1: '살균제',
-      name: '',
-      unit: '100',
-      unitType: 'ｇ',
-      IN_PRICE: 0,
-      OUT_PRICE: 0,
-      OUT_PRICE1: 0,
-    });
-
-    // 예상 코드 생성
-    const getPreviewCode = () => {
-      const firstChar = form.infoL2 === '농약' ? 'A' : 
-                       form.infoL2 === '비료' ? 'B' : 'C';
-      
-      const secondDigit = form.infoL2 === '농약' ? 
-        (form.infoL1 === '살균제' ? '1' : 
-         form.infoL1 === '살충제' ? '2' : 
-         form.infoL1 === '제초제' ? '3' : '0') : '0';
-
-      return `${firstChar}${secondDigit}xxx1`;
-    };
-
-    const handleSubmit = () => {
-      if (!form.name.trim()) {
-        alert('제품명을 입력해주세요.');
-        return;
-      }
-      onAdd({
-        ...form,  // unit과 unitType은 따로 전달
-      });
-    };
-
-    return (
-      <dialog className={`modal ${isOpen ? 'modal-open' : ''}`}>
-        <div className="modal-box max-w-2xl">
-          <h3 className="font-bold text-lg mb-4">신규 약품 등록</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">대분류</label>
-              <select 
-                className="select select-bordered w-full"
-                value={form.infoL2}
-                onChange={(e) => setForm(prev => ({ ...prev, infoL2: e.target.value }))}
-              >
-                <option value="농약">농약</option>
-                <option value="비료">비료</option>
-                <option value="기타약재">기타약재</option>
-              </select>
-            </div>
-            
-            {form.infoL2 === '농약' && (
-              <div>
-                <label className="label">중분류</label>
-                <select 
-                  className="select select-bordered w-full"
-                  value={form.infoL1}
-                  onChange={(e) => setForm(prev => ({ ...prev, infoL1: e.target.value }))}
-                >
-                  <option value="살균제">살균제</option>
-                  <option value="살충제">살충제</option>
-                  <option value="제초제">제초제</option>
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label className="label">제품명</label>
-              <input
-                type="text"
-                className="input input-bordered w-full"
-                value={form.name}
-                onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <label className="label">용량</label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  className="input input-bordered w-full"
-                  value={form.unit}
-                  onChange={(e) => setForm(prev => ({ ...prev, unit: e.target.value }))}
-                />
-                <select
-                  className="select select-bordered w-32"
-                  value={form.unitType}
-                  onChange={(e) => setForm(prev => ({ ...prev, unitType: e.target.value }))}
-                >
-                  <option value="Ton">Ton</option>
-                  <option value="㎏">㎏</option>
-                  <option value="ｇ">ｇ</option>
-                  <option value="㎎">㎎</option>
-                  <option value="ℓ">ℓ</option>
-                  <option value="㎖">㎖</option>
-                  <option value="㎡">㎡</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="label">구입가</label>
-              <input
-                type="number"
-                className="input input-bordered w-full"
-                value={form.IN_PRICE}
-                onChange={(e) => setForm(prev => ({ ...prev, IN_PRICE: Number(e.target.value) }))}
-              />
-            </div>
-
-            <div>
-              <label className="label">용역판가</label>
-              <input
-                type="number"
-                className="input input-bordered w-full"
-                value={form.OUT_PRICE}
-                onChange={(e) => setForm(prev => ({ ...prev, OUT_PRICE: Number(e.target.value) }))}
-              />
-            </div>
-
-            <div>
-              <label className="label">판가</label>
-              <input
-                type="number"
-                className="input input-bordered w-full"
-                value={form.OUT_PRICE1}
-                onChange={(e) => setForm(prev => ({ ...prev, OUT_PRICE1: Number(e.target.value) }))}
-              />
-            </div>
-
-            <div>
-              <label className="label">예상 코드</label>
-              <div className="text-lg font-mono bg-base-200 p-2 rounded">
-                {getPreviewCode()}
-              </div>
-            </div>
-          </div>
-
-          <div className="modal-action">
-            <button className="btn btn-primary" onClick={handleSubmit}>
-              등록
-            </button>
-            <button className="btn" onClick={onClose}>
-              취소
-            </button>
-          </div>
-        </div>
-      </dialog>
-    );
   };
 
   // ChemicalsTable 컴포넌트 내부에 상태 추가
@@ -663,9 +327,7 @@ export default function DSChemicalsTable() {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
         const result = await deleteChemical(dsids);
-        if (result) {
-          setChemicals(prev => prev.filter(chemical => chemical.dsids !== dsids));
-        } else {
+        if (!result)  {
           alert('삭제에 실패했습니다.');
         }
       } catch (error) {
@@ -683,37 +345,37 @@ export default function DSChemicalsTable() {
     if (isEditing) {
       return (
         <tr key={chemical.dsids}>
-          <td className="w-12 text-center">{index + 1}</td>
+          <td className="w-12 text-center text-xs">{index + 1}</td>
           <td className="w-32">
             <select 
-              className="select select-bordered select-sm w-full"
+              className="select select-bordered select-xs w-full text-xs"
               value={editedData.infoL3}
               onChange={(e) => handleEditChange(chemical.dsids, 'infoL3', e.target.value)}
             >
               {filterOptions.infoL3.filter(opt => opt !== 'all').map(option => (
-                <option key={option} value={option}>{option}</option>
+                <option className="text-xs" key={option} value={option}>{option}</option>
               ))}
             </select>
           </td>
           <td className="w-32">
             <select 
-              className="select select-bordered select-sm w-full"
+              className="select select-bordered select-xs w-full text-xs"
               value={editedData.infoL2}
               onChange={(e) => handleEditChange(chemical.dsids, 'infoL2', e.target.value)}
             >
               {filterOptions.infoL2.filter(opt => opt !== 'all').map(option => (
-                <option key={option} value={option}>{option}</option>
+                <option className="text-xs" key={option} value={option}>{option}</option>
               ))}
             </select>
           </td>
           <td className="w-32">
             <select 
-              className="select select-bordered select-sm w-full"
+              className="select select-bordered select-xs w-full text-xs"
               value={editedData.infoL1}
               onChange={(e) => handleEditChange(chemical.dsids, 'infoL1', e.target.value)}
             >
               {filterOptions.infoL1.filter(opt => opt !== 'all').map(option => (
-                <option key={option} value={option}>{option}</option>
+                <option className="text-xs" key={option} value={option}>{option}</option>
               ))}
             </select>
           </td>
@@ -723,77 +385,92 @@ export default function DSChemicalsTable() {
               key={`name-${chemical.dsids}`}
               value={editedData.name}
               onChange={(value) => handleEditChange(chemical.dsids, 'name', value)}
+              className="input input-bordered input-xs w-full text-xs"
             />
           </td>
           <td className="w-24">
             <UnitInput
               key={`unit-${chemical.dsids}`}
               value={editedData.unit}
-              onChange={(value) => handleEditChange(chemical.dsids, 'unit', value)}
+              onChange={(value) => handleEditChange(chemical.dsids, 'unit', value)} 
+              className="input input-bordered input-xs w-full text-xs"
+              classNameUnit="select select-bordered select-xs w-16 text-xs"
             />
           </td>
           <td className="w-32">
-            <PriceInput
+            <NumberInput
               key={`IN_PRICE-${chemical.dsids}`}
               value={editedData.IN_PRICE}
               onChange={(value) => handleEditChange(chemical.dsids, 'IN_PRICE', value)}
+              className="input input-bordered input-xs w-full text-xs text-right"
             />
           </td>
           <td className="w-32">
-            <PriceInput
+            <NumberInput
               key={`OUT_PRICE-${chemical.dsids}`}
               value={editedData.OUT_PRICE}
               onChange={(value) => handleEditChange(chemical.dsids, 'OUT_PRICE', value)}
+              className="input input-bordered input-xs w-full text-xs text-right"
             />
           </td>
           <td className="w-32">
-            <PriceInput
+            <NumberInput
               key={`OUT_PRICE1-${chemical.dsids}`}
               value={editedData.OUT_PRICE1}
               onChange={(value) => handleEditChange(chemical.dsids, 'OUT_PRICE1', value)}
+              className="input input-bordered input-xs w-full text-xs text-right"
             />
           </td>
           <td className="w-24">
             <select 
-              className="select select-bordered select-sm w-full"
+              className="select select-bordered select-xs w-full text-xs"
               value={editedData.active}
               onChange={(e) => handleEditChange(chemical.dsids, 'active', e.target.value)}
             >
-              <option value="Y">사용</option>
-              <option value="N">미사용</option>
+              <option className="text-xs" value="Y">사용</option>
+              <option className="text-xs" value="N">미사용</option>
             </select>
           </td>
           <td className="w-28">
             <select 
-              className="select select-bordered select-sm w-full"
+              className="select select-bordered select-xs w-full text-xs"
               value={editedData.flgWork}
               onChange={(e) => handleEditChange(chemical.dsids, 'flgWork', e.target.value)}
             >
-              <option value="Y">사용</option>
-              <option value="N">미사용</option>
+              <option className="text-xs" value="Y">사용</option>
+              <option className="text-xs" value="N">미사용</option>
             </select>
           </td>
           <td className="w-28">
             <select 
-              className="select select-bordered select-sm w-full"
+              className="select select-bordered select-xs w-full text-xs"
               value={editedData.flgOut}
               onChange={(e) => handleEditChange(chemical.dsids, 'flgOut', e.target.value)}
             >
-              <option value="Y">사용</option>
-              <option value="N">미사용</option>
+              <option className="text-xs" value="Y">사용</option>
+              <option className="text-xs" value="N">미사용</option>
             </select>
           </td>
           <td className="w-28">
             <div className="flex gap-2">
               <button 
-                className="btn btn-xs btn-success"
+                className="btn btn-xs btn-primary text-xs"
                 onClick={() => handleSave(chemical.dsids)}
+                disabled={savingRows.has(chemical.dsids)}
               >
-                저장
+                {savingRows.has(chemical.dsids) ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs"></span>
+                    저장
+                  </>
+                ) : (
+                  '저장'
+                )}
               </button>
               <button 
-                className="btn btn-xs btn-error"
+                className="btn btn-xs btn-error text-xs"
                 onClick={() => handleCancel(chemical.dsids)}
+                disabled={savingRows.has(chemical.dsids)}
               >
                 취소
               </button>
@@ -810,34 +487,34 @@ export default function DSChemicalsTable() {
         onDoubleClick={() => handleStartEdit(chemical.dsids)}
         className="cursor-pointer hover:bg-gray-100"
       >
-        <td className="w-12 text-center">{index + 1}</td>
-        <td className="w-32">
-          <span className="badge badge-ghost">{chemical.infoL3}</span>
+        <td className="w-12 text-center text-xs">{index + 1}</td>
+        <td className="text-xs">
+          <span className="badge badge-ghost text-xs">{chemical.infoL3}</span>
         </td>
-        <td className="w-32">{chemical.infoL2}</td>
-        <td className="w-32">{chemical.infoL1}</td>
-        <td className="w-28">{chemical.dsids}</td>
-        <td>{chemical.name}</td>
-        <td className="w-24">{chemical.unit}</td>
-        <td className="w-32 text-right">{chemical.IN_PRICE.toLocaleString()}원</td>
-        <td className="w-32 text-right">{chemical.OUT_PRICE.toLocaleString()}원</td>
-        <td className="w-32 text-right">{chemical.OUT_PRICE1.toLocaleString()}원</td>
-        <td className="w-24">
-          <span className={`badge ${chemical.active === 'Y' ? 'badge-success' : 'badge-error'}`}>
+        <td className="w-32 text-xs">{chemical.infoL2}</td>
+        <td className="w-32 text-xs">{chemical.infoL1}</td>
+        <td className="w-28 text-sm">{chemical.dsids}</td>
+        <td className="text-sm">{chemical.name}</td>
+        <td className="text-xs">{chemical.unit}</td>
+        <td className="w-28 text-right text-xs">{chemical.IN_PRICE.toLocaleString()}원</td>
+        <td className="w-28 text-right text-xs">{chemical.OUT_PRICE.toLocaleString()}원</td>
+        <td className="w-28 text-right text-xs">{chemical.OUT_PRICE1.toLocaleString()}원</td>
+        <td className="w-24 text-xs">
+          <span className={`badge ${chemical.active === 'Y' ? 'badge-success' : 'badge-error'} text-xs`}>
             {chemical.active === 'Y' ? '사용' : '미사용'}
           </span>
         </td>
-        <td className="w-28">
-          <span className={`badge ${chemical.flgWork === 'Y' ? 'badge-success' : 'badge-error'}`}>
+        <td className="w-24 text-xs">
+          <span className={`badge ${chemical.flgWork === 'Y' ? 'badge-success' : 'badge-error'} text-xs`}>
             {chemical.flgWork === 'Y' ? '사용' : '미사용'}
           </span>
         </td>
-        <td className="w-28">
-          <span className={`badge ${chemical.flgOut === 'Y' ? 'badge-success' : 'badge-error'}`}>
+        <td className="w-24 text-xs">
+          <span className={`badge ${chemical.flgOut === 'Y' ? 'badge-success' : 'badge-error'} text-xs`}>
             {chemical.flgOut === 'Y' ? '사용' : '미사용'}
           </span>
         </td>
-        <td className="w-28">
+        <td className="w-24 text-xs">
           <div className="flex gap-2">
             <button 
               className="btn btn-xs btn-error"
@@ -875,9 +552,11 @@ export default function DSChemicalsTable() {
             신규 추가
           </button>
         </div>
-        <div className="flex gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">중요도:</span>
+      </div>
+      <div className="flex items-center gap-4">
+      <div className="flex gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">중요도:</span>
             <FilterSelect
               value={filters.infoL3}
               onChange={(value) => handleFilterChange('infoL3', value)}
@@ -940,9 +619,9 @@ export default function DSChemicalsTable() {
               <th className="w-32 text-right">구입가</th>
               <th className="w-32 text-right">용역판가</th>
               <th className="w-32 text-right">판가</th>
-              <th className="w-24">상태</th>
-              <th className="w-28">방제팀 사용</th>
-              <th className="w-28">용역팀 사용</th>
+              <th className="w-24">Active</th>
+              <th className="w-28">방제팀</th>
+              <th className="w-28">용역팀</th>
               <th className="w-28">작업</th>
             </tr>
           </thead>
@@ -957,10 +636,9 @@ export default function DSChemicalsTable() {
           </tbody>
         </table>
       </div>
-      <AddChemicalModal 
+      <AddChemicalDialog
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onAdd={handleAddConfirm}
       />
     </div>
   );
