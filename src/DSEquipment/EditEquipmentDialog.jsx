@@ -4,7 +4,7 @@ import { getUrl, uploadData } from 'aws-amplify/storage';
 import { useGlobalComponent } from '../context/ComponentContext';
 import { useBase } from '../context/BaseContext';
 import { NumberInput, TextInput, UnitInput, formatUTCToLocal, formatLocalToUTC } from '../components/DSInputs';
-import defaultImage from '../assets/logo192.png';
+import defaultImage from '../assets/equipment_with_larger_logo.png';
 
 // 이미지 리사이즈 및 포맷 변환 유틸리티
 const processImage = async (file) => {
@@ -27,9 +27,23 @@ const processImage = async (file) => {
 export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd }) {
   const { updateGlobalEquipment, addGlobalEquipment, globalEquipments } = useGlobalComponent();
   const { dsOrgList } = useBase();
-  const [form, setForm] = useState({});
+  const [formData, setFormData] = useState({
+    category: '',
+    type: '',
+    name: '',
+    modelNumber: '',
+    manufacturer: '',
+    seller: '',
+    purchaseDate: '',
+    cost: 0,
+    owner: '',
+    location: '',
+    desc: '',
+    mapdscourseid: '',
+    imageURL: '',
+    imageVersion: Date.now()  // 이미지 버전 추가
+  });
   const [isSaving, setIsSaving] = useState(false);
-  const [imageUrl, setImageUrl] = useState(null);
   const [useDefaultImage, setUseDefaultImage] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -73,11 +87,11 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
           validateObjectExistence: true
         }
       });
-      setImageUrl(url);
+      setFormData(prev => ({ ...prev, imageURL: url }));
       setUseDefaultImage(false);
     } catch (error) {
       console.error('Error fetching image:', error);
-      setImageUrl(null);
+      setFormData(prev => ({ ...prev, imageURL: null }));
       setUseDefaultImage(true);
     }
   };
@@ -89,7 +103,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
 
   // 모달이 닫힐 때 상태 초기화
   const handleClose = () => {
-    setImageUrl(null);
+    setFormData(prev => ({ ...prev, imageURL: null }));
     setUseDefaultImage(false);
     setPendingImage(null);
     onClose();
@@ -97,7 +111,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
 
   useEffect(() => {
     if (!isOpen) {
-      setImageUrl(null);
+      setFormData(prev => ({ ...prev, imageURL: null }));
       setUseDefaultImage(false);
       return;
     }
@@ -105,11 +119,14 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
     console.log('Modal opened with equipment:', {
       isAdd,
       equipment,
-      form
+      formData
     });
 
     if (equipment) {
-      setForm(equipment);
+      setFormData({
+        ...equipment,
+        imageURL: equipment.imageURL || ''  // 기존 이미지 URL 사용
+      });
       if (!isAdd && equipment.id && equipment.mapdscourseid) {
         fetchImage(equipment.mapdscourseid, equipment.id);
       } else {
@@ -120,24 +137,28 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name?.trim()) {
+    if (!formData.name?.trim()) {
       alert('장비명은 필수 입력 항목입니다.');
       return;
     }
 
-    if (!form.mapdscourseid?.trim()) {
+    if (!formData.mapdscourseid?.trim()) {
       alert('담당부서는 필수 입력 항목입니다.');
       return;
     }
     
     setIsSaving(true);
     try {
+      const updatedFormData = {
+        ...formData,
+        imageVersion: pendingImage ? Date.now() : formData.imageVersion // 이미지가 변경된 경우에만 버전 업데이트
+      };
+
       if (isAdd) {
         const newEquipment = {
-          ...form,
+          ...updatedFormData,
           id: uuidv4()
         };
-        await addGlobalEquipment(newEquipment);
         if (pendingImage && newEquipment.mapdscourseid) {
           const result = await uploadData({
             path: `public/equipment/${newEquipment.mapdscourseid}/${newEquipment.id}.png`,
@@ -148,11 +169,12 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
           }).result;
           console.log('Succeeded: ', result);
         }
+        await addGlobalEquipment(newEquipment);
       } else {
-        if (equipment.mapdscourseid !== form.mapdscourseid) {
+        if (equipment.mapdscourseid !== updatedFormData.mapdscourseid) {
           if (pendingImage) {
             const result = await uploadData({
-              path: `public/equipment/${form.mapdscourseid}/${form.id}.png`,
+              path: `public/equipment/${updatedFormData.mapdscourseid}/${updatedFormData.id}.png`,
               data: pendingImage,
               options: {
                 contentType: 'image/png'
@@ -162,7 +184,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
           } else if (!useDefaultImage) {
             try {
               const { url } = await getUrl({
-                path: `public/equipment/${equipment.mapdscourseid}/${form.id}.png`,
+                path: `public/equipment/${equipment.mapdscourseid}/${updatedFormData.id}.png`,
                 options: {
                   validateObjectExistence: true
                 }
@@ -172,7 +194,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
               const blob = await response.blob();
               
               const result = await uploadData({
-                path: `public/equipment/${form.mapdscourseid}/${form.id}.png`,
+                path: `public/equipment/${updatedFormData.mapdscourseid}/${updatedFormData.id}.png`,
                 data: blob,
                 options: {
                   contentType: 'image/png'
@@ -185,7 +207,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
           }
         } else if (pendingImage) {
           const result = await uploadData({
-            path: `public/equipment/${form.mapdscourseid}/${form.id}.png`,
+            path: `public/equipment/${updatedFormData.mapdscourseid}/${updatedFormData.id}.png`,
             data: pendingImage,
             options: {
               contentType: 'image/png'
@@ -193,7 +215,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
           }).result;
           console.log('New image uploaded:', result);
         }
-        await updateGlobalEquipment(form);
+        await updateGlobalEquipment(updatedFormData);
       }
       onClose();
     } catch (error) {
@@ -208,13 +230,13 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'purchaseDate') {
-      setForm(prev => ({
+      setFormData(prev => ({
         ...prev,
         [name]: formatLocalToUTC(value)
       }));
       return;
     }
-    setForm(prev => ({
+    setFormData(prev => ({
       ...prev,
       [name]: name === 'cost' ? Number(value) : value
     }));
@@ -234,7 +256,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
       const processedBlob = await processImage(file);
       setPendingImage(processedBlob);
       const previewUrl = URL.createObjectURL(processedBlob);
-      setImageUrl(previewUrl);
+      setFormData(prev => ({ ...prev, imageURL: previewUrl }));
       setUseDefaultImage(false);
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -242,7 +264,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
     }
   };
 
-  if (!isOpen || !form) return null;
+  if (!isOpen || !formData) return null;
 
   return (
     <dialog className={`modal ${isOpen ? 'modal-open' : ''}`}>
@@ -252,7 +274,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
         </h3>
         <div className="mb-4 flex flex-col items-center">
           <img
-            src={pendingImage ? imageUrl : (useDefaultImage ? defaultImage : imageUrl)}
+            src={pendingImage ? formData.imageURL : (useDefaultImage ? defaultImage : formData.imageURL)}
             alt="장비 이미지"
             className="max-h-64 object-contain rounded-lg shadow-md"
             onError={handleImageError}
@@ -288,9 +310,9 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
               <label className="label">분류</label>
               <select
                 className="input input-bordered w-full"
-                value={form.category}
+                value={formData.category}
                 onChange={(e) => {
-                  setForm(prev => ({
+                  setFormData(prev => ({
                     ...prev,
                     category: e.target.value,
                     type: categoryTypeMap[e.target.value]?.[0] || '' // 카테고리 변경 시 첫 번째 타입 선택
@@ -306,10 +328,10 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
               <label className="label">유형</label>
               <select
                 className="input input-bordered w-full"
-                value={form.type}
-                onChange={(e) => setForm(prev => ({ ...prev, type: e.target.value }))}
+                value={formData.type}
+                onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
               >
-                {categoryTypeMap[form.category]?.map(type => (
+                {categoryTypeMap[formData.category]?.map(type => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
@@ -318,9 +340,9 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
               <label className="label">장비명</label>
               <TextInput
                 name="name"
-                value={form.name}
+                value={formData.name}
                 onChange={(e) => {
-                  setForm(prev => ({ ...prev, name: e }));
+                  setFormData(prev => ({ ...prev, name: e }));
                 }}
                 className="input input-bordered w-full"
                 required
@@ -330,8 +352,8 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
               <label className="label">모델번호</label>
               <TextInput
                 name="modelNumber"
-                value={form.modelNumber}
-                onChange={(e) => setForm(prev => ({ ...prev, modelNumber: e }))}
+                value={formData.modelNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, modelNumber: e }))}
                 className="input input-bordered w-full"
               />
             </div>
@@ -339,8 +361,8 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
               <label className="label">제조사</label>
               <TextInput
                 name="manufacturer"
-                value={form.manufacturer}
-                onChange={(e) => setForm(prev => ({ ...prev, manufacturer: e }))}
+                value={formData.manufacturer}
+                onChange={(e) => setFormData(prev => ({ ...prev, manufacturer: e }))}
                 className="input input-bordered w-full"
               />
             </div>
@@ -348,8 +370,8 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
               <label className="label">구매처</label>
               <TextInput
                 name="seller"
-                value={form.seller}
-                onChange={(e) => setForm(prev => ({ ...prev, seller: e }))}
+                value={formData.seller}
+                onChange={(e) => setFormData(prev => ({ ...prev, seller: e }))}
                 className="input input-bordered w-full"
               />
             </div>
@@ -359,15 +381,15 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
                 type="date"
                 name="purchaseDate"
                 className="input input-bordered w-full"
-                value={formatUTCToLocal(form.purchaseDate)}
+                value={formatUTCToLocal(formData.purchaseDate)}
                 onChange={handleChange}
               />
             </div>
             <div>
               <label className="label">구매가격</label>
               <NumberInput
-                value={form.cost}
-                onChange={(e) => setForm(prev => ({ ...prev, cost: Number(e) }))}
+                value={formData.cost}
+                onChange={(e) => setFormData(prev => ({ ...prev, cost: Number(e) }))}
                 className="input input-bordered w-full text-right"
               />
             </div>
@@ -375,8 +397,8 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
               <label className="label">소유자</label>
               <TextInput
                 name="owner"
-                value={form.owner}
-                onChange={(e) => setForm(prev => ({ ...prev, owner: e}))}
+                value={formData.owner}
+                onChange={(e) => setFormData(prev => ({ ...prev, owner: e}))}
                 className="input input-bordered w-full"
               />
             </div>
@@ -384,8 +406,8 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
               <label className="label">담당 부서</label>
               <select
                 className="input input-bordered w-full"
-                value={form.mapdscourseid || ''}
-                onChange={(e) => setForm(prev => ({ 
+                value={formData.mapdscourseid || ''}
+                onChange={(e) => setFormData(prev => ({ 
                   ...prev, 
                   mapdscourseid: e.target.value 
                 }))}
@@ -402,8 +424,8 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
               <label className="label">설명</label>
               <TextInput
                 name="desc"
-                value={form.desc}
-                onChange={(e) => setForm(prev => ({ ...prev, desc: e }))}
+                value={formData.desc}
+                onChange={(e) => setFormData(prev => ({ ...prev, desc: e }))}
                 className="input input-bordered w-full"
               />
             </div>

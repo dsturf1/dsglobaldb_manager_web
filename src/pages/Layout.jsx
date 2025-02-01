@@ -4,9 +4,17 @@ import { useBase } from '../context/BaseContext';
 import { useDayRecord } from '../context/DayRecordContext';
 import { useGlobalComponent } from '../context/ComponentContext';
 import { fetchUserAttributes, signOut } from 'aws-amplify/auth';
+/**
+ * 
+ * 앱 초기화 흐름 (useEffect 기반)
 
+사용자 정보를 가져오고 (getUserInfo)
+사용자 mapdscourseid를 기반으로 설정을 로드 (loadConfig)
+특정 조건(mapdscourseid === "MGC999")에서 글로벌 데이터를 로드
+ */
 
 export default function Layout({ children }) {
+    // Context API를 통해 글로벌 상태 및 데이터 관리
     const {
       dsrankOrder,
       dsOrgOrder,
@@ -25,24 +33,25 @@ export default function Layout({ children }) {
       fetchGlobalChemicals,
       fetchGlobalEquipments,
       fetchGlobalWorkforces,
-    } =  useGlobalComponent();
+    } = useGlobalComponent();
   
+    // 로딩 상태 및 사용자 정보 상태
     const [loading, setLoading] = useState(true);
     const [userEmail, setUserEmail] = useState('');
     const [orgName, setOrgName] = useState('');
   
-    // 초기화 로직: getUserInfo -> mapdscourseid로 설정 로드 및 DayRecord 가져오기
+    // 애플리케이션 초기화: 사용자 정보 가져오기 -> 설정 로드 및 DayRecord 가져오기
     useEffect(() => {
       const initializeApp = async () => {
         try {
-          // 사용자 정보 가져오기
+          // 사용자 정보를 가져와 해당 사용자의 mapdscourseid(조직 ID) 반환
           const courseId = await getUserInfo();
   
           if (courseId) {
-            // mapdscourseid 설정 및 Config 파일 로드
+            // 사용자의 courseId를 기반으로 설정을 로드
             await loadConfig(courseId);
   
-            // DayRecord 데이터 가져오기
+            // DayRecord 데이터 가져오기 (현재 주석 처리됨): 이 WEB에서는 사용하지 않음
             // await fetchDayRecords(courseId);
   
           } else {
@@ -58,31 +67,31 @@ export default function Layout({ children }) {
       initializeApp();
     }, []);
   
+    // 특정 조건(mapdscourseid가 'MGC999')일 때 글로벌 데이터를 가져옴
     useEffect(() => {
       if (mapdscourseid=='MGC999') {
         fetchGlobalChemicals();
         fetchGlobalEquipments();
         fetchGlobalWorkforces();
       }
-
     }, [mapdscourseid]);
 
+    // dsTaskList, dsrankOrder 값 변경 시 콘솔에 출력 (디버깅 용도)
     useEffect(() => {
       console.log(dsTaskList);
       console.log(dsrankOrder);
     }, [dsTaskList]);
   
-    // 사용자 정보 가져오기
-  
+    // 사용자 정보 가져오기 함수
     const getUserInfo = async () => {
       try {
         const user = await fetchUserAttributes();
         console.log('User Info:', user);
     
-        // 이메일 저장
+        // 사용자 이메일 저장
         setUserEmail(user.email || '');
         
-        // 커스텀 속성 가져오기
+        // 사용자 정의 속성에서 조직 ID 가져오기
         const customTag = user['custom:org']|| null;
         console.log('Custom Tag:', customTag);
     
@@ -92,7 +101,7 @@ export default function Layout({ children }) {
       }
     };
 
-    // handleSignOut 함수 추가
+    // 로그아웃 처리 함수
     const handleSignOut = async () => {
         try {
             await signOut();
@@ -103,11 +112,11 @@ export default function Layout({ children }) {
         }
     };
 
-    // 조직명 설정을 위한 useEffect 추가
+    // 조직명 설정 (dsOrgList에서 사용자의 mapdscourseid에 해당하는 조직 정보 찾기)
     useEffect(() => {
       if (dsOrgList && mapdscourseid) {
         const org = dsOrgList.find(org => org.mapdscourseid === mapdscourseid);
-        console.log(org)
+        console.log(org);
         if (org) {
           setOrgName(org.org);
         }
@@ -116,7 +125,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Navbar */}
+      {/* 네비게이션 바 */}
       <nav className="bg-white text-gray-800 border-b border-gray-300 p-2 fixed w-full z-10 shadow-md">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
@@ -142,7 +151,7 @@ export default function Layout({ children }) {
         </div>
       </nav>
 
-      {/* Main Content */}
+      {/* 메인 컨텐츠 영역 */}
       <main className="flex-grow pt-16 h-[calc(100vh-4rem)]">{children}</main>
     </div>
   );

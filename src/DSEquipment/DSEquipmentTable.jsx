@@ -1,12 +1,16 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { getUrl} from 'aws-amplify/storage';
+import defaultImage from '../assets/equipment_with_larger_logo.png';
 import { useGlobalComponent } from '../context/ComponentContext';
 import { useBase } from '../context/BaseContext';
 import EditEquipmentDialog from './EditEquipmentDialog';
-import { NumberInput, TextInput, UnitInput, formatUTCToLocal } from '../components/DSInputs';
+
+// 이미지 URL 캐시를 위한 객체
+const imageUrlCache = new Map();
 
 export default function DSEquipmentTable() {
   const { globalEquipments, updateGlobalEquipment, deleteGlobalEquipment, addGlobalEquipment } = useGlobalComponent();
-  const { dsOrgList } = useBase();
+  const { dsOrgList, dsEQtypeOrder } = useBase();
   
   // 검색어 상태
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,19 +25,62 @@ export default function DSEquipmentTable() {
     type: 'all'
   });
 
-  // 분류 우선순위 정의
-  const categoryOrder = {
-    '예지장비': 1,
-    '갱신장비': 2,
-    '배토장비': 3,
-    '시약장비': 4,
-    '기타장비': 5,
-    '운반장비': 6,
-    '이동장비': 7,
-    '정리장비': 8,
-    '청소장비': 9,
-    '그외': 10
+  // 이미지 로딩 상태를 관리하는 객체
+  const [imageLoadingStates, setImageLoadingStates] = useState({});
+
+  // 이미지 URL이 추가된 장비 데이터 상태
+  const [equipmentsWithImages, setEquipmentsWithImages] = useState([]);
+
+  // 개별 이미지 URL을 가져오는 함수
+  const getImageUrl = async (equipment) => {
+    const cacheKey = `${equipment.mapdscourseid}/${equipment.id}/${equipment.imageVersion || ''}`;
+    
+    // 캐시된 URL이 있으면 반환
+    if (imageUrlCache.has(cacheKey)) {
+      return imageUrlCache.get(cacheKey);
+    }
+
+    try {
+      setImageLoadingStates(prev => ({ ...prev, [equipment.id]: true }));
+      const { url } = await getUrl({
+        path: `public/equipment/${equipment.mapdscourseid}/${equipment.id}.png`,
+        options: {
+          cacheControl: '3600',
+          expiresIn: 3600,
+          validateObjectExistence: true
+        }
+      });
+      
+      // URL을 캐시에 저장
+      imageUrlCache.set(cacheKey, url);
+      setImageLoadingStates(prev => ({ ...prev, [equipment.id]: false }));
+      return url;
+    } catch (error) {
+      console.error('Error getting image URL:', error);
+      setImageLoadingStates(prev => ({ ...prev, [equipment.id]: false }));
+      return null;
+    }
   };
+
+  // 장비 데이터에 이미지 URL 추가
+  useEffect(() => {
+    const addImageUrls = async () => {
+      const updatedEquipments = await Promise.all(
+        globalEquipments.map(async (equipment) => {
+          try {
+            const imageURL = await getImageUrl(equipment);
+            return { ...equipment, imageURL };
+          } catch (error) {
+            console.error('Error getting image URL:', error);
+            return { ...equipment, imageURL: null };
+          }
+        })
+      );
+      setEquipmentsWithImages(updatedEquipments);
+    };
+
+    addImageUrls();
+  }, [globalEquipments]);
 
   // 고유한 필터 옵션 추출
   const filterOptions = useMemo(() => {
@@ -42,7 +89,9 @@ export default function DSEquipmentTable() {
       .sort((a, b) => {
         if (a === 'all') return -1;
         if (b === 'all') return 1;
-        return (categoryOrder[a] || 999) - (categoryOrder[b] || 999);
+        const indexA = dsEQtypeOrder.findIndex(item => item === a);
+        const indexB = dsEQtypeOrder.findIndex(item => item === b);
+        return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
       });
     
     // 선택된 카테고리에 따른 유형 옵션 추출
@@ -61,11 +110,11 @@ export default function DSEquipmentTable() {
       category: categories,
       type: getTypeOptions(filters.category)
     };
-  }, [globalEquipments, filters.category]);
+  }, [globalEquipments, filters.category, dsEQtypeOrder]);
 
   // 필터링 및 정렬된 데이터
   const filteredAndSortedEquipments = useMemo(() => {
-    return [...globalEquipments]
+    return [...equipmentsWithImages]
       .filter(equipment => {
         const searchMatch = searchTerm === '' || 
           equipment.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -75,7 +124,9 @@ export default function DSEquipmentTable() {
       })
       .sort((a, b) => {
         // 1. 분류 순서로 정렬
-        const categoryDiff = (categoryOrder[a.category] || 999) - (categoryOrder[b.category] || 999);
+        const indexA = dsEQtypeOrder.findIndex(item => item === a.category);
+        const indexB = dsEQtypeOrder.findIndex(item => item === b.category);
+        const categoryDiff = (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
         if (categoryDiff !== 0) return categoryDiff;
 
         // 2. 같은 분류 내에서는 유형순
@@ -85,7 +136,7 @@ export default function DSEquipmentTable() {
         // 3. 같은 유형 내에서는 이름순
         return a.name.localeCompare(b.name);
       });
-  }, [globalEquipments, filters, searchTerm]);
+  }, [equipmentsWithImages, filters, searchTerm, dsEQtypeOrder]);
 
   // 필터 선택 컴포넌트
   const FilterSelect = ({ label, value, onChange, options }) => (
@@ -224,6 +275,7 @@ export default function DSEquipmentTable() {
               <th className="w-12 text-center">No.</th>
               <th className="w-32">분류</th>
               <th className="w-24">유형</th>
+              <th className="w-16">이미지</th>
               <th>장비명</th>
               <th className="w-32">모델번호</th>
               <th className="w-32">제조사</th>
@@ -241,6 +293,26 @@ export default function DSEquipmentTable() {
                 <td className="text-center">{index + 1}</td>
                 <td>{equipment.category}</td>
                 <td>{equipment.type}</td>
+                <td className="w-8 h-8">
+                  <div className="relative w-8 h-8">
+                    {imageLoadingStates[equipment.id] ? (
+                      <div className="w-8 h-8 flex items-center justify-center">
+                        <div className="loading loading-spinner loading-xs"></div>
+                      </div>
+                    ) : (
+                      <img 
+                        src={equipment.imageURL || defaultImage} 
+                        alt={equipment.name}
+                        className="w-8 h-8 object-cover rounded"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = defaultImage;
+                        }}
+                      />
+                    )}
+                  </div>
+                </td>
                 <td>{equipment.name}</td>
                 <td>{equipment.modelNumber}</td>
                 <td>{equipment.manufacturer}</td>
