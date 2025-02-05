@@ -436,7 +436,10 @@ export default function DSEquipmentTable() {
       {/* 편집 Modal */}
       <EditEquipmentDialog
         isOpen={!!editingEquipment || isAddModalOpen}
-        equipment={editingEquipment}
+        equipment={editingEquipment ? {
+          ...editingEquipment,
+          imageURL: equipmentImages[editingEquipment.id]  // 이미지 URL 전달
+        } : null}
         onClose={handleCloseModal}
         isAdd={isAddModalOpen}
       />
