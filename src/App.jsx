@@ -5,7 +5,7 @@ import awsExports from './aws-exports';
 import './App.css'
 import { BaseProvider } from './context/BaseContext';
 import { DayRecordProvider } from './context/DayRecordContext';
-import {GlobalComponentProvider} from './context/ComponentContext';
+import {GlobalComponentProvider} from './context/GlobalComponentContext';
 import Layout from './pages/Layout';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import DSDBMain from './dsdbMain/DSDBMain';

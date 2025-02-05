@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { useGlobalComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/GlobalComponentContext'; 
 import { useBase } from '../context/BaseContext';
 import AddWorkforceDialog from './AddWorkforceDialog';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';

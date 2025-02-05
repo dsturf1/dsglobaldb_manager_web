@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from "react-router-dom";
 import { useBase } from '../context/BaseContext';
 import { useDayRecord } from '../context/DayRecordContext';
-import { useGlobalComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/GlobalComponentContext';
 import { fetchUserAttributes, signOut } from 'aws-amplify/auth';
 /**
  * 

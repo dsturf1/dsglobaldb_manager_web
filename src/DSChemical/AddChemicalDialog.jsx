@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useGlobalComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/GlobalComponentContext';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 export default function AddChemicalDialog({ isOpen, onClose }) {

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { useGlobalComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/GlobalComponentContext'; // 전역 컴포넌트 컨텍스트 사용
 import AddChemicalDialog from './AddChemicalDialog';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 

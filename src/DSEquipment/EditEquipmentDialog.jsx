@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { getUrl, uploadData } from 'aws-amplify/storage';
-import { useGlobalComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/GlobalComponentContext';
 import { useBase } from '../context/BaseContext';
 import { NumberInput, TextInput, UnitInput, formatUTCToLocal, formatLocalToUTC } from '../components/DSInputs';
 import defaultImage from '../assets/equipment_with_larger_logo.png';
 
 // 이미지 리사이즈 및 포맷 변환 유틸리티
+// S3에 이미지가 사이즈가 다르더라도 192x256 크기로 변환하여 저장
 const processImage = async (file) => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -47,7 +48,16 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
   const [useDefaultImage, setUseDefaultImage] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+    /**
+   * 임시 이미지 저장소:
+      사용자가 새 이미지를 선택했을 때, 실제로 S3에 업로드하기 전에 임시로 저장하는 공간입니다.
+      processImage 함수를 통해 리사이즈된 이미지 blob을 저장합니다.
+      이미지 변경 감지:
+      pendingImage !== null이면 사용자가 새 이미지를 선택했다는 의미입니다.
+      이를 통해 저장 시 이미지를 업로드할지 말지 결정합니다.
+   */
   const [pendingImage, setPendingImage] = useState(null);
+
 
   // 카테고리와 타입의 unique한 조합 추출
   const categoryTypeMap = useMemo(() => {
@@ -71,7 +81,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
     Object.keys(categoryTypeMap)
   , [categoryTypeMap]);
 
-  // S3에서 이미지 가져오기
+  // S3에서 이미지 가져오기 실제 로는 사용되지 않음음
   const fetchImage = async (mapdscourseid, id) => {
     if (!mapdscourseid || !id) {
       setUseDefaultImage(true);
@@ -116,20 +126,31 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
       return;
     }
 
-    console.log('Modal opened with equipment:', {
-      isAdd,
-      equipment,
-      formData
-    });
+    if (isAdd) {
+      // 신규 추가일 경우 기본값으로 초기화
+      setFormData(prev => ({
+        ...prev,
+        imageURL: null
+      }));
+      setUseDefaultImage(true);
+      return;
+    }
 
     if (equipment) {
-      setFormData({
-        ...equipment,
-        imageURL: equipment.imageURL || ''  // 기존 이미지 URL 사용
-      });
-      if (!isAdd && equipment.id && equipment.mapdscourseid) {
-        fetchImage(equipment.mapdscourseid, equipment.id);
+      // 수정 모드일 경우
+      if (equipment.imageURL) {
+        // 기존 이미지 URL이 있으면 그대로 사용
+        setFormData({
+          ...equipment,
+          imageURL: equipment.imageURL
+        });
+        setUseDefaultImage(false);
       } else {
+        // 기존 이미지 URL이 없으면 기본 이미지 사용
+        setFormData({
+          ...equipment,
+          imageURL: null
+        });
         setUseDefaultImage(true);
       }
     }
@@ -157,7 +178,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
       if (isAdd) {
         const newEquipment = {
           ...updatedFormData,
-          id: uuidv4()
+          id: uuidv4()// 신규 추가일 경우 고유 ID 생성
         };
         if (pendingImage && newEquipment.mapdscourseid) {
           const result = await uploadData({
@@ -171,8 +192,11 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
         }
         await addGlobalEquipment(newEquipment);
       } else {
+        /**
+         * mapdscourseid가 변경된 경우 이미지 이동 처리
+         */
         if (equipment.mapdscourseid !== updatedFormData.mapdscourseid) {
-          if (pendingImage) {
+          if (pendingImage) {// 이미지가 변경된 경우
             const result = await uploadData({
               path: `public/equipment/${updatedFormData.mapdscourseid}/${updatedFormData.id}.png`,
               data: pendingImage,
@@ -395,12 +419,18 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
             </div>
             <div>
               <label className="label">소유자</label>
-              <TextInput
-                name="owner"
-                value={formData.owner}
-                onChange={(e) => setFormData(prev => ({ ...prev, owner: e}))}
+              <select
                 className="input input-bordered w-full"
-              />
+                value={formData.owner}
+
+                onChange={(e) => setFormData(prev => ({ ...prev, owner: e.target.value}))}
+              >
+                <option value="">선택하세요</option>
+                  <option key='dsowner1' value='고객'>고객</option>
+                  <option key='dsowner2' value='동성'>동성</option>
+
+              </select>
+
             </div>
             <div>
               <label className="label">담당 부서</label>

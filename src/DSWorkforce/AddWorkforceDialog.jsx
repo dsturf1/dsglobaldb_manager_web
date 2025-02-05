@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useGlobalComponent } from '../context/ComponentContext';
+import { useGlobalComponent } from '../context/GlobalComponentContext'; 
 import { useBase } from '../context/BaseContext';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 

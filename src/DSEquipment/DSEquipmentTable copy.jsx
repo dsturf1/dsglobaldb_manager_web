@@ -45,17 +45,36 @@ export default function DSEquipmentTable() {
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
 
+  // 초기 데이터 로딩
+  useEffect(() => {
+    const loadData = async () => {
+      setDataLoaded(false);
+      try {
+        await Promise.all([
+          fetchGlobalEquipments(),
+          fetchGlobalMaintenances()
+        ]);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setDataLoaded(true);
+      }
+    };
+
+    loadData();
+  }, []);
+
   // 장비별 유지보수 이력 갯수를 계산하는 함수
-  const getMaintenanceCount = useMemo(() => {
+  const maintenanceCountMap = useMemo(() => {
+    console.log('Calculating maintenance counts:', globalMaintenances);
     const countMap = {};  
     globalMaintenances?.forEach(maintenance => {
       if (maintenance.equipment_id) {
         countMap[maintenance.equipment_id] = (countMap[maintenance.equipment_id] || 0) + 1;
-
       }
     });
+    console.log('Maintenance count map:', countMap);
     return countMap;
-  // }, [maintenances]);
   }, [globalMaintenances]);
 
   // 개별 이미지 URL을 가져오는 함수
@@ -107,35 +126,6 @@ export default function DSEquipmentTable() {
 
     loadImages();
   }, [globalEquipments]);
-
-  // 초기 데이터 로딩
-  useEffect(() => {
-    const loadData = async () => {
-      setDataLoaded(false);
-      try {
-        await fetchGlobalEquipments();
-      } catch (error) {
-        console.error('Error loading equipment data:', error);
-      } finally {
-        setDataLoaded(true);
-      }
-    };
-
-    const loadMaintenances = async () => {
-      setDataLoaded(false);
-      try {
-        // await fetchMaintenances();
-        await fetchGlobalMaintenances();
-
-      } catch (error) {
-        console.error('Error loading equipment data:', error);
-      } finally {
-        setDataLoaded(true);
-      }
-    };
-    loadData();
-    loadMaintenances();
-  }, []);
 
   // 고유한 필터 옵션 추출
 
@@ -235,8 +225,8 @@ export default function DSEquipmentTable() {
 
     // 선택된 장비의 유지보수 이력 필터링
     const getEquipmentMaintenances = (equipmentId) => {
-      // return maintenances?.filter(m => m.equipment_id === equipmentId) || [];
-      return globalMaintenances?.filter(m => m.equipment_id === equipmentId) || []; 
+      console.log('Getting maintenances for equipment:', equipmentId, globalMaintenances);
+      return globalMaintenances?.filter(m => m.equipment_id === equipmentId) || [];
     };
   
   
@@ -405,7 +395,7 @@ export default function DSEquipmentTable() {
                     className="badge bg-blue-900 text-white cursor-pointer hover:bg-blue-800"
                     onClick={() => handleOpenMaintenance(equipment)}
                   >
-                    {getMaintenanceCount[equipment.id] || 0}건
+                    {maintenanceCountMap[equipment.id] || 0}건
                   </button>
                 </td>
                 <td>
