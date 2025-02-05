@@ -31,7 +31,8 @@ export default function DSEquipmentTable() {
   // 필터 상태
   const [filters, setFilters] = useState({
     category: 'all',    
-    type: 'all'
+    type: 'all',
+    org: 'all'  // 담당부서 필터 추가
   });
 
   // 이미지 로딩 상태를 관리하는 객체
@@ -162,11 +163,15 @@ export default function DSEquipmentTable() {
       )];
     };
 
+    // 담당부서 옵션 추가
+    const orgs = [{org: '전체', mapdscourseid: 'all'}, ...dsOrgList];
+
     return {
       category: categories,
-      type: getTypeOptions(filters.category)
+      type: getTypeOptions(filters.category),
+      org: orgs  // 담당부서 옵션 추가
     };
-  }, [globalEquipments, filters.category, dsEQtypeOrder]);
+  }, [globalEquipments, filters.category, dsEQtypeOrder, dsOrgList]);
 
   // 필터링 및 정렬된 데이터
   const filteredAndSortedEquipments = useMemo(() => {
@@ -176,7 +181,8 @@ export default function DSEquipmentTable() {
           equipment.name.toLowerCase().includes(searchTerm.toLowerCase());
         const categoryMatch = filters.category === 'all' || equipment.category === filters.category;
         const typeMatch = filters.type === 'all' || equipment.type === filters.type;
-        return searchMatch && categoryMatch && typeMatch;
+        const orgMatch = filters.org === 'all' || equipment.mapdscourseid === filters.org;
+        return searchMatch && categoryMatch && typeMatch && orgMatch;
       })
       .sort((a, b) => {
         // 1. 분류 순서로 정렬
@@ -204,8 +210,8 @@ export default function DSEquipmentTable() {
         className="select select-bordered select-sm"
       >
         {options.map(option => (
-          <option key={option} value={option}>
-            {option === 'all' ? '전체' : option}
+          <option key={option.value} value={option.value}>
+            {option.label}
           </option>
         ))}
       </select>
@@ -327,19 +333,34 @@ export default function DSEquipmentTable() {
             </button>
           </div>
 
-          {/* 오른쪽: 필터들 */}
+          {/* 오른쪽: 필터들 - 담당부서 필터 추가 */}
           <div className="flex items-center gap-4">
             <FilterSelect
               label="분류"
               value={filters.category}
               onChange={(value) => handleFilterChange('category', value)}
-              options={filterOptions.category}
+              options={filterOptions.category.map(org => ({
+                label: org,
+                value: org
+              }))}
             />
             <FilterSelect
               label="유형"
               value={filters.type}
               onChange={(value) => handleFilterChange('type', value)}
-              options={filterOptions.type}
+              options={filterOptions.type.map(org => ({
+                label: org,
+                value: org
+              }))}
+            />
+            <FilterSelect
+              label="담당부서"
+              value={filters.org}
+              onChange={(value) => handleFilterChange('org', value)}
+              options={filterOptions.org.map(org => ({
+                label: org.org,
+                value: org.mapdscourseid
+              }))}
             />
           </div>
         </div>
