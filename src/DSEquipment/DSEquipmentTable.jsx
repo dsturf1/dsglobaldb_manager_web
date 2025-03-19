@@ -138,40 +138,46 @@ export default function DSEquipmentTable() {
     loadMaintenances();
   }, []);
 
-  // 고유한 필터 옵션 추출
-
+  // 필터 옵션 추출
   const filterOptions = useMemo(() => {
-    // 분류 옵션을 우선순위에 따라 정렬
-    const categories = ['all', ...new Set(globalEquipments.map(e => e.category))]
+    // 카테고리-타입 맵 생성
+    const categoryTypeMap = new Map();
+    globalEquipments.forEach(eq => {
+      if (!categoryTypeMap.has(eq.category)) {
+        categoryTypeMap.set(eq.category, new Set());
+      }
+      categoryTypeMap.get(eq.category).add(eq.type);
+    });
+
+    // 분류(카테고리) 옵션
+    const categories = ['all', ...Array.from(categoryTypeMap.keys())]
       .sort((a, b) => {
         if (a === 'all') return -1;
         if (b === 'all') return 1;
-        const indexA = dsEQtypeOrder.findIndex(item => item === a);
-        const indexB = dsEQtypeOrder.findIndex(item => item === b);
-        return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+        return a.localeCompare(b);
       });
     
     // 선택된 카테고리에 따른 유형 옵션 추출
     const getTypeOptions = (selectedCategory) => {
       if (selectedCategory === 'all') {
-        return ['all', ...new Set(globalEquipments.map(e => e.type))];
+        const allTypes = new Set();
+        categoryTypeMap.forEach(types => {
+          types.forEach(type => allTypes.add(type));
+        });
+        return ['all', ...Array.from(allTypes)];
       }
-      return ['all', ...new Set(
-        globalEquipments
-          .filter(e => e.category === selectedCategory)
-          .map(e => e.type)
-      )];
+      return ['all', ...Array.from(categoryTypeMap.get(selectedCategory) || [])];
     };
 
-    // 담당부서 옵션 추가
+    // 담당부서 옵션
     const orgs = [{org: '전체', mapdscourseid: 'all'}, ...dsOrgList];
 
     return {
       category: categories,
       type: getTypeOptions(filters.category),
-      org: orgs  // 담당부서 옵션 추가
+      org: orgs
     };
-  }, [globalEquipments, filters.category, dsEQtypeOrder, dsOrgList]);
+  }, [globalEquipments, filters.category, dsOrgList]);
 
   // 필터링 및 정렬된 데이터
   const filteredAndSortedEquipments = useMemo(() => {
@@ -186,9 +192,7 @@ export default function DSEquipmentTable() {
       })
       .sort((a, b) => {
         // 1. 분류 순서로 정렬
-        const indexA = dsEQtypeOrder.findIndex(item => item === a.category);
-        const indexB = dsEQtypeOrder.findIndex(item => item === b.category);
-        const categoryDiff = (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+        const categoryDiff = a.category.localeCompare(b.category);
         if (categoryDiff !== 0) return categoryDiff;
 
         // 2. 같은 분류 내에서는 유형순
@@ -198,7 +202,7 @@ export default function DSEquipmentTable() {
         // 3. 같은 유형 내에서는 이름순
         return a.name.localeCompare(b.name);
       });
-  }, [globalEquipments, filters, searchTerm, dsEQtypeOrder]);
+  }, [globalEquipments, filters, searchTerm]);
 
   // 필터 선택 컴포넌트
   const FilterSelect = ({ label, value, onChange, options }) => (

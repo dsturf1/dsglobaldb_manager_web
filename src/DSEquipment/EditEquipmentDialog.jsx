@@ -27,7 +27,7 @@ const processImage = async (file) => {
 
 export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd }) {
   const { updateGlobalEquipment, addGlobalEquipment, globalEquipments } = useGlobalComponent();
-  const { dsOrgList } = useBase();
+  const { dsOrgList, dsEQCategoryTypeMAP } = useBase();
   const [formData, setFormData] = useState({
     category: '',
     type: '',
@@ -58,23 +58,10 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
    */
   const [pendingImage, setPendingImage] = useState(null);
 
-
-  // 카테고리와 타입의 unique한 조합 추출
+  // categoryTypeMap을 dsEQCategoryTypeMAP으로 대체
   const categoryTypeMap = useMemo(() => {
-    const map = new Map();
-    globalEquipments.forEach(eq => {
-      if (!map.has(eq.category)) {
-        map.set(eq.category, new Set());
-      }
-      map.get(eq.category).add(eq.type);
-    });
-
-    // Map을 객체로 변환
-    return Array.from(map).reduce((obj, [category, types]) => {
-      obj[category] = Array.from(types);
-      return obj;
-    }, {});
-  }, [globalEquipments]);
+    return dsEQCategoryTypeMAP;
+  }, [dsEQCategoryTypeMAP]);
 
   // 현재 선택 가능한 모든 카테고리
   const categories = useMemo(() => 
@@ -339,10 +326,11 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
                   setFormData(prev => ({
                     ...prev,
                     category: e.target.value,
-                    type: categoryTypeMap[e.target.value]?.[0] || '' // 카테고리 변경 시 첫 번째 타입 선택
+                    type: categoryTypeMap[e.target.value]?.[0] || '' // 첫 번째 타입 선택
                   }));
                 }}
               >
+                <option value="">선택하세요</option>
                 {categories.map(category => (
                   <option key={category} value={category}>{category}</option>
                 ))}
@@ -355,6 +343,7 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
                 value={formData.type}
                 onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
               >
+                <option value="">선택하세요</option>
                 {categoryTypeMap[formData.category]?.map(type => (
                   <option key={type} value={type}>{type}</option>
                 ))}

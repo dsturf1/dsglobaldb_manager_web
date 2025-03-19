@@ -22,6 +22,7 @@ export const BaseProvider = ({ children}) => {
   const [dswindConditions, setDswindConditions] = useState([]);
   const [dsOrgList, setDsOrgList] = useState([]);
   const [dsTaskList, setDsTaskList] = useState([]);
+  const [dsEQCategoryTypeMAP, setDsEQCategoryTypeMAP] = useState({});
   const [mapdscourseid, setMapdscourseid] = useState('MGC999');
 
   // Config 파일 로드 함수
@@ -64,6 +65,7 @@ export const BaseProvider = ({ children}) => {
       setDswindConditions(data.dswindConditions || []);
       setDsOrgList(data.dsOrgList || []);
       setDsTaskList(data.dstask || []);
+      setDsEQCategoryTypeMAP(data.dsEQCategoryTypeMAP || {});
       console.log("Base & Task configuration loaded successfully.", data);
     } catch (error) {
       console.error("Failed to parse dsbase.json:", error);
@@ -82,6 +84,7 @@ export const BaseProvider = ({ children}) => {
     dswindConditions,
     dsOrgList,
     dsTaskList,
+    dsEQCategoryTypeMAP,
     mapdscourseid,
     setMapdscourseid,
     loadConfig,

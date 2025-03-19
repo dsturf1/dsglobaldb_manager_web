@@ -21,7 +21,8 @@ export default function Layout({ children }) {
       dsTaskList,
       loadConfig,
       mapdscourseid,
-      dsOrgList
+      dsOrgList,
+      dsEQCategoryTypeMAP
     } = useBase();
   
     const {
@@ -80,7 +81,8 @@ export default function Layout({ children }) {
     useEffect(() => {
       console.log(dsTaskList);
       console.log(dsrankOrder);
-    }, [dsTaskList]);
+      console.log(dsEQCategoryTypeMAP);
+    }, [dsEQCategoryTypeMAP]);
   
     // 사용자 정보 가져오기 함수
     const getUserInfo = async () => {
