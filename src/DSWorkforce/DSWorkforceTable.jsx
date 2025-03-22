@@ -2,6 +2,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useGlobalComponent } from '../context/GlobalComponentContext'; 
 import { useBase } from '../context/BaseContext';
 import AddWorkforceDialog from './AddWorkforceDialog';
+import EditWorkforceDialog from './EditWorkforceDialog';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 export default function DSWorkforceTable() {
@@ -21,6 +22,9 @@ export default function DSWorkforceTable() {
   const [editingRows, setEditingRows] = useState(new Set());
   const [editedWorkforces, setEditedWorkforces] = useState({});
   const [savingRows, setSavingRows] = useState(new Set());
+
+  // 선택된 행 상태 추가
+  const [selectedRow, setSelectedRow] = useState(null);
 
   // 고유한 필터 옵션 추출
   const filterOptions = useMemo(() => ({
@@ -170,83 +174,15 @@ export default function DSWorkforceTable() {
   const TableRow = ({ workforce, index }) => {
     const isEditing = editingRows.has(workforce.id);
     const editedData = editedWorkforces[workforce.id];
-
-    if (isEditing) {
-      return (
-        <tr>
-          <td className="text-center">{index + 1}</td>
-          <td>{workforce.id}</td>
-          <td>
-            <select
-              className="select select-bordered select-sm w-full"
-              value={editedData.org}
-              onChange={(e) => handleEditChange(workforce.id, 'org', e.target.value)}
-            >
-              {dsOrgOrder.map(org => (
-                <option key={org} value={org}>{org}</option>
-              ))}
-            </select>
-          </td>
-          <td>{editedData.category}</td>
-          <td>
-            <TextInput
-              value={editedData.name}
-              onChange={(value) => handleEditChange(workforce.id, 'name', value)}
-              className="input input-bordered input-sm w-full"
-            />
-          </td>
-          <td>
-            <select
-              className="select select-bordered select-sm w-full"
-              value={editedData.rank}
-              onChange={(e) => handleEditChange(workforce.id, 'rank', e.target.value)}
-            >
-              {dsrankOrder.map(rank => (
-                <option key={rank} value={rank}>{rank}</option>
-              ))}
-            </select>
-          </td>
-          <td>
-            <TextInput
-              value={editedData.Email}
-              onChange={(value) => handleEditChange(workforce.id, 'Email', value)}
-              className="input input-bordered input-sm w-full"
-            />
-          </td>
-          <td>
-            <div className="flex gap-2">
-              <button 
-                className="btn btn-xs btn-primary"
-                onClick={() => handleSave(workforce.id)}
-                disabled={savingRows.has(workforce.id)}
-              >
-                {savingRows.has(workforce.id) ? (
-                  <>
-                    <span className="loading loading-spinner loading-xs"></span>
-                    저장
-                  </>
-                ) : (
-                  '저장'
-                )}
-              </button>
-              <button 
-                className="btn btn-xs"
-                onClick={() => handleCancel(workforce.id)}
-                disabled={savingRows.has(workforce.id)}
-              >
-                취소
-              </button>
-            </div>
-          </td>
-        </tr>
-      );
-    }
+    const isSelected = selectedRow === workforce.id;
 
     return (
       <tr 
         key={workforce.id}
+        onClick={() => setSelectedRow(workforce.id)}
         onDoubleClick={() => handleStartEdit(workforce.id)}
-        className="cursor-pointer hover:bg-gray-100"
+        className={`cursor-pointer hover:bg-gray-100 
+          ${isSelected ? 'border-2 border-blue-500' : ''}`}
       >
         <td className="text-center">{index + 1}</td>
         <td>{workforce.id}</td>
@@ -260,7 +196,7 @@ export default function DSWorkforceTable() {
             <button 
               className="btn btn-xs btn-error"
               onClick={(e) => {
-                e.stopPropagation();  // 더블클릭 이벤트 전파 방지
+                e.stopPropagation();
                 handleDelete(workforce.id);
               }}
             >
@@ -273,6 +209,22 @@ export default function DSWorkforceTable() {
   };
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  // 테이블 바깥 클릭 시 선택 해제를 위한 ref와 effect 추가
+  const tableRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (tableRef.current && !tableRef.current.contains(event.target)) {
+        setSelectedRow(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   return (
     <div className="p-4">
@@ -318,8 +270,8 @@ export default function DSWorkforceTable() {
         </div>
       </div>
 
-      {/* 테이블 */}
-      <div className="overflow-x-auto">
+      {/* 테이블에 ref 추가 */}
+      <div className="overflow-x-auto" ref={tableRef}>
         <table className="table table-zebra w-full">
           <thead>
             <tr>
@@ -349,6 +301,21 @@ export default function DSWorkforceTable() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
       />
+
+      {/* EditWorkforceDialog 추가 */}
+      {Array.from(editingRows).map(id => (
+        <EditWorkforceDialog
+          key={id}
+          isOpen={true}
+          onClose={() => handleCancel(id)}
+          workforce={editedWorkforces[id]}
+          onSave={() => handleSave(id)}
+          onChange={(field, value) => handleEditChange(id, field, value)}
+          dsOrgOrder={dsOrgOrder}
+          dsrankOrder={dsrankOrder}
+          isSaving={savingRows.has(id)}
+        />
+      ))}
     </div>
   );
 } 

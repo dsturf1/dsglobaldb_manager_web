@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useGlobalComponent } from '../context/GlobalComponentContext'; // 전역 컴포넌트 컨텍스트 사용
 import AddChemicalDialog from './AddChemicalDialog';
+import EditChemicalDialog from './EditChemicalDialog';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 /**
@@ -153,72 +154,27 @@ export default function DSChemicalsTable() {
     </select>
   );
 
-  const [editingRows, setEditingRows] = useState(new Set());
-  const [editedChemicals, setEditedChemicals] = useState({});
-  const [savingRows, setSavingRows] = useState(new Set());  // 저장 중인 행 추적
+  // 편집 관련 상태
+  const [editingChemical, setEditingChemical] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // 행 편집 시작
-  const handleStartEdit = (dsids) => {
-    setEditingRows(prev => new Set(prev).add(dsids));
-    setEditedChemicals(prev => ({
-      ...prev,
-      [dsids]: { ...globalChemicals.find(c => c.dsids === dsids) }
-    }));
+  const handleStartEdit = (chemical) => {
+    setEditingChemical(chemical);
+    setIsEditModalOpen(true);
   };
 
-  // 편집 데이터 변경 핸들러
-  const handleEditChange = (dsids, field, value) => {
-    setEditedChemicals(prev => ({
-      ...prev,
-      [dsids]: { ...prev[dsids], [field]: value }
-    }));
-  };
-
-  // 변경사항 저장
-  const handleSave = async (dsids) => {
-    setSavingRows(prev => new Set([...prev, dsids]));
+  // 편집 저장
+  const handleSave = async (editedData) => {
     try {
-      const success = await updateGlobalChemical(editedChemicals[dsids]);
-      if (success) {
-        setEditingRows(prev => {
-          const next = new Set(prev);
-          next.delete(dsids);
-          return next;
-        });
-        setEditedChemicals(prev => {
-          const next = { ...prev };
-          delete next[dsids];
-          return next;
-        });
+      const success = await updateGlobalChemical(editedData);
+      if (!success) {
+        alert('저장에 실패했습니다.');
       }
     } catch (error) {
       console.error('Failed to save:', error);
-    } finally {
-      setSavingRows(prev => {
-        const next = new Set(prev);
-        next.delete(dsids);
-        return next;
-      });
+      alert('저장 중 오류가 발생했습니다.');
     }
-  };
-
-  // 편집 취소
-  const handleCancel = (dsids) => {
-    setEditingRows(prev => {
-      const next = new Set(prev);
-      next.delete(dsids);
-      return next;
-    });
-    setEditedChemicals(prev => {
-      const { [dsids]: removed, ...rest } = prev;
-      return rest;
-    });
-  };
-
-  // getFirstOption 함수 추가
-  const getFirstOption = (options) => {
-    const realOptions = options.filter(opt => opt !== 'all');
-    return realOptions.length > 0 ? realOptions[0] : '';
   };
 
   // ChemicalsTable 컴포넌트 내부에 상태 추가
@@ -337,155 +293,22 @@ export default function DSChemicalsTable() {
     }
   };
 
-  // 행 렌더링 컴포넌트
+  // 선택된 행 상태 추가
+  const [selectedRow, setSelectedRow] = useState(null);
+
+  // TableRow 컴포넌트 수정
   const TableRow = ({ chemical, index }) => {
-    const isEditing = editingRows.has(chemical.dsids);
-    const editedData = editedChemicals[chemical.dsids];
-
-    if (isEditing) {
-      return (
-        <tr key={chemical.dsids}>
-          <td className="w-12 text-center text-xs">{index + 1}</td>
-          <td className="w-32">
-            <select 
-              className="select select-bordered select-xs w-full text-xs"
-              value={editedData.infoL3}
-              onChange={(e) => handleEditChange(chemical.dsids, 'infoL3', e.target.value)}
-            >
-              {filterOptions.infoL3.filter(opt => opt !== 'all').map(option => (
-                <option className="text-xs" key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </td>
-          <td className="w-32">
-            <select 
-              className="select select-bordered select-xs w-full text-xs"
-              value={editedData.infoL2}
-              onChange={(e) => handleEditChange(chemical.dsids, 'infoL2', e.target.value)}
-            >
-              {filterOptions.infoL2.filter(opt => opt !== 'all').map(option => (
-                <option className="text-xs" key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </td>
-          <td className="w-32">
-            <select 
-              className="select select-bordered select-xs w-full text-xs"
-              value={editedData.infoL1}
-              onChange={(e) => handleEditChange(chemical.dsids, 'infoL1', e.target.value)}
-            >
-              {filterOptions.infoL1.filter(opt => opt !== 'all').map(option => (
-                <option className="text-xs" key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </td>
-          <td className="w-28">{chemical.dsids}</td>
-          <td>
-            <TextInput
-              key={`name-${chemical.dsids}`}
-              value={editedData.name}
-              onChange={(value) => handleEditChange(chemical.dsids, 'name', value)}
-              className="input input-bordered input-xs w-full text-xs"
-            />
-          </td>
-          <td className="w-24">
-            <UnitInput
-              key={`unit-${chemical.dsids}`}
-              value={editedData.unit}
-              onChange={(value) => handleEditChange(chemical.dsids, 'unit', value)} 
-              className="input input-bordered input-xs w-full text-xs"
-              classNameUnit="select select-bordered select-xs w-16 text-xs"
-            />
-          </td>
-          <td className="w-32">
-            <NumberInput
-              key={`IN_PRICE-${chemical.dsids}`}
-              value={editedData.IN_PRICE}
-              onChange={(value) => handleEditChange(chemical.dsids, 'IN_PRICE', value)}
-              className="input input-bordered input-xs w-full text-xs text-right"
-            />
-          </td>
-          <td className="w-32">
-            <NumberInput
-              key={`OUT_PRICE-${chemical.dsids}`}
-              value={editedData.OUT_PRICE}
-              onChange={(value) => handleEditChange(chemical.dsids, 'OUT_PRICE', value)}
-              className="input input-bordered input-xs w-full text-xs text-right"
-            />
-          </td>
-          <td className="w-32">
-            <NumberInput
-              key={`OUT_PRICE1-${chemical.dsids}`}
-              value={editedData.OUT_PRICE1}
-              onChange={(value) => handleEditChange(chemical.dsids, 'OUT_PRICE1', value)}
-              className="input input-bordered input-xs w-full text-xs text-right"
-            />
-          </td>
-          <td className="w-24">
-            <select 
-              className="select select-bordered select-xs w-full text-xs"
-              value={editedData.active}
-              onChange={(e) => handleEditChange(chemical.dsids, 'active', e.target.value)}
-            >
-              <option className="text-xs" value="Y">사용</option>
-              <option className="text-xs" value="N">미사용</option>
-            </select>
-          </td>
-          <td className="w-28">
-            <select 
-              className="select select-bordered select-xs w-full text-xs"
-              value={editedData.flgWork}
-              onChange={(e) => handleEditChange(chemical.dsids, 'flgWork', e.target.value)}
-            >
-              <option className="text-xs" value="Y">사용</option>
-              <option className="text-xs" value="N">미사용</option>
-            </select>
-          </td>
-          <td className="w-28">
-            <select 
-              className="select select-bordered select-xs w-full text-xs"
-              value={editedData.flgOut}
-              onChange={(e) => handleEditChange(chemical.dsids, 'flgOut', e.target.value)}
-            >
-              <option className="text-xs" value="Y">사용</option>
-              <option className="text-xs" value="N">미사용</option>
-            </select>
-          </td>
-          <td className="w-28">
-            <div className="flex gap-2">
-              <button 
-                className="btn btn-xs btn-primary text-xs"
-                onClick={() => handleSave(chemical.dsids)}
-                disabled={savingRows.has(chemical.dsids)}
-              >
-                {savingRows.has(chemical.dsids) ? (
-                  <>
-                    <span className="loading loading-spinner loading-xs"></span>
-                    저장
-                  </>
-                ) : (
-                  '저장'
-                )}
-              </button>
-              <button 
-                className="btn btn-xs btn-error text-xs"
-                onClick={() => handleCancel(chemical.dsids)}
-                disabled={savingRows.has(chemical.dsids)}
-              >
-                취소
-              </button>
-            </div>
-          </td>
-        </tr>
-      );
-    }
-
-    // 일반 행 렌더링 (기존 코드)
+    const isEditing = editingChemical && editingChemical.dsids === chemical.dsids;
+    const isSelected = selectedRow === chemical.dsids;
+    
     return (
       <tr 
         key={chemical.dsids}
-        onDoubleClick={() => handleStartEdit(chemical.dsids)}
-        className="cursor-pointer hover:bg-gray-100"
+        onClick={() => setSelectedRow(chemical.dsids)}
+        onDoubleClick={() => handleStartEdit(chemical)}
+        className={`cursor-pointer hover:bg-gray-100 ${
+          isSelected || isEditing ? 'outline outline-2 outline-blue-500 relative z-10' : ''
+        }`}
       >
         <td className="w-12 text-center text-xs">{index + 1}</td>
         <td className="text-xs">
@@ -515,20 +338,26 @@ export default function DSChemicalsTable() {
           </span>
         </td>
         <td className="w-24 text-xs">
-          <div className="flex gap-2">
-            <button 
-              className="btn btn-xs btn-error"
-              onClick={(e) => {
-                e.stopPropagation();  // 더블클릭 이벤트 전파 방지
-                handleDelete(chemical.dsids);
-              }}
-            >
-              삭제
-            </button>
-          </div>
+          <button 
+            className="btn btn-xs btn-error"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(chemical.dsids);
+            }}
+          >
+            삭제
+          </button>
         </td>
       </tr>
     );
+  };
+
+  // 다이얼로그가 닫힐 때 선택된 행 초기화
+  const handleCloseEdit = () => {
+    setIsEditModalOpen(false);
+    setEditingChemical(null);
+    // 선택된 행은 유지 (필요한 경우에만 초기화)
+    // setSelectedRow(null);
   };
 
   return (
@@ -636,9 +465,21 @@ export default function DSChemicalsTable() {
           </tbody>
         </table>
       </div>
+
+      {/* 편집 다이얼로그 */}
+      <EditChemicalDialog
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEdit}
+        chemical={editingChemical}
+        onSave={handleSave}
+        filterOptions={filterOptions}
+      />
+      
+      {/* 추가 다이얼로그 */}
       <AddChemicalDialog
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+        onAdd={handleAddConfirm}
       />
     </div>
   );
