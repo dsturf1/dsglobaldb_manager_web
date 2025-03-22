@@ -5,7 +5,7 @@ import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 export default function AddWorkforceDialog({ isOpen, onClose }) {
   const { globalWorkforces, addGlobalWorkforce } = useGlobalComponent();
-  const { dsOrgOrder, dsrankOrder } = useBase();
+  const { dsOrgOrder, dsrankOrder, dsOrgList } = useBase();
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
     org: dsOrgOrder[0],
@@ -13,8 +13,12 @@ export default function AddWorkforceDialog({ isOpen, onClose }) {
     name: '',
     Email: '',
     category: '정규직',
-    id: ''
+    id: '',
+    mapdscourseid: ''
   });
+
+  
+
 
   const generateNewId = () => {
     const randomNum = Math.floor(Math.random() * 10000000).toString().padStart(7, '0');
@@ -77,10 +81,19 @@ export default function AddWorkforceDialog({ isOpen, onClose }) {
                 name="org"
                 className="select select-bordered w-full"
                 value={form.org}
-                onChange={handleChange}
+                onChange={(e) => {
+                  const selectedOrg = dsOrgList.find(item => item.org === e.target.value);
+                  setForm(prev => ({
+                    ...prev,
+                    org: selectedOrg.org,
+                    mapdscourseid: selectedOrg.mapdscourseid
+                  }));
+                }}
               >
-                {dsOrgOrder.map(org => (
-                  <option key={org} value={org}>{org}</option>
+                {dsOrgList.map(item => (
+                  <option key={item.org} value={item.org}>
+                    {`${item.org}: ${item.mapdscourseid}`}
+                  </option>
                 ))}
               </select>
             </div>

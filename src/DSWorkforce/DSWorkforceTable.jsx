@@ -6,7 +6,7 @@ import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 export default function DSWorkforceTable() {
   const { globalWorkforces, updateGlobalWorkforce, deleteGlobalWorkforce, setGlobalWorkforces } = useGlobalComponent();
-  const { dsOrgOrder, dsrankOrder } = useBase();
+  const { dsOrgOrder, dsrankOrder, dsOrgList } = useBase();
   
   // 검색어 상태
   const [searchTerm, setSearchTerm] = useState('');
@@ -85,7 +85,11 @@ export default function DSWorkforceTable() {
           ...prev[id], 
           [field]: value,
           // 직급 변경 시 분류 자동 업데이트
-          ...(field === 'rank' ? { category: getCategory(value) } : {})
+          ...(field === 'rank' ? { category: getCategory(value) } : {}),
+          // org 변경 시 mapdscpurseid 자동 업데이트
+          ...(field === 'org' ? { 
+            mapdscourseid: dsOrgList.find(org => org.org === value)?.mapdscourseid || ''
+          } : {})
         }
       };
       return updated;
@@ -104,7 +108,15 @@ export default function DSWorkforceTable() {
   const handleSave = async (id) => {
     setSavingRows(prev => new Set([...prev, id]));
     try {
-      await updateGlobalWorkforce(editedWorkforces[id]);
+      // 저장하기 전에 mapdscpurseid 업데이트
+      const workforceToUpdate = {
+        ...editedWorkforces[id],
+        mapdscourseid: dsOrgList.find(org => org.org === editedWorkforces[id].org)?.mapdscourseid || ''
+      };
+      console.log('workforceToUpdate', workforceToUpdate);
+      
+      
+      await updateGlobalWorkforce(workforceToUpdate);
       setEditingRows(prev => {
         const next = new Set(prev);
         next.delete(id);

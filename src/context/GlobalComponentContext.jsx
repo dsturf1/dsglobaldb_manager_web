@@ -91,7 +91,7 @@ export const GlobalComponentProvider = ({ children }) => {
     try {
       await apiClient.post('/dsworkforce', workforce);
       setGlobalWorkforces(prev => [...prev, workforce]);
-      console.log(`Global Workforce with id ${workforce.id} inserted successfully.`);
+      console.log(`Global Workforce with id ${workforce.id} inserted successfully.workforce: ${workforce}`);
     } catch (err) {
       console.error('Error adding global workforce:', err);
     }
@@ -136,7 +136,7 @@ export const GlobalComponentProvider = ({ children }) => {
         params: { mapdscourseid: mapdscourseid },
       });
       setGlobalWorkforces((prev) => prev.map((item) => (item.id === workforce.id ? workforce : item)));
-      console.log(`Global Workforce with id ${workforce.id} updated successfully.`);
+      console.log(`Global Workforce with id ${workforce.id} updated successfully.workforce: ${workforce}`, workforce);
     } catch (err) {
       console.error('Error updating global workforce:', err);
     }
