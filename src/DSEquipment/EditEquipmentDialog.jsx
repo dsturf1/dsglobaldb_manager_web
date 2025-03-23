@@ -124,24 +124,30 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
     }
 
     if (equipment) {
-      // 수정 모드일 경우
+      // 기존 카테고리가 유효한지 확인
+      const isValidCategory = categories.includes(equipment.category);
+      const isValidType = isValidCategory && categoryTypeMap[equipment.category]?.includes(equipment.type);
+
+      // 이미지 처리 로직 유지
       if (equipment.imageURL) {
-        // 기존 이미지 URL이 있으면 그대로 사용
         setFormData({
           ...equipment,
+          category: isValidCategory ? equipment.category : '',
+          type: isValidType ? equipment.type : '',
           imageURL: equipment.imageURL
         });
         setUseDefaultImage(false);
       } else {
-        // 기존 이미지 URL이 없으면 기본 이미지 사용
         setFormData({
           ...equipment,
+          category: isValidCategory ? equipment.category : '',
+          type: isValidType ? equipment.type : '',
           imageURL: null
         });
         setUseDefaultImage(true);
       }
     }
-  }, [equipment, isAdd, isOpen]);
+  }, [equipment, isAdd, isOpen, categories, categoryTypeMap]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

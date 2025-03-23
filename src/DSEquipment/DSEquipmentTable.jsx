@@ -19,7 +19,7 @@ const LoadingSpinner = () => (
 export default function DSEquipmentTable() {
   const { globalEquipments, updateGlobalEquipment, deleteGlobalEquipment, addGlobalEquipment, fetchGlobalEquipments,globalMaintenances,fetchGlobalMaintenances} = useGlobalComponent();
   // const {maintenances, fetchMaintenances} = useComponent();
-  const { dsOrgList, dsEQtypeOrder } = useBase();
+  const { dsOrgList,  dsEQCategoryTypeMAP} = useBase();
   
   // 검색어 상태
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,7 +32,7 @@ export default function DSEquipmentTable() {
   const [filters, setFilters] = useState({
     category: 'all',    
     type: 'all',
-    org: 'all'  // 담당부서 필터 추가
+    org: '전체'  // 담당부서 필터 추가
   });
 
   // 이미지 로딩 상태를 관리하는 객체
@@ -59,152 +59,52 @@ export default function DSEquipmentTable() {
   // }, [maintenances]);
   }, [globalMaintenances]);
 
-  // 개별 이미지 URL을 가져오는 함수
-  const getImageUrl = async (equipment) => {
-    const cacheKey = `${equipment.mapdscourseid}/${equipment.id}/${equipment.imageVersion || ''}`;
-    
-    if (imageUrlCache.has(cacheKey)) {
-      return imageUrlCache.get(cacheKey);
-    }
-
-    try {
-      setImageLoadingStates(prev => ({ ...prev, [equipment.id]: true }));
-      const { url } = await getUrl({
-        path: `public/equipment/${equipment.mapdscourseid}/${equipment.id}.png`,
-        options: {
-          cacheControl: '3600',
-          expiresIn: 3600,
-          validateObjectExistence: true
-        }
-      });
-      
-      imageUrlCache.set(cacheKey, url);
-      setImageLoadingStates(prev => ({ ...prev, [equipment.id]: false }));
-      return url;
-    } catch (error) {
-      // console.error('Error getting image URL:', error);
-      setImageLoadingStates(prev => ({ ...prev, [equipment.id]: false }));
-      return null;
-    }
-  };
-
-  // 장비 데이터에 이미지 URL 추가
-  useEffect(() => {
-    const loadImages = async () => {
-      if (!globalEquipments?.length) return;
-      
-      globalEquipments.forEach(async (equipment) => {
-        try {
-          const imageURL = await getImageUrl(equipment);
-          setEquipmentImages(prev => ({
-            ...prev,
-            [equipment.id]: imageURL
-          }));
-        } catch (error) {
-          console.error('Error getting image URL:', error);
-        }
-      });
-    };
-
-    loadImages();
-  }, [globalEquipments]);
-
-  // 초기 데이터 로딩
-  useEffect(() => {
-    const loadData = async () => {
-      setDataLoaded(false);
-      try {
-        await fetchGlobalEquipments();
-      } catch (error) {
-        console.error('Error loading equipment data:', error);
-      } finally {
-        setDataLoaded(true);
-      }
-    };
-
-    const loadMaintenances = async () => {
-      setDataLoaded(false);
-      try {
-        // await fetchMaintenances();
-        await fetchGlobalMaintenances();
-
-      } catch (error) {
-        console.error('Error loading equipment data:', error);
-      } finally {
-        setDataLoaded(true);
-      }
-    };
-    loadData();
-    loadMaintenances();
-  }, []);
-
-  // 필터 옵션 추출
+  // 필터 옵션 추출 로직 수정
   const filterOptions = useMemo(() => {
-    // 카테고리-타입 맵 생성
-    const categoryTypeMap = new Map();
-    globalEquipments.forEach(eq => {
-      if (!categoryTypeMap.has(eq.category)) {
-        categoryTypeMap.set(eq.category, new Set());
-      }
-      categoryTypeMap.get(eq.category).add(eq.type);
-    });
-
     // 분류(카테고리) 옵션
-    const categories = ['all', ...Array.from(categoryTypeMap.keys())]
+    const categories = ['전체', ...Object.keys(dsEQCategoryTypeMAP)]
       .sort((a, b) => {
-        if (a === 'all') return -1;
-        if (b === 'all') return 1;
+        if (a === '전체') return -1;
+        if (b === '전체') return 1;
         return a.localeCompare(b);
       });
     
     // 선택된 카테고리에 따른 유형 옵션 추출
     const getTypeOptions = (selectedCategory) => {
-      if (selectedCategory === 'all') {
+      if (selectedCategory === 'all' || selectedCategory === '전체') {
+        // 모든 유형을 중복 없이 추출
         const allTypes = new Set();
-        categoryTypeMap.forEach(types => {
+        Object.values(dsEQCategoryTypeMAP).forEach(types => {
           types.forEach(type => allTypes.add(type));
         });
-        return ['all', ...Array.from(allTypes)];
+        return ['전체', ...Array.from(allTypes).sort()];
       }
-      return ['all', ...Array.from(categoryTypeMap.get(selectedCategory) || [])];
+      return ['전체', ...(dsEQCategoryTypeMAP[selectedCategory] || [])].sort();
     };
 
     // 담당부서 옵션
-    const orgs = [{org: '전체', mapdscourseid: 'all'}, ...dsOrgList];
+    const orgs = [
+      { org: '전체', mapdscourseid: '전체' },  // value도 '전체'로 통일
+      ...dsOrgList
+    ];
 
     return {
-      category: categories,
-      type: getTypeOptions(filters.category),
-      org: orgs
+      category: categories.map(cat => ({
+        label: cat,
+        value: cat === '전체' ? 'all' : cat
+      })),
+      type: getTypeOptions(filters.category).map(type => ({
+        label: type,
+        value: type === '전체' ? 'all' : type
+      })),
+      org: orgs.map(org => ({
+        label: org.org,
+        value: org.mapdscourseid
+      }))
     };
-  }, [globalEquipments, filters.category, dsOrgList]);
+  }, [dsEQCategoryTypeMAP, filters.category, dsOrgList]);
 
-  // 필터링 및 정렬된 데이터
-  const filteredAndSortedEquipments = useMemo(() => {
-    return [...globalEquipments]
-      .filter(equipment => {
-        const searchMatch = searchTerm === '' || 
-          equipment.name.toLowerCase().includes(searchTerm.toLowerCase());
-        const categoryMatch = filters.category === 'all' || equipment.category === filters.category;
-        const typeMatch = filters.type === 'all' || equipment.type === filters.type;
-        const orgMatch = filters.org === 'all' || equipment.mapdscourseid === filters.org;
-        return searchMatch && categoryMatch && typeMatch && orgMatch;
-      })
-      .sort((a, b) => {
-        // 1. 분류 순서로 정렬
-        const categoryDiff = a.category.localeCompare(b.category);
-        if (categoryDiff !== 0) return categoryDiff;
-
-        // 2. 같은 분류 내에서는 유형순
-        const typeDiff = (a.type || '').localeCompare(b.type || '');
-        if (typeDiff !== 0) return typeDiff;
-
-        // 3. 같은 유형 내에서는 이름순
-        return a.name.localeCompare(b.name);
-      });
-  }, [globalEquipments, filters, searchTerm]);
-
-  // 필터 선택 컴포넌트
+  // 필터 선택 컴포넌트 추가
   const FilterSelect = ({ label, value, onChange, options }) => (
     <div className="flex items-center gap-2">
       <span className="text-sm">{label}:</span>
@@ -221,6 +121,123 @@ export default function DSEquipmentTable() {
       </select>
     </div>
   );
+
+  // filteredAndSortedEquipments 로직 수정
+  const filteredAndSortedEquipments = useMemo(() => {
+    if (!globalEquipments) return [];
+    
+    return [...globalEquipments]
+      .filter(equipment => {
+        const searchMatch = searchTerm === '' || 
+          (equipment.name?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+        const categoryMatch = filters.category === 'all' || equipment.category === filters.category;
+        const typeMatch = filters.type === 'all' || equipment.type === filters.type;
+        const orgMatch = filters.org === '전체' || equipment.mapdscourseid === filters.org;
+        return searchMatch && categoryMatch && typeMatch && orgMatch;
+      })
+      .sort((a, b) => {
+        // 1. 분류 순서로 정렬
+        const categoryOrder = Object.keys(dsEQCategoryTypeMAP);
+        const categoryA = a.category || '';
+        const categoryB = b.category || '';
+        const categoryIndexA = categoryOrder.indexOf(categoryA);
+        const categoryIndexB = categoryOrder.indexOf(categoryB);
+        
+        // 카테고리가 없는 경우 맨 뒤로
+        if (categoryIndexA === -1 && categoryIndexB === -1) return 0;
+        if (categoryIndexA === -1) return 1;
+        if (categoryIndexB === -1) return -1;
+        
+        if (categoryIndexA !== categoryIndexB) {
+          return categoryIndexA - categoryIndexB;
+        }
+
+        // 2. 같은 분류 내에서는 유형순
+        const typeOrder = dsEQCategoryTypeMAP[categoryA] || [];
+        const typeA = a.type || '';
+        const typeB = b.type || '';
+        const typeIndexA = typeOrder.indexOf(typeA);
+        const typeIndexB = typeOrder.indexOf(typeB);
+        
+        // 유형이 없는 경우 맨 뒤로
+        if (typeIndexA === -1 && typeIndexB === -1) return 0;
+        if (typeIndexA === -1) return 1;
+        if (typeIndexB === -1) return -1;
+        
+        if (typeIndexA !== typeIndexB) {
+          return typeIndexA - typeIndexB;
+        }
+
+        // 3. 같은 유형 내에서는 이름순
+        return (a.name || '').localeCompare(b.name || '');
+      });
+  }, [globalEquipments, filters, searchTerm, dsEQCategoryTypeMAP]);
+
+  // 이미지 URL을 가져오는 함수를 최적화
+  const getImageUrl = async (equipment) => {
+    const cacheKey = `${equipment.mapdscourseid}/${equipment.id}/${equipment.imageVersion || ''}`;
+    
+    if (imageUrlCache.has(cacheKey)) {
+      return imageUrlCache.get(cacheKey);
+    }
+
+    try {
+      setImageLoadingStates(prev => ({ ...prev, [equipment.id]: true }));
+      const { url } = await getUrl({
+        path: `public/equipment/${equipment.mapdscourseid}/${equipment.id}.png`,
+        options: {
+          cacheControl: '3600',
+          expiresIn: 3600,
+          validateObjectExistence: false
+        }
+      });
+      
+      imageUrlCache.set(cacheKey, url);
+      setImageLoadingStates(prev => ({ ...prev, [equipment.id]: false }));
+      return url;
+    } catch (error) {
+      setImageLoadingStates(prev => ({ ...prev, [equipment.id]: false }));
+      return null;
+    }
+  };
+
+  // 이미지 로딩 로직을 수정 버튼 클릭 시로 이동
+  const handleEdit = async (equipment) => {
+    // 이미지 URL 가져오기
+    if (!equipmentImages[equipment.id]) {
+      try {
+        const imageURL = await getImageUrl(equipment);
+        setEquipmentImages(prev => ({
+          ...prev,
+          [equipment.id]: imageURL
+        }));
+      } catch (error) {
+        console.error('Error getting image URL:', error);
+      }
+    }
+    
+    // 수정 모달 열기
+    setEditingEquipment({
+      ...equipment,
+      imageURL: equipmentImages[equipment.id]
+    });
+  };
+
+  // 초기 데이터 로딩 수정
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await fetchGlobalEquipments();
+        await fetchGlobalMaintenances();
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setDataLoaded(true);
+      }
+    };
+
+    loadData();
+  }, []);
 
   // 필터 변경 핸들러
   const handleFilterChange = (filterType, value) => {
@@ -302,10 +319,8 @@ export default function DSEquipmentTable() {
     }
   };
 
-  // 전체 로딩 상태 확인
-  const isLoading = !dataLoaded;
-
-
+  // 전체 로딩 상태 확인 수정
+  const isLoading = !dataLoaded || !globalEquipments;
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -343,28 +358,19 @@ export default function DSEquipmentTable() {
               label="분류"
               value={filters.category}
               onChange={(value) => handleFilterChange('category', value)}
-              options={filterOptions.category.map(org => ({
-                label: org,
-                value: org
-              }))}
+              options={filterOptions.category}
             />
             <FilterSelect
               label="유형"
               value={filters.type}
               onChange={(value) => handleFilterChange('type', value)}
-              options={filterOptions.type.map(org => ({
-                label: org,
-                value: org
-              }))}
+              options={filterOptions.type}
             />
             <FilterSelect
               label="담당부서"
               value={filters.org}
               onChange={(value) => handleFilterChange('org', value)}
-              options={filterOptions.org.map(org => ({
-                label: org.org,
-                value: org.mapdscourseid
-              }))}
+              options={filterOptions.org}
             />
           </div>
         </div>
@@ -378,7 +384,7 @@ export default function DSEquipmentTable() {
               <th className="w-12 text-center">No.</th>
               <th className="w-32">분류</th>
               <th className="w-24">유형</th>
-              <th className="w-16">이미지</th>
+              {/* <th className="w-16">이미지</th> */}
               <th>장비명</th>
               <th className="w-40">모델번호</th>
               <th className="w-40">제조사</th>
@@ -397,7 +403,7 @@ export default function DSEquipmentTable() {
                 <td className="text-center">{index + 1}</td>
                 <td>{equipment.category}</td>
                 <td>{equipment.type}</td>
-                <td className="w-8 h-8">
+                {/* <td className="w-8 h-8">
                   <div className="relative w-8 h-8">
                     {imageLoadingStates[equipment.id] ? (
                       <div className="w-8 h-8 flex items-center justify-center">
@@ -416,7 +422,7 @@ export default function DSEquipmentTable() {
                       />
                     )}
                   </div>
-                </td>
+                </td> */}
                 <td>{equipment.name}</td>
                 <td>{equipment.modelNumber}</td>
                 <td>{equipment.manufacturer}</td>
@@ -437,7 +443,7 @@ export default function DSEquipmentTable() {
                   <div className="flex gap-2">
                     <button 
                       className="btn btn-xs btn-info"
-                      onClick={() => setEditingEquipment(equipment)}
+                      onClick={() => handleEdit(equipment)}
                     >
                       수정
                     </button>
