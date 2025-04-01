@@ -17,12 +17,14 @@ export const BaseProvider = ({ children}) => {
   const [dsOrgOrder, setDsOrgOrder] = useState([]);
   const [dstypeOrder, setDstypeOrder] = useState([]); 
   const [dsEQtypeOrder, setDsEQtypeOrder] = useState([]);
+  const [dsEQCategoryTypeMAP, setDsEQCategoryTypeMAP] = useState({});
+  const [dsEQtypeSymMap, setDsEQtypeSymMap] = useState({});
+
   const [dssclearConditions, setDssclearConditions] = useState([]);
   const [dsprecipitationConditions, setDsprecipitationConditions] = useState([]);
   const [dswindConditions, setDswindConditions] = useState([]);
   const [dsOrgList, setDsOrgList] = useState([]);
   const [dsTaskList, setDsTaskList] = useState([]);
-  const [dsEQCategoryTypeMAP, setDsEQCategoryTypeMAP] = useState({});
   const [mapdscourseid, setMapdscourseid] = useState('MGC999');
 
   // Config 파일 로드 함수
@@ -60,6 +62,7 @@ export const BaseProvider = ({ children}) => {
       setDsOrgOrder(data.dsOrgOrder || []);
       setDstypeOrder(data.dstypeOrder || []);
       setDsEQtypeOrder(data.dsEQtypeOrder || []);
+      setDsEQtypeSymMap(data.dsEQtypeSymMap || {});
       setDssclearConditions(data.dssclearConditions || []);
       setDsprecipitationConditions(data.dsprecipitationConditions || []);
       setDswindConditions(data.dswindConditions || []);
@@ -79,6 +82,7 @@ export const BaseProvider = ({ children}) => {
     dsOrgOrder,
     dstypeOrder,
     dsEQtypeOrder,
+    dsEQtypeSymMap,
     dssclearConditions,
     dsprecipitationConditions,
     dswindConditions,

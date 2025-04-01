@@ -44,10 +44,12 @@ export default function AddWorkforceDialog({ isOpen, onClose }) {
 
     setIsSaving(true);
     try {
+      const selectedOrg = dsOrgList.find(item => item.org === form.org);
       const newWorkforce = {
         ...form,
         id: generateNewId(),
-        category: getCategory(form.rank)
+        category: getCategory(form.rank),
+        mapdscourseid: selectedOrg.mapdscourseid
       };
       await addGlobalWorkforce(newWorkforce);
       onClose();

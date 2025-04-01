@@ -443,7 +443,9 @@ export default function DSEquipmentTable() {
                   <div className="flex gap-2">
                     <button 
                       className="btn btn-xs btn-info"
-                      onClick={() => handleEdit(equipment)}
+                      onClick={() =>{ handleEdit(equipment)
+                        console.log(equipment);}
+                      }
                     >
                       수정
                     </button>

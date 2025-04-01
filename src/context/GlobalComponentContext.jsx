@@ -196,76 +196,80 @@ export const GlobalComponentProvider = ({ children }) => {
     }
   };
     // Fetch Maintenance Records
-    const fetchGlobalMaintenances  = async () => {
-      try {
-        const response = await apiClient.get('/maintenance');
-        const res_ = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-        const body = res_.body;
-        const data = typeof body === 'string' ? JSON.parse(body) : body;
-        setGlobalMaintenances(data);
-        console.log('In First Maintenance Records Fetch in GlobalComponentContext', data);
-  
-      } catch (err) {
-        console.error('Error fetching maintenance records:', err);
-      }
-    };
-  
-    // Add Maintenance Record
-    const addGlobalMaintenance = async (record) => {
-      try {
-        await apiClient.post('/maintenance', record);
-        setGlobalMaintenances(prev => [...prev, record]);
-        console.log(`Maintenance Record with id ${record.id} inserted successfully.`);
+// Fetch Maintenance Records
+  const fetchGlobalMaintenances  = async () => {
+    try {
+      const response = await apiClient.get('/maintenanceV2', {
+        params: { mapdscourseid: mapdscourseid },
+
+      });
+      const res_ = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+      const body = res_.body;
+      const data = typeof body === 'string' ? JSON.parse(body) : body;
+      setGlobalMaintenances(data);
+      console.log('In First Maintenance Records Fetch in GlobalComponentContext', data);
+
+    } catch (err) {
+      console.error('Error fetching maintenance records:', err);
+    }
+  };
+
+  // Add Maintenance Record
+  const addGlobalMaintenance = async (record) => {
+    try {
+      await apiClient.post('/maintenanceV2', record);
+      setGlobalMaintenances(prev => [...prev, record]);
+      console.log(`Maintenance Record with id ${record.id} inserted successfully.`);
+      return true;
+
+    } catch (err) {
+      console.error('Error adding maintenance record:', err);
+      return false;
+    }
+  };
+
+  // Update Maintenance Record
+  const updateGlobalMaintenance = async (record) => {
+    try {
+      const response = await apiClient.post('/maintenanceV2', record);
+      if (response.status === 200) {
+
+        setGlobalMaintenances(prev => 
+          prev.map(r => 
+            r.id === record.id ? record : r
+          )
+        );
+
+        console.log(`Maintenance Record with id ${record.id} updated successfully.`);
         return true;
-  
-      } catch (err) {
-        console.error('Error adding maintenance record:', err);
+      } else {
         return false;
       }
-    };
-  
-    // Update Maintenance Record
-    const updateGlobalMaintenance = async (record) => {
-      try {
-        const response = await apiClient.put('/maintenance', record);
-        if (response.status === 200) {
-  
-          setGlobalMaintenances(prev => 
-            prev.map(r => 
-              r.id === record.id ? record : r
-            )
-          );
-  
-          console.log(`Maintenance Record with id ${record.id} updated successfully.`);
-          return true;
-        } else {
-          return false;
-        }
-      } catch (err) {
-        console.error('Error updating maintenance record:', err);
-        return false;
+    } catch (err) {
+      console.error('Error updating maintenance record:', err);
+      return false;
+    }
+  };
+
+  // Delete Maintenance Record
+  const deleteGlobalMaintenance = async (date, equipmentId, recordId) => {
+    try {
+      const response = await apiClient.delete('/maintenance', {
+        params: { date: date, equipment_id: equipmentId }
+
+      });
+      if (response.status === 200) {
+        setGlobalMaintenances(prev => prev.filter(record => record.id !== recordId));
+        console.log(`Maintenance Record with id ${recordId} deleted successfully.`);
+        return true;
       }
-    };
-  
-    // Delete Maintenance Record
-    const deleteGlobalMaintenance = async (recordId, equipmentId) => {
-      try {
-        const response = await apiClient.delete('/maintenance', {
-          params: { id: recordId, equipment_id: equipmentId }
-  
-        });
-        if (response.status === 200) {
-          setGlobalMaintenances(prev => prev.filter(record => record.id !== recordId));
-          console.log(`Maintenance Record with id ${recordId} deleted successfully.`);
-          return true;
-        }
-  
-        return false;
-      } catch (err) {
-        console.error('Error deleting maintenance record:', err);
-        return false;
-      }
-    };
+
+      return false;
+    } catch (err) {
+      console.error('Error deleting maintenance record:', err);
+      return false;
+    }
+  };
 
   return (
     <GlobalComponentContext.Provider

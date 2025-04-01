@@ -27,7 +27,7 @@ const processImage = async (file) => {
 
 export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd }) {
   const { updateGlobalEquipment, addGlobalEquipment, globalEquipments } = useGlobalComponent();
-  const { dsOrgList, dsEQCategoryTypeMAP } = useBase();
+  const { dsOrgList, dsEQCategoryTypeMAP, dsEQtypeSymMap } = useBase();
   const [formData, setFormData] = useState({
     category: '',
     type: '',
@@ -42,7 +42,9 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
     desc: '',
     mapdscourseid: '',
     imageURL: '',
-    imageVersion: Date.now()  // 이미지 버전 추가
+    imageVersion: Date.now(),  // 이미지 버전 추가
+    cat_symbol: '', // 분류에 해당하는 Sym 설정
+    cat_order: 0  // 카테고리별 순서 추가
   });
   const [isSaving, setIsSaving] = useState(false);
   const [useDefaultImage, setUseDefaultImage] = useState(false);
@@ -105,6 +107,23 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
     setPendingImage(null);
     onClose();
   };
+
+    // 카테고리별 순서 계산 함수
+    const calculateCatOrder = (category) => {
+      if (!category) return 0;
+      const sameCategoryEquipments = globalEquipments.filter(eq => eq.category === category && eq.mapdscourseid === formData.mapdscourseid);
+      return sameCategoryEquipments.length + 1;
+    };
+  
+    // 카테고리가 변경될 때마다 순서 계산
+    useEffect(() => {
+      if (formData.category) {
+        setFormData(prev => ({
+          ...prev,
+          cat_order: calculateCatOrder(formData.category)
+        }));
+      }
+    }, [formData.category, globalEquipments]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -332,7 +351,9 @@ export default function EditEquipmentDialog({ isOpen, onClose, equipment, isAdd 
                   setFormData(prev => ({
                     ...prev,
                     category: e.target.value,
-                    type: categoryTypeMap[e.target.value]?.[0] || '' // 첫 번째 타입 선택
+                    type: categoryTypeMap[e.target.value]?.[0] || '', // 첫 번째 타입 선택
+                    cat_symbol: dsEQtypeSymMap[e.target.value] || '', // 분류에 해당하는 Sym 설정
+                    cat_order: calculateCatOrder(e.target.value) // 카테고리별 순서 계산
                   }));
                 }}
               >
