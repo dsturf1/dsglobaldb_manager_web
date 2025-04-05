@@ -3,14 +3,17 @@ import { Link, Routes, Route, useLocation } from 'react-router-dom';
 import DSChemicalsTable from '../DSChemical/DSChemicalsTable';
 import DSWorkforceTable from '../DSWorkforce/DSWorkforceTable';
 import DSEquipmentTable from '../DSEquipment/DSEquipmentTable';
-
+import BaseInfoManager from '../DSBaseInfo/BaseInfoManager';
+import DSMapCourse from '../DSMapCourse/DSMapCourse';
 // 사이드바 컴포넌트
 const Sidebar = () => {
   const location = useLocation();
   const menuItems = [
     { path: '/dsdb', label: '약품정보' },
     { path: '/dsdb/workforce', label: '인력정보' },
-    { path: '/dsdb/equipment', label: '장비정보' }
+    { path: '/dsdb/equipment', label: '장비정보' },
+    { path: '/dsdb/baseinfo', label: '기본정보' },
+    { path: '/dsdb/mapcourse', label: '맵코스' }
   ];
 
   return (
@@ -51,6 +54,8 @@ export default function DSDBMain() {
             <Route path="/" element={<DSChemicalsTable />} />
             <Route path="/workforce" element={<DSWorkforceTable />} />
             <Route path="/equipment" element={<DSEquipmentTable />} />
+            <Route path="/baseinfo" element={<BaseInfoManager />} />
+            <Route path="/mapcourse" element={<DSMapCourse />} />
           </Routes>
         </div>
       </div>

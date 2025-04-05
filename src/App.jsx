@@ -23,7 +23,6 @@ function App() {
                   <Routes>
                     <Route path="/dsdb/*" element={<DSDBMain />} />
                     <Route path="/" element={<DSDBMain />} />
-
                     {/* <Route path="/profile" element={<Profile />} />
                     <Route path="/settings" element={<Settings />} /> */}
                   </Routes>
