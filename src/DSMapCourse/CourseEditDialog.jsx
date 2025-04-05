@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
+import { useBase } from '../context/BaseContext';
 
 const CourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
   const [editedCourse, setEditedCourse] = useState(null);
   const [newOrg, setNewOrg] = useState('');
   const [newCourseName, setNewCourseName] = useState('');
+  const { dsOrgList } = useBase();
 
   useEffect(() => {
     if (course) {
@@ -112,13 +114,18 @@ const CourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
             <div>
               <label className="block text-sm font-medium text-gray-700">접근 가능 조직</label>
               <div className="mt-2 flex gap-2">
-                <input
-                  type="text"
+                <select
                   value={newOrg}
                   onChange={(e) => setNewOrg(e.target.value)}
-                  placeholder="새 조직 추가"
                   className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
+                >
+                  <option value="">조직을 선택하세요</option>
+                  {dsOrgList.map((org) => (
+                    <option key={org.ecnt} value={org.org}>
+                      {org.org}
+                    </option>
+                  ))}
+                </select>
                 <button
                   onClick={handleAddOrg}
                   className="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600"
