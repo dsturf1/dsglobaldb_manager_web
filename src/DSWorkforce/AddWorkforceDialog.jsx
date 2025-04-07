@@ -7,6 +7,8 @@ export default function AddWorkforceDialog({ isOpen, onClose }) {
   const { globalWorkforces, addGlobalWorkforce } = useGlobalComponent();
   const { dsOrgOrder, dsrankOrder, dsOrgList } = useBase();
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingId, setIsEditingId] = useState(false);
+  const [editedId, setEditedId] = useState('');
   const [form, setForm] = useState({
     org: dsOrgOrder[0],
     rank: dsrankOrder[0],
@@ -17,10 +19,10 @@ export default function AddWorkforceDialog({ isOpen, onClose }) {
     mapdscourseid: ''
   });
 
-  
-
-
   const generateNewId = () => {
+    if (editedId !== '') {
+      return editedId;
+    }
     const randomNum = Math.floor(Math.random() * 10000000).toString().padStart(7, '0');
     const newId = `DS${randomNum}`;
     globalWorkforces.forEach(workforce => {
@@ -29,6 +31,19 @@ export default function AddWorkforceDialog({ isOpen, onClose }) {
       }
     });
     return newId;
+  };
+
+  const handleIdDoubleClick = () => {
+    setEditedId(generateNewId());
+    setIsEditingId(true);
+  };
+
+  const handleIdBlur = () => {
+    setIsEditingId(false);
+  };
+
+  const handleIdChange = (e) => {
+    setEditedId(e.target.value);
   };
 
   const getCategory = (rank) => {
@@ -77,6 +92,26 @@ export default function AddWorkforceDialog({ isOpen, onClose }) {
         <h3 className="font-bold text-lg mb-4">신규 인력 추가</h3>
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">ID</label>
+              {isEditingId ? (
+                <input
+                  type="text"
+                  value={editedId}
+                  onChange={handleIdChange}
+                  onBlur={handleIdBlur}
+                  className="input input-bordered w-full font-mono"
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="text-lg font-mono bg-base-200 p-2 rounded cursor-pointer"
+                  onDoubleClick={handleIdDoubleClick}
+                >
+                  {generateNewId()}
+                </div>
+              )}
+            </div>
             <div>
               <label className="label">소속</label>
               <select

@@ -5,6 +5,8 @@ import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 export default function AddChemicalDialog({ isOpen, onClose }) {
   const { addGlobalChemical, globalChemicals } = useGlobalComponent();
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingCode, setIsEditingCode] = useState(false);
+  const [editedCode, setEditedCode] = useState('');
   const [form, setForm] = useState({
     infoL3: '중요도1',
     infoL2: '농약',
@@ -19,9 +21,10 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
     flgOut: 'Y'
   });
 
-
-
   const getPreviewCode = () => {
+    if (editedCode !== '') {
+      return editedCode;
+    }
     // 분류에 따른 prefix 결정
     const getPrefix = () => {
       switch (form.infoL1) {
@@ -77,6 +80,19 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCodeDoubleClick = () => {
+    setEditedCode(getPreviewCode());
+    setIsEditingCode(true);
+  };
+
+  const handleCodeBlur = () => {
+    setIsEditingCode(false);
+  };
+
+  const handleCodeChange = (e) => {
+    setEditedCode(e.target.value);
   };
 
   if (!isOpen) return null;
@@ -196,9 +212,23 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
 
             <div>
               <label className="label">예상 코드</label>
-              <div className="text-lg font-mono bg-base-200 p-2 rounded">
-                {getPreviewCode()}
-              </div>
+              {isEditingCode ? (
+                <input
+                  type="text"
+                  value={editedCode}
+                  onChange={handleCodeChange}
+                  onBlur={handleCodeBlur}
+                  className="input input-bordered w-full font-mono"
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="text-lg font-mono bg-base-200 p-2 rounded cursor-pointer"
+                  onDoubleClick={handleCodeDoubleClick}
+                >
+                  {getPreviewCode()}
+                </div>
+              )}
             </div>
           </div>
           
