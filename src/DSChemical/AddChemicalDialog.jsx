@@ -127,12 +127,16 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
                   ...prev, 
                   infoL2: e.target.value,
                   infoL1: e.target.value === '농약' ? '살균제' : 
-                         e.target.value === '비료' ? '비료' : '기타약재'
+                         e.target.value === '비료' ? '비료' : 
+                         e.target.value === '잔디' ? '잔디' :
+                         e.target.value === '기타물품' ? '기타물품' : '기타약재'
                 }))}
               >
                 <option value="농약">농약</option>
                 <option value="비료">비료</option>
                 <option value="기타약재">기타약재</option>
+                <option value="잔디">잔디</option>
+                <option value="기타물품">기타물품</option>
               </select>
             </div>
 
@@ -151,6 +155,10 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
                   </>
                 ) : form.infoL2 === '비료' ? (
                   <option value="비료">비료</option>
+                ) : form.infoL2 === '잔디' ? (
+                  <option value="잔디">잔디</option>
+                ) : form.infoL2 === '기타물품' ? (
+                  <option value="기타물품">기타물품</option>
                 ) : (
                   <option value="기타약재">기타약재</option>
                 )}

@@ -6,6 +6,7 @@ const CourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
   const [editedCourse, setEditedCourse] = useState(null);
   const [newOrg, setNewOrg] = useState('');
   const [newCourseName, setNewCourseName] = useState('');
+  const [newAccessCourseId, setNewAccessCourseId] = useState('');
   const { dsOrgList } = useBase();
 
   useEffect(() => {
@@ -53,6 +54,23 @@ const CourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
     setEditedCourse(prev => ({
       ...prev,
       course_names: prev.course_names.filter(name => name !== nameToRemove)
+    }));
+  };
+
+  const handleAddAccessCourseId = () => {
+    if (newAccessCourseId.trim() && !editedCourse.accesscourseid.includes(newAccessCourseId.trim())) {
+      setEditedCourse(prev => ({
+        ...prev,
+        accesscourseid: [...prev.accesscourseid, newAccessCourseId.trim()]
+      }));
+      setNewAccessCourseId('');
+    }
+  };
+
+  const handleRemoveAccessCourseId = (idToRemove) => {
+    setEditedCourse(prev => ({
+      ...prev,
+      accesscourseid: prev.accesscourseid.filter(id => id !== idToRemove)
     }));
   };
 
@@ -171,6 +189,38 @@ const CourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
                     <span className="text-sm">{name}</span>
                     <button
                       onClick={() => handleRemoveCourseName(name)}
+                      className="ml-2 text-red-500 hover:text-red-700"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">접근 가능 코스 ID</label>
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  value={newAccessCourseId}
+                  onChange={(e) => setNewAccessCourseId(e.target.value)}
+                  placeholder="새 코스 ID 추가"
+                  className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+                <button
+                  onClick={handleAddAccessCourseId}
+                  className="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                >
+                  추가
+                </button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {editedCourse.access_course_ids.map((id, index) => (
+                  <div key={index} className="flex items-center bg-gray-100 rounded-md px-2 py-1">
+                    <span className="text-sm">{id}</span>
+                    <button
+                      onClick={() => handleRemoveAccessCourseId(id)}
                       className="ml-2 text-red-500 hover:text-red-700"
                     >
                       ×

@@ -143,7 +143,7 @@ export const BaseProvider = ({ children}) => {
 
         const baseData = getBaseData();
         body = {...body, ...baseData};
-        console.log(body);
+        console.log('updateBaseInfo', body);
         await updateBaseInfoAPI(body);
       } else {
         console.error("Failed to load configuration.");
@@ -154,6 +154,8 @@ export const BaseProvider = ({ children}) => {
     }
 
   };
+
+  
 
   const updateBaseInfoAPI = async (baseInfo) => {
     try {
@@ -229,6 +231,7 @@ export const BaseProvider = ({ children}) => {
       dsOrgList.find((org) => org.mapdscourseid === mapCourseId)?.org || null,
     getBaseData,
     updateBaseInfo,
+    updateBaseInfoAPI
   };
 
   return <BaseContext.Provider value={value}>{children}</BaseContext.Provider>;

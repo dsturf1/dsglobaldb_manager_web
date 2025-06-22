@@ -33,7 +33,7 @@ const BaseInfoManager = () => {
     updateDsOrgList,
     updateDsTaskList,
     updateDsEQCategoryTypeMAP,
-    updateBaseInfo
+    updateBaseInfoAPI
   } = useBase();
 
   // dsrankOrder를 변환하는 함수
@@ -81,32 +81,33 @@ const BaseInfoManager = () => {
   // 각 데이터 변경 핸들러
   const handleRankChange = async (newItems) => {
     updateDsrankOrder(newItems);
-    await handleSave();
+    console.log('handleRankChange', newItems);
+    await handleSave({dsrankOrder: newItems});
   };
 
   const handleOrgChange = async (newItems) => {
     updateDsOrgOrder(newItems);
-    await handleSave();
+    await handleSave({dsOrgOrder: newItems});
   };
 
   const handleOrgListChange = async (newItems) => {
     updateDsOrgList(newItems);
-    await handleSave();
+    await handleSave({dsOrgList: newItems});
   };
 
   const handleDssclearConditionsChange = async (newItems) => {
     updateDssclearConditions(newItems);
-    await handleSave();
+    await handleSave({dssclearConditions: newItems});
   };
 
   const handleDsprecipitationConditionsChange = async (newItems) => {
     updateDsprecipitationConditions(newItems);
-    await handleSave();
+    await handleSave({dsprecipitationConditions: newItems});
   };
 
   const handleDswindConditionsChange = async (newItems) => {
     updateDswindConditions(newItems);
-    await handleSave();
+    await handleSave({dswindConditions: newItems});
   };
 
   const handleDsHolidaysChange = async (newItems) => {
@@ -114,9 +115,10 @@ const BaseInfoManager = () => {
     await handleSave();
   };
 
-  const handleSave = async () => {
+  const handleSave = async (baseinfo_) => {
     try {
-      await updateBaseInfo();
+      await updateBaseInfoAPI( baseinfo_ );
+      console.log('handleSave', baseinfo_);
       alert('저장되었습니다.');
     } catch (error) {
       console.error('저장 중 오류 발생:', error);
