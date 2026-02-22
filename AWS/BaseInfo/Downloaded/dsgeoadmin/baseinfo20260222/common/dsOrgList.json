@@ -1,0 +1,74 @@
+[
+  {
+    "id": "18460eaa-dead-402b-9fed-3b89e34b8b48",
+    "org_ecnt": "H001",
+    "org": "본사",
+    "mapdscourseid": "MGC999"
+  },
+  {
+    "id": "d41ea525-b8b5-48fc-a441-40c350fc274e",
+    "org_ecnt": "O001",
+    "org": "용역-올림픽",
+    "mapdscourseid": "MGC014"
+  },
+  {
+    "id": "f238ca46-9ad2-440b-8cba-53eb681c2cff",
+    "org_ecnt": "00001",
+    "org": "용역-파미남",
+    "mapdscourseid": "MGC010"
+  },
+  {
+    "id": "d93568c3-8e1b-4fe9-bf6a-3d7e6390257c",
+    "org_ecnt": "00002",
+    "org": "용역-파미힐스",
+    "mapdscourseid": "MGC009"
+  },
+  {
+    "id": "ebef14c8-6d00-4b5f-a1d8-46ba64efa931",
+    "org_ecnt": "O004",
+    "org": "용역-그레이스",
+    "mapdscourseid": "MGC002"
+  },
+  {
+    "id": "0baf2577-bcd8-4ab0-88cb-db2a6369a5f7",
+    "org_ecnt": "O007",
+    "org": "용역-울산",
+    "mapdscourseid": "MGC008"
+  },
+  {
+    "id": "ac04d186-f1b5-4ca2-949f-9df76174397b",
+    "org_ecnt": "O010",
+    "org": "용역-포항",
+    "mapdscourseid": "MGC001"
+  },
+  {
+    "id": "2c7db539-dc35-4c4c-8787-3260e481dcde",
+    "org_ecnt": "O011",
+    "org": "용역-남서울",
+    "mapdscourseid": "MGC017"
+  },
+  {
+    "id": "affff35a-1dce-4e59-839f-5e4fc884d838",
+    "org_ecnt": "O012",
+    "org": "용역-테디밸리",
+    "mapdscourseid": "MGC018"
+  },
+  {
+    "id": "da1a14ce-7837-4a01-bc58-02dd6df165f7",
+    "org_ecnt": "P001",
+    "org": "중부방제",
+    "mapdscourseid": "MGC997"
+  },
+  {
+    "id": "1e0d28e1-f13f-4c38-8747-196b77f62115",
+    "org_ecnt": "P002",
+    "org": "남부방제",
+    "mapdscourseid": "MGC998"
+  },
+  {
+    "id": "4e49607d-309e-446b-801e-f568051708e4",
+    "org_ecnt": "O013",
+    "org": "용역-코리아",
+    "mapdscourseid": "MGC042"
+  }
+]

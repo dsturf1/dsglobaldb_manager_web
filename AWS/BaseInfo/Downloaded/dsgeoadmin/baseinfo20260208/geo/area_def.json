@@ -1,0 +1,110 @@
+[
+  {
+    "TypeId": 0,
+    "name": "Undefined",
+    "color": "rgba(128,128,128, 1)",
+    "display": true,
+    "area_def": true,
+    "work_def": true,
+    "DSZindex": 1000
+  },
+  {
+    "TypeId": 1,
+    "name": "전면",
+    "color": "rgba(255,0,0, 1)",
+    "display": false,
+    "area_def": true,
+    "work_def": false,
+    "DSZindex": 1
+  },
+  {
+    "TypeId": 2,
+    "name": "코스",
+    "color": "rgba(240, 139, 46, 1)",
+    "display": false,
+    "area_def": true,
+    "work_def": false,
+    "DSZindex": 2
+  },
+  {
+    "TypeId": 3,
+    "name": "홀영역",
+    "color": "rgba(0,0,128,1)",
+    "display": false,
+    "area_def": true,
+    "work_def": false,
+    "DSZindex": 300
+  },
+  {
+    "TypeId": 4,
+    "name": "그린",
+    "color": "rgb(2, 97, 2)",
+    "display": true,
+    "area_def": true,
+    "work_def": false,
+    "DSZindex": 400
+  },
+  {
+    "TypeId": 5,
+    "name": "티박스",
+    "color": "#0D47A1",
+    "display": false,
+    "area_def": true,
+    "work_def": false,
+    "DSZindex": 400
+  },
+  {
+    "TypeId": 6,
+    "name": "훼어웨이",
+    "color": "#FFFF33",
+    "display": 0,
+    "area_def": true,
+    "work_def": false,
+    "DSZindex": 400
+  },
+  {
+    "TypeId": 7,
+    "name": "티영역",
+    "color": "#0D47A1",
+    "display": false,
+    "area_def": true,
+    "work_def": false,
+    "DSZindex": 350
+  },
+  {
+    "TypeId": 10,
+    "name": "관심영역",
+    "color": "#d90429",
+    "display": 1,
+    "area_def": false,
+    "work_def": true,
+    "DSZindex": 200
+  },
+  {
+    "TypeId": 11,
+    "name": "관심포인트",
+    "color": "#d90429",
+    "display": null,
+    "area_def": false,
+    "work_def": true,
+    "DSZindex": 101
+  },
+  {
+    "TypeId": 41,
+    "name": "그린B",
+    "color": "rgba(128,128,0, 1)",
+    "display": false,
+    "area_def": true,
+    "work_def": false,
+    "DSZindex": 400
+  },
+  {
+    "TypeId": 100,
+    "name": "지역",
+    "color": "rgba(0,255,255, 1)",
+    "display": false,
+    "area_def": true,
+    "work_def": false,
+    "DSZindex": 5
+  }
+]

@@ -1,0 +1,2130 @@
+[
+  {
+    "dscourseids": "GC001",
+    "name": "골든베이",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": "Y",
+    "outorg": "용역-골든베이",
+    "outwarehouse": "용역 골든베이",
+    "course_names": [
+      "오션",
+      "밸리",
+      "마운틴"
+    ],
+    "course_namesString": "오션,밸리,마운틴",
+    "access_org": [
+      "본사",
+      "중부방제"
+    ],
+    "access_orgString": "본사,중부방제"
+  },
+  {
+    "dscourseids": "GC002",
+    "name": "남부",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "전반",
+      "후반"
+    ],
+    "course_namesString": "전반,후반",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC003",
+    "name": "남안동",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "전반",
+      "후반"
+    ],
+    "course_namesString": "전반,후반",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC004",
+    "name": "뉴코리아",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "전반",
+      "후반"
+    ],
+    "course_namesString": "전반,후반",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC005",
+    "name": "대호단양",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "SOUTH",
+      "NORTH"
+    ],
+    "course_namesString": "SOUTH,NORTH",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC006",
+    "name": "델피노",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "MOUNTAIN",
+      "EAST"
+    ],
+    "course_namesString": "MOUNTAIN,EAST",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC007",
+    "name": "락가든(일동레이크)",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "ROCKGARDEN"
+    ],
+    "course_namesString": "ROCKGARDEN",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC008",
+    "name": "문경",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "문희",
+      "경서"
+    ],
+    "course_namesString": "문희,경서",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC009",
+    "name": "버치힐",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": null,
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC010",
+    "name": "베르힐아파트(현장)",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": null,
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC011",
+    "name": "서산수",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": null,
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC012",
+    "name": "선두리",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": null,
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC013",
+    "name": "설악프라자",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "IN",
+      "OUT"
+    ],
+    "course_namesString": "IN,OUT",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC014",
+    "name": "송도클럽",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "송도클럽"
+    ],
+    "course_namesString": "송도클럽",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC015",
+    "name": "아시아나",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "WEST_전반",
+      "WEST_후반",
+      "EAST_전반",
+      "EAST_후반"
+    ],
+    "course_namesString": "WEST_전반,WEST_후반,EAST_전반,EAST_후반",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC016",
+    "name": "오크밸리",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "N",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC017",
+    "name": "오크힐스",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "N",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC018",
+    "name": "올림픽",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": "Y",
+    "outorg": "용역-올림픽",
+    "outwarehouse": "용역 올림픽",
+    "course_names": [
+      "올림픽"
+    ],
+    "course_namesString": "올림픽",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제",
+      "용역-올림픽"
+    ],
+    "access_orgString": "본사,드론방제,중부방제,용역-올림픽",
+    "mapdscourseid": "MGC014"
+  },
+  {
+    "dscourseids": "GC019",
+    "name": "용인플라자",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "TIGER_전반",
+      "TIGER_후반",
+      "LION_전반",
+      "LION_후반"
+    ],
+    "course_namesString": "TIGER_전반,TIGER_후반,LION_전반,LION_후반",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC020",
+    "name": "용평",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": null,
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC021",
+    "name": "일동레이크GC",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "MOUNTAIN",
+      "HILL"
+    ],
+    "course_namesString": "MOUNTAIN,HILL",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC022",
+    "name": "전주태영에코시티",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": null,
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC023",
+    "name": "지산",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "남",
+      "동",
+      "서"
+    ],
+    "course_namesString": "남,동,서",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC024",
+    "name": "코리아",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "N",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC025",
+    "name": "코리아(퍼블릭)",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "N",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC026",
+    "name": "코리아인터내셔날",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "N",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC027",
+    "name": "한솔제지(장항)",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "N",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC028",
+    "name": "한원",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "SOUTH",
+      "NORTH",
+      "EAST"
+    ],
+    "course_namesString": "SOUTH,NORTH,EAST",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC029",
+    "name": "해비치",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC030",
+    "name": "거제뷰",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC031",
+    "name": "경주",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "MOON",
+      "SEAFLOWER",
+      "SUNFLOWER"
+    ],
+    "course_namesString": "MOON,SEAFLOWER,SUNFLOWER",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC032",
+    "name": "고은",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC033",
+    "name": "고창",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC034",
+    "name": "광주",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC035",
+    "name": "김천포도",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC036",
+    "name": "김해체력단련장",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC037",
+    "name": "다산베아체",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC038",
+    "name": "백운체력단련장",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC039",
+    "name": "부곡",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC040",
+    "name": "서라벌",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC041",
+    "name": "승주",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC042",
+    "name": "실크리버",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC043",
+    "name": "안동휴그린",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC044",
+    "name": "오션비치",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC045",
+    "name": "울산",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": "Y",
+    "outorg": "용역-울산",
+    "outwarehouse": "용역 울산",
+    "course_names": [
+      "SOUTH",
+      "EAST",
+      "WEST"
+    ],
+    "course_namesString": "SOUTH,EAST,WEST",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제",
+      "용역-울산"
+    ],
+    "access_orgString": "본사,드론방제,남부방제,용역-울산"
+  },
+  {
+    "dscourseids": "GC046",
+    "name": "이스턴",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "이스턴"
+    ],
+    "course_namesString": "이스턴",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC047",
+    "name": "인터불고",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "MOUNTAIN",
+      "VALLEY",
+      "SKY"
+    ],
+    "course_namesString": "MOUNTAIN,VALLEY,SKY",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC048",
+    "name": "청도그레이스",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": "Y",
+    "outorg": "용역-그레이스",
+    "outwarehouse": "용역 그레이스",
+    "course_names": [
+      "MOUNTAIN",
+      "VALLEY",
+      "LAKE"
+    ],
+    "course_namesString": "MOUNTAIN,VALLEY,LAKE",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제",
+      "용역-그레이스"
+    ],
+    "access_orgString": "본사,드론방제,남부방제,용역-그레이스"
+  },
+  {
+    "dscourseids": "GC049",
+    "name": "파미힐스(남코스)",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": "Y",
+    "outorg": "용역-파미남",
+    "outwarehouse": "용역 파미 남",
+    "course_names": [
+      "전반",
+      "후반"
+    ],
+    "course_namesString": "전반,후반",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC050",
+    "name": "파미힐스(동코스)",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": "N",
+    "outorg": "용역-파미힐스",
+    "outwarehouse": "용역 파미힐스",
+    "course_names": [
+      "EAST_전반",
+      "EAST_후반"
+    ],
+    "course_namesString": "EAST_전반,EAST_후반",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제",
+      "용역-파미힐스"
+    ],
+    "access_orgString": "본사,드론방제,남부방제,용역-파미힐스"
+  },
+  {
+    "dscourseids": "GC051",
+    "name": "푸른솔",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC052",
+    "name": "함평엘리체",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC053",
+    "name": "화순엘리체",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC054",
+    "name": "파미힐스",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC055",
+    "name": "한솔제지",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": null,
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC056",
+    "name": "삼성전자(기흥)",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "삼성전자(기흥)"
+    ],
+    "course_namesString": "삼성전자(기흥)",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC057",
+    "name": "트리니티",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "전반",
+      "후반"
+    ],
+    "course_namesString": "전반,후반",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC058",
+    "name": "삼성전자(화성)",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "삼성전자(화성)"
+    ],
+    "course_namesString": "삼성전자(화성)",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC059",
+    "name": "삼성전자(평택)",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "삼성전자(평택)"
+    ],
+    "course_namesString": "삼성전자(평택)",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC060",
+    "name": "보문",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "IN",
+      "OUT"
+    ],
+    "course_namesString": "IN,OUT",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC061",
+    "name": "솔라시도",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "SEADO",
+      "SOLA"
+    ],
+    "course_namesString": "SEADO,SOLA",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC062",
+    "name": "서원밸리",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "서원",
+      "EAST",
+      "WEST",
+      "SOUTH"
+    ],
+    "course_namesString": "서원,EAST,WEST,SOUTH",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC063",
+    "name": "소노펠리체",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "N",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC064",
+    "name": "순천부영",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC065",
+    "name": "포항",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": "Y",
+    "outorg": "용역-포항",
+    "outwarehouse": "용역 포항",
+    "course_names": [
+      "태백코스",
+      "동해코스"
+    ],
+    "course_namesString": "태백코스,동해코스",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제",
+      "용역-포항"
+    ],
+    "access_orgString": "본사,드론방제,남부방제,용역-포항"
+  },
+  {
+    "dscourseids": "GC066",
+    "name": "안동레이크",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "안동레이크_전반",
+      "안동레이트_후반"
+    ],
+    "course_namesString": "안동레이크_전반,안동레이트_후반",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC067",
+    "name": "파인비치",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC068",
+    "name": "안동리버힐",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": null,
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC069",
+    "name": "소노이스트",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "에코",
+      "힐링"
+    ],
+    "course_namesString": "에코,힐링",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC070",
+    "name": "소노웨스트",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "PARK",
+      "VIVALDI"
+    ],
+    "course_namesString": "PARK,VIVALDI",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC071",
+    "name": "소노마운틴",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "마운틴"
+    ],
+    "course_namesString": "마운틴",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC072",
+    "name": "제이드팰리스",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "N",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "WEST",
+      "EAST"
+    ],
+    "course_namesString": "WEST,EAST",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC073",
+    "name": "남서울",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": "Y",
+    "outorg": "용역-남서울",
+    "outwarehouse": "용역 남서울",
+    "course_names": [
+      "남서울Par3"
+    ],
+    "course_namesString": "남서울Par3",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제",
+      "용역-남서울"
+    ],
+    "access_orgString": "본사,드론방제,중부방제,용역-남서울"
+  },
+  {
+    "dscourseids": "GC074",
+    "name": "잭니클라우스",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "Link",
+      "Urban"
+    ],
+    "course_namesString": "Link,Urban",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC075",
+    "name": "부산컨트리클럽",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "전반",
+      "후반"
+    ],
+    "course_namesString": "전반,후반",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC076",
+    "name": "석정힐",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "마운틴",
+      "레이크"
+    ],
+    "course_namesString": "마운틴,레이크",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC077",
+    "name": "아이위시",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "아이위시"
+    ],
+    "course_namesString": "아이위시",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC078",
+    "name": "구미마이다스",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "구미마이다스"
+    ],
+    "course_namesString": "구미마이다스",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC079",
+    "name": "하이원",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "마운틴",
+      "밸리"
+    ],
+    "course_namesString": "마운틴,밸리",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC080",
+    "name": "경주파크골프",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "경주파크골프"
+    ],
+    "course_namesString": "경주파크골프",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC081",
+    "name": "거제드비치",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "IN",
+      "OUT"
+    ],
+    "course_namesString": "IN,OUT",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC082",
+    "name": "테디밸리",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": "Y",
+    "outorg": "용역-테디밸리",
+    "outwarehouse": "용역 테디밸리",
+    "course_names": [
+      "TEDDY",
+      "VALLEY"
+    ],
+    "course_namesString": "TEDDY,VALLEY",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC083",
+    "name": "안강레전드",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "전반",
+      "후반"
+    ],
+    "course_namesString": "전반,후반",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC084",
+    "name": "여주",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "ACE",
+      "CHALLENGE",
+      "DREAM"
+    ],
+    "course_namesString": "ACE,CHALLENGE,DREAM",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC085",
+    "name": "자유",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      "IN",
+      "OUT"
+    ],
+    "course_namesString": "IN,OUT",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC086",
+    "name": "쏠비치",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC087",
+    "name": "거제종합운동장",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC088",
+    "name": "문경시민운동장",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC089",
+    "name": "문수경기장",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC090",
+    "name": "국방대학교",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC091",
+    "name": "서서울",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC092",
+    "name": "삼성전자(미래기술)",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC093",
+    "name": "삼성전자(수원)",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "중부방제"
+    ],
+    "access_orgString": "본사,드론방제,중부방제"
+  },
+  {
+    "dscourseids": "GC094",
+    "name": "강동다이너스",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC095",
+    "name": "팔공",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": null,
+    "outorg": null,
+    "outwarehouse": null,
+    "course_names": [
+      ""
+    ],
+    "course_namesString": "",
+    "access_org": [
+      "본사",
+      "드론방제",
+      "남부방제"
+    ],
+    "access_orgString": "본사,드론방제,남부방제"
+  },
+  {
+    "dscourseids": "GC096",
+    "name": "오크힐스",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": "N",
+    "outorg": "",
+    "outwarehouse": "",
+    "course_names": [],
+    "access_org": [
+      "중부방제",
+      "본사"
+    ],
+    "mapdscourseid": "",
+    "access_orgString": "중부방제,본사",
+    "course_namesString": ""
+  },
+  {
+    "dscourseids": "GC097",
+    "name": "월송리",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": "N",
+    "outorg": "",
+    "outwarehouse": "",
+    "course_names": [],
+    "access_org": [
+      "본사",
+      "중부방제"
+    ],
+    "mapdscourseid": "",
+    "access_orgString": "본사,중부방제",
+    "course_namesString": ""
+  },
+  {
+    "dscourseids": "GC098",
+    "name": " 레이크우드",
+    "org": "중부방제",
+    "dedicated_org": "중부",
+    "active": "Y",
+    "warehouse": "본사창고",
+    "outsource": "N",
+    "outorg": "",
+    "outwarehouse": "",
+    "course_names": [],
+    "access_org": [
+      "본사",
+      "중부방제"
+    ],
+    "mapdscourseid": "",
+    "access_orgString": "본사,중부방제",
+    "course_namesString": ""
+  },
+  {
+    "dscourseids": "GC099",
+    "name": " 골프클럽Q",
+    "org": "남부방제",
+    "dedicated_org": "남부",
+    "active": "Y",
+    "warehouse": "남부방제",
+    "outsource": "N",
+    "outorg": "",
+    "outwarehouse": "",
+    "course_names": [],
+    "access_org": [
+      "본사",
+      "남부방제"
+    ],
+    "mapdscourseid": "",
+    "access_orgString": "본사,남부방제",
+    "course_namesString": ""
+  }
+]

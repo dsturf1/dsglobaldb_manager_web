@@ -1,0 +1,133 @@
+[
+  {
+    "category": "그린",
+    "Task": [
+      "볼마크 보수",
+      "홀컵 및 티마크 이동",
+      "예지",
+      "배토",
+      "인력제초",
+      "인력관수",
+      "시비시약",
+      "갱신",
+      "보식",
+      "기타"
+    ],
+    "area": [
+      "그린",
+      "칼라"
+    ],
+    "courseNames": [
+      "SOUTH",
+      "EAST",
+      "WEST"
+    ],
+    "start_row": 11
+  },
+  {
+    "category": "티",
+    "Task": [
+      "예지",
+      "배토",
+      "인력제초",
+      "인력관수",
+      "시비시약",
+      "갱신",
+      "보식",
+      "기타"
+    ],
+    "area": [
+      "티",
+      "티사면"
+    ],
+    "courseNames": [
+      "SOUTH",
+      "EAST",
+      "WEST"
+    ],
+    "start_row": 22
+  },
+  {
+    "category": "FW",
+    "Task": [
+      "예지",
+      "배토",
+      "인력제초",
+      "인력관수",
+      "시비시약",
+      "갱신",
+      "벙커정리",
+      "보식",
+      "기타"
+    ],
+    "area": [
+      "러프",
+      "FW",
+      "법면",
+      "벙커"
+    ],
+    "courseNames": [
+      "SOUTH",
+      "EAST",
+      "WEST"
+    ],
+    "start_row": 29
+  },
+  {
+    "category": "S/K",
+    "Task": [
+      "관리및점검",
+      "보수",
+      "기타"
+    ],
+    "area": [],
+    "courseNames": [
+      "SOUTH",
+      "EAST",
+      "WEST"
+    ],
+    "start_row": 40
+  },
+  {
+    "category": "장비",
+    "Task": [
+      "관리및점검",
+      "보수",
+      "기타"
+    ],
+    "area": [],
+    "courseNames": [
+      "SOUTH",
+      "EAST",
+      "WEST"
+    ],
+    "start_row": 42
+  },
+  {
+    "category": "수목",
+    "Task": [
+      "기타"
+    ],
+    "area": [],
+    "courseNames": [
+      "전반",
+      "후반"
+    ],
+    "start_row": 38
+  },
+  {
+    "category": "기타",
+    "Task": [
+      "코스점검및작업배치",
+      "총괄",
+      "서무"
+    ],
+    "area": [],
+    "courseNames": [
+      "SOUTH",
+      "EAST",
+      "WEST"
+    ],
+    "start_row": 52
+  }
+]

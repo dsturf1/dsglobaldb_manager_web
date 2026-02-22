@@ -1,0 +1,57 @@
+[
+  {
+    "org_ecnt": "H001",
+    "org": "본사",
+    "mapdscourseid": "MGC999"
+  },
+  {
+    "org_ecnt": "O001",
+    "org": "용역-올림픽",
+    "mapdscourseid": "MGC014"
+  },
+  {
+    "org_ecnt": "00001",
+    "org": "용역-파미남",
+    "mapdscourseid": "MGC010"
+  },
+  {
+    "org_ecnt": "00002",
+    "org": "용역-파미힐스",
+    "mapdscourseid": "MGC009"
+  },
+  {
+    "org_ecnt": "O004",
+    "org": "용역-그레이스",
+    "mapdscourseid": "MGC002"
+  },
+  {
+    "org_ecnt": "O007",
+    "org": "용역-울산",
+    "mapdscourseid": "MGC008"
+  },
+  {
+    "org_ecnt": "O010",
+    "org": "용역-포항",
+    "mapdscourseid": "MGC001"
+  },
+  {
+    "org_ecnt": "O011",
+    "org": "용역-남서울",
+    "mapdscourseid": "MGC017"
+  },
+  {
+    "org_ecnt": "O012",
+    "org": "용역-테디밸리",
+    "mapdscourseid": "MGC018"
+  },
+  {
+    "org_ecnt": "P001",
+    "org": "중부방제",
+    "mapdscourseid": "MGC997"
+  },
+  {
+    "org_ecnt": "P002",
+    "org": "남부방제",
+    "mapdscourseid": "MGC998"
+  }
+]

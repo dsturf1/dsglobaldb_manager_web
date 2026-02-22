@@ -1,0 +1,58 @@
+[
+  {
+    "dsids": "S13291",
+    "name": "에어텍",
+    "unit": "FTE",
+    "type": "[무형상품]",
+    "infoL1": "방제",
+    "infoL2": "서비스",
+    "infoL3": "서비스",
+    "flgWork": "Y",
+    "flgOut": "Y",
+    "flgSell": "N",
+    "std_cost_2023": null,
+    "sell_price_2023": null
+  },
+  {
+    "dsids": "S13991",
+    "name": "1톤차량",
+    "unit": "대",
+    "type": "[무형상품]",
+    "infoL1": "방제",
+    "infoL2": "서비스",
+    "infoL3": "서비스",
+    "flgWork": "Y",
+    "flgOut": "Y",
+    "flgSell": "N",
+    "std_cost_2023": null,
+    "sell_price_2023": null
+  },
+  {
+    "dsids": "S14001",
+    "name": "쿠쉬맨",
+    "unit": "대",
+    "type": "[무형상품]",
+    "infoL1": "방제",
+    "infoL2": "서비스",
+    "infoL3": "서비스",
+    "flgWork": "Y",
+    "flgOut": "Y",
+    "flgSell": "N",
+    "std_cost_2023": null,
+    "sell_price_2023": null
+  },
+  {
+    "dsids": "S15891",
+    "name": "드론",
+    "unit": "대",
+    "type": "[상품]",
+    "infoL1": "방제",
+    "infoL2": "서비스",
+    "infoL3": "서비스",
+    "flgWork": "Y",
+    "flgOut": "Y",
+    "flgSell": "N",
+    "std_cost_2023": null,
+    "sell_price_2023": null
+  }
+]

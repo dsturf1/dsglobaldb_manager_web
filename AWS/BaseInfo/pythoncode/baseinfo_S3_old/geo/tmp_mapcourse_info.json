@@ -1,0 +1,1783 @@
+[
+  {
+    "id": "TGC001",
+    "dscourseids": "GC065",
+    "name": "포항cc",
+    "address": "경북 포항시 북구 송라면 상송리 산 48",
+    "numHole": 18,
+    "course_names": [
+      "태백코스",
+      "동해코스"
+    ],
+    "map_info": {
+      "center": [
+        129.33137651266142,
+        36.225887126343295
+      ],
+      "level": 2,
+      "bounds": {
+        "sw": [
+          129.32503085871465,
+          36.22273111500139
+        ],
+        "ne": [
+          129.33772266539873,
+          36.22904278065501
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "태백코스,동해코스",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC001",
+      "MGC999"
+    ],
+    "numCourses": 2,
+    "holesPerCourse": 9,
+    "dsmapcourseid": "MGC001",
+    "bbox": []
+  },
+  {
+    "id": "TGC002",
+    "dscourseids": "GC048",
+    "name": "그레이스CC",
+    "address": "경북 청도군 이서면 각계리 426-1",
+    "numHole": 27,
+    "course_names": [
+      "MOUNTAIN",
+      "VALLEY",
+      "LAKE"
+    ],
+    "map_info": {
+      "center": [
+        128.6421155982,
+        35.6621280477
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          128.6252177839,
+          35.653823283
+        ],
+        "ne": [
+          128.6590168533,
+          35.6704303354
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "MOUNTAIN,VALLEY,LAKE",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC002",
+      "MGC999"
+    ],
+    "numCourses": 3,
+    "holesPerCourse": 9,
+    "dsmapcourseid": "MGC002",
+    "bbox": []
+  },
+  {
+    "id": "TGC003",
+    "dscourseids": null,
+    "name": "중문골프클럽",
+    "address": "제주특별자치도 서귀포시 색달동 2101",
+    "numHole": 9,
+    "course_names": [
+      ""
+    ],
+    "map_info": {
+      "center": [
+        126.4106592276,
+        33.2505268564
+      ],
+      "level": 5,
+      "bounds": {
+        "sw": [
+          126.3771578945,
+          33.2353966878
+        ],
+        "ne": [
+          126.444172207,
+          33.2656480882
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC003",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC003",
+    "bbox": []
+  },
+  {
+    "id": "TGC004",
+    "dscourseids": null,
+    "name": "아세코밸리골프클럽",
+    "address": "경기 시흥시 거모동 121-1",
+    "numHole": 9,
+    "course_names": [
+      ""
+    ],
+    "map_info": {
+      "center": [
+        126.7704260185,
+        37.3675429479
+      ],
+      "level": 3,
+      "bounds": {
+        "sw": [
+          126.7615985969,
+          37.3637862328
+        ],
+        "ne": [
+          126.7792543227,
+          37.3712990048
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC004",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC004",
+    "bbox": []
+  },
+  {
+    "id": "TGC005",
+    "dscourseids": null,
+    "name": "클럽디거창CC",
+    "address": "경남 거창군 신원면 덕산리 산 13",
+    "numHole": 9,
+    "course_names": [
+      "클럽디거창"
+    ],
+    "map_info": {
+      "center": [
+        127.8982822104,
+        35.5886891937
+      ],
+      "level": 5,
+      "bounds": {
+        "sw": [
+          127.8706787032,
+          35.5746337981
+        ],
+        "ne": [
+          127.9258952826,
+          35.6027380909
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "클럽디거창",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC005",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC005",
+    "bbox": []
+  },
+  {
+    "id": "TGC006",
+    "dscourseids": null,
+    "name": "클럽디속리산CC",
+    "address": "충북 보은군 탄부면 상장리 643-3",
+    "numHole": 18,
+    "course_names": [
+      "WEST",
+      "EAST"
+    ],
+    "map_info": {
+      "center": [
+        127.7828547546,
+        36.4461525535
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          127.7653155586,
+          36.4387868045
+        ],
+        "ne": [
+          127.8003972317,
+          36.4535156758
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "WEST,EAST",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC006",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC006",
+    "bbox": []
+  },
+  {
+    "id": "TGC007",
+    "dscourseids": null,
+    "name": "오너스GC",
+    "address": "강원특별자치도 춘천시 남산면 수동리 산 30",
+    "numHole": 9,
+    "course_names": [
+      ""
+    ],
+    "map_info": {
+      "center": [
+        127.6560600633,
+        37.7715315149
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          127.6382225218,
+          37.7641515821
+        ],
+        "ne": [
+          127.6739011215,
+          37.7789087047
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC007",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC007",
+    "bbox": []
+  },
+  {
+    "id": "TGC008",
+    "dscourseids": "GC045",
+    "name": "울산컨트리클럽",
+    "address": "울산 울주군 웅촌면 대대리 1527",
+    "numHole": 27,
+    "course_names": [
+      "SOUTH",
+      "EAST",
+      "WEST"
+    ],
+    "map_info": {
+      "center": [
+        129.18072322645793,
+        35.43837151520051
+      ],
+      "level": 3,
+      "bounds": {
+        "sw": [
+          129.16958412428409,
+          35.43276916238251
+        ],
+        "ne": [
+          129.1918638392447,
+          35.44397277914545
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "SOUTH,EAST,WEST",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC008",
+      "MGC999"
+    ],
+    "numCourses": 3,
+    "holesPerCourse": 9,
+    "dsmapcourseid": "MGC008",
+    "bbox": []
+  },
+  {
+    "id": "TGC009",
+    "dscourseids": "GC050",
+    "name": "파미힐스CC 동클럽하우스",
+    "address": "경북 칠곡군 왜관읍 매원리 295-1",
+    "numHole": 18,
+    "course_names": [
+      "EAST_전반",
+      "EAST_후반"
+    ],
+    "map_info": {
+      "center": [
+        128.4580042788575,
+        36.0170680921614
+      ],
+      "level": 1,
+      "bounds": {
+        "sw": [
+          128.45615624902618,
+          36.01572306725577
+        ],
+        "ne": [
+          128.4598523713207,
+          36.018413086835345
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "EAST_전반,EAST_후반",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC009",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC009",
+    "bbox": []
+  },
+  {
+    "id": "TGC010",
+    "dscourseids": "GC049",
+    "name": "파미힐스CC 남클럽하우스",
+    "address": "경북 칠곡군 왜관읍 매원리 295-1",
+    "numHole": 18,
+    "course_names": [
+      "SOUTH_전반",
+      "SOUTH_후반"
+    ],
+    "map_info": {
+      "center": [
+        128.44574778300688,
+        36.00942386431057
+      ],
+      "level": 1,
+      "bounds": {
+        "sw": [
+          128.44388211905903,
+          36.0080788568993
+        ],
+        "ne": [
+          128.4476135101495,
+          36.010768840944635
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "SOUTH_전반,SOUTH_후반",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC010",
+      "MGC999"
+    ],
+    "numCourses": 2,
+    "holesPerCourse": 9,
+    "dsmapcourseid": "MGC010",
+    "bbox": []
+  },
+  {
+    "id": "TGC011",
+    "dscourseids": "GC031",
+    "name": "경주CC",
+    "address": "경북 경주시 북군동 375-1",
+    "numHole": 27,
+    "course_names": [
+      "MOON",
+      "SEAFLOWER",
+      "SUNFLOWER"
+    ],
+    "map_info": {
+      "center": [
+        129.2649834051,
+        35.8648449214
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          129.2474562649,
+          35.8580290328
+        ],
+        "ne": [
+          129.2825134416,
+          35.8716581342
+        ]
+      }
+    },
+    "access_org": [
+      "본사",
+      "남부방제"
+    ],
+    "course_namesString": "MOON,SEAFLOWER,SUNFLOWER",
+    "access_orgString": "본사,남부방제",
+    "access_course_ids": [
+      "MGC011",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC011",
+    "bbox": []
+  },
+  {
+    "id": "TGC012",
+    "dscourseids": "GC047",
+    "name": "인터불고CC",
+    "address": "경북 경산시 평산동 542-16",
+    "numHole": 27,
+    "course_names": [
+      "VALLEY",
+      "MOUNTAIN",
+      "SKY"
+    ],
+    "map_info": {
+      "center": [
+        128.7642097195,
+        35.7941724224
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          128.7467379582,
+          35.7872816105
+        ],
+        "ne": [
+          128.7816844164,
+          35.8010606005
+        ]
+      }
+    },
+    "access_org": [
+      "본사",
+      "남부방제"
+    ],
+    "course_namesString": "VALLEY,MOUNTAIN,SKY",
+    "access_orgString": "본사,남부방제",
+    "access_course_ids": [
+      "MGC012",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC012",
+    "bbox": []
+  },
+  {
+    "id": "TGC013",
+    "dscourseids": "GC001",
+    "name": "골든베이골프&리조트",
+    "address": "충남 태안군 근흥면 정죽리 386-1",
+    "numHole": 27,
+    "course_names": [
+      "오션",
+      "밸리",
+      "마운틴"
+    ],
+    "map_info": {
+      "center": [
+        126.1725345273,
+        36.7101025361
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          126.1550877551,
+          36.7028342676
+        ],
+        "ne": [
+          126.1899846223,
+          36.7173682794
+        ]
+      }
+    },
+    "access_org": [
+      "본사",
+      "중부방제",
+      "용역-골든베이"
+    ],
+    "course_namesString": "오션,밸리,마운틴",
+    "access_orgString": "본사,중부방제,용역-골든베이",
+    "access_course_ids": [
+      "MGC013",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC013",
+    "bbox": []
+  },
+  {
+    "id": "TGC014",
+    "dscourseids": "GC018",
+    "name": "올림픽CC",
+    "address": "경기 고양시 덕양구 벽제동 467-1",
+    "numHole": 9,
+    "course_names": [
+      "올림픽"
+    ],
+    "map_info": {
+      "center": [
+        126.8932217462,
+        37.7191680009
+      ],
+      "level": 2,
+      "bounds": {
+        "sw": [
+          126.8897235789,
+          37.7166488155
+        ],
+        "ne": [
+          126.8967201504,
+          37.7216870818
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "올림픽",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC014",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC014",
+    "bbox": []
+  },
+  {
+    "id": "TGC016",
+    "dscourseids": "GC046",
+    "name": "이스턴컨트리클럽",
+    "address": "경북 포항시 북구 청하면 신흥리 산 3",
+    "numHole": 9,
+    "course_names": [
+      "이스턴"
+    ],
+    "map_info": {
+      "center": [
+        129.3605815061,
+        36.1651428782
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          129.3429787922,
+          36.1583440454
+        ],
+        "ne": [
+          129.3781871506,
+          36.1719390002
+        ]
+      }
+    },
+    "access_org": [
+      "본사",
+      "남부방제"
+    ],
+    "course_namesString": "이스턴",
+    "access_orgString": "본사,남부방제",
+    "access_course_ids": [
+      "MGC016",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC016",
+    "bbox": []
+  },
+  {
+    "id": "TGC017",
+    "dscourseids": "GC073",
+    "name": "남서울CC 제2연습장",
+    "address": "경기 성남시 분당구 하산운동 266-59",
+    "numHole": 9,
+    "course_names": [
+      "남서울Par3"
+    ],
+    "map_info": {
+      "center": [
+        127.07760475,
+        37.3849476075
+      ],
+      "level": 2,
+      "bounds": {
+        "sw": [
+          127.0744864631,
+          37.3831385551
+        ],
+        "ne": [
+          127.0807231866,
+          37.3867565769
+        ]
+      }
+    },
+    "access_org": [
+      "본사",
+      "중부방제",
+      "용역-남서울"
+    ],
+    "course_namesString": "남서울Par3",
+    "access_orgString": "본사,중부방제,용역-남서울",
+    "access_course_ids": [
+      "MGC017",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC017",
+    "bbox": []
+  },
+  {
+    "id": "TGC018",
+    "dscourseids": null,
+    "name": "테디밸리골프앤리조트",
+    "address": "제주특별자치도 서귀포시 안덕면 상창리 2893",
+    "numHole": 18,
+    "course_names": [
+      "VALLEY",
+      "TEDDY"
+    ],
+    "map_info": {
+      "center": [
+        126.3466606414,
+        33.2909600741
+      ],
+      "level": 3,
+      "bounds": {
+        "sw": [
+          126.3377294158,
+          33.2858773067
+        ],
+        "ne": [
+          126.3555929089,
+          33.2960422082
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "VALLEY,TEDDY",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC018",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC018",
+    "bbox": []
+  },
+  {
+    "id": "TGC019",
+    "dscourseids": null,
+    "name": "여주CC",
+    "address": "경기 여주시 월송동 308",
+    "numHole": 27,
+    "course_names": [
+      "Challenge",
+      "Ace",
+      "Dream"
+    ],
+    "map_info": {
+      "center": [
+        127.596522382,
+        37.2798266295
+      ],
+      "level": 1,
+      "bounds": {
+        "sw": [
+          127.5949313905,
+          37.2786114925
+        ],
+        "ne": [
+          127.5981134246,
+          37.2810417444
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "Challenge,Ace,Dream",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC019",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC019",
+    "bbox": []
+  },
+  {
+    "id": "TGC020",
+    "dscourseids": null,
+    "name": "자유CC",
+    "address": "경기 여주시 가남읍 삼군리 468-4",
+    "numHole": 18,
+    "course_names": [
+      "IN",
+      "OUT"
+    ],
+    "map_info": {
+      "center": [
+        127.571735872,
+        37.2086501963
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          127.5557330573,
+          37.1985806464
+        ],
+        "ne": [
+          127.5877429288,
+          37.2187175307
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "IN,OUT",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC020",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC020",
+    "bbox": []
+  },
+  {
+    "id": "TGC021",
+    "dscourseids": null,
+    "name": "옥스필드CC",
+    "address": "강원특별자치도 횡성군 서원면 유현리 638",
+    "numHole": 18,
+    "course_names": [
+      "필드코스",
+      "옥스코스"
+    ],
+    "map_info": {
+      "center": [
+        127.8464112372,
+        37.5175291883
+      ],
+      "level": 2,
+      "bounds": {
+        "sw": [
+          127.8426311265,
+          37.5148240019
+        ],
+        "ne": [
+          127.8501916203,
+          37.5202342492
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "필드코스,옥스코스",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC021",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC021",
+    "bbox": []
+  },
+  {
+    "id": "TGC022",
+    "dscourseids": null,
+    "name": "용평CC",
+    "address": "강원특별자치도 평창군 대관령면 용산리 130",
+    "numHole": 18,
+    "course_names": [
+      "산마루코스",
+      "강나루코스"
+    ],
+    "map_info": {
+      "center": [
+        128.7045387406,
+        37.6526064163
+      ],
+      "level": 2,
+      "bounds": {
+        "sw": [
+          128.6992094128,
+          37.6499513999
+        ],
+        "ne": [
+          128.7098684424,
+          37.6552611814
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "산마루코스,강나루코스",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC022",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC022",
+    "bbox": []
+  },
+  {
+    "id": "TGC023",
+    "dscourseids": null,
+    "name": "모나용평 용평9골프코스",
+    "address": "강원특별자치도 평창군 대관령면 용산리 130",
+    "numHole": 9,
+    "course_names": [
+      "모나용평"
+    ],
+    "map_info": {
+      "center": [
+        128.6896581944,
+        37.6487147795
+      ],
+      "level": 2,
+      "bounds": {
+        "sw": [
+          128.6843296544,
+          37.6460590693
+        ],
+        "ne": [
+          128.6949871084,
+          37.6513702385
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "모나용평",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC023",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC023",
+    "bbox": []
+  },
+  {
+    "id": "TGC024",
+    "dscourseids": null,
+    "name": "버치힐CC",
+    "address": "강원특별자치도 평창군 대관령면 용산리 130",
+    "numHole": 18,
+    "course_names": [
+      "HILL",
+      "BIRCH"
+    ],
+    "map_info": {
+      "center": [
+        128.7060126825,
+        37.6548755918
+      ],
+      "level": 3,
+      "bounds": {
+        "sw": [
+          128.6953539704,
+          37.6495654534
+        ],
+        "ne": [
+          128.716672891,
+          37.6601847248
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "HILL,BIRCH",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC024",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC024",
+    "bbox": []
+  },
+  {
+    "id": "TGC025",
+    "dscourseids": "",
+    "name": "곤지암GC",
+    "address": "경기 광주시 도척면 도웅리 210-2",
+    "map_info": {
+      "center": [
+        127.29535593776306,
+        37.33318502447081
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          127.2768461544943,
+          37.32280487072741
+        ],
+        "ne": [
+          127.31387080478801,
+          37.34356224148347
+        ]
+      }
+    },
+    "numHole": 18,
+    "course_names": [
+      "MOUNTAIN",
+      "LAKE"
+    ],
+    "course_namesString": "MOUNTAIN,LAKE",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC025",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC025",
+    "bbox": []
+  },
+  {
+    "id": "TGC026",
+    "dscourseids": "",
+    "name": "마이다스구미골프아카데미",
+    "address": "경북 칠곡군 가산면 학하리 1199-1",
+    "map_info": {
+      "center": [
+        128.4710302162339,
+        36.07943195822331
+      ],
+      "level": 3,
+      "bounds": {
+        "sw": [
+          128.4636316310123,
+          36.074052690290614
+        ],
+        "ne": [
+          128.47842980658766,
+          36.08481074109744
+        ]
+      }
+    },
+    "numHole": 9,
+    "course_names": [
+      "마이다스"
+    ],
+    "course_namesString": "마이다스",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC026",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC026",
+    "bbox": []
+  },
+  {
+    "id": "TGC027",
+    "dscourseids": "",
+    "name": "마이다스레이크이천CC",
+    "address": "경기 이천시 설성면 송계리 산 25-1",
+    "map_info": {
+      "center": [
+        127.52808520735213,
+        37.17537684987083
+      ],
+      "level": 2,
+      "bounds": {
+        "sw": [
+          127.52436460986274,
+          37.172658699608625
+        ],
+        "ne": [
+          127.53180607119681,
+          37.17809487997785
+        ]
+      }
+    },
+    "numHole": 27,
+    "course_names": [
+      "MIDAS",
+      "OLYMPUS",
+      "TITAN"
+    ],
+    "course_namesString": "MIDAS,OLYMPUS,TITAN",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC027",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC027",
+    "bbox": []
+  },
+  {
+    "id": "TGC028",
+    "dscourseids": "",
+    "name": "마이다스밸리 청평 골프클럽",
+    "address": "경기 가평군 설악면 이천리 240",
+    "map_info": {
+      "center": [
+        127.45357397806455,
+        37.663450024180435
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          127.43458137933163,
+          37.65222329749428
+        ],
+        "ne": [
+          127.47257228387478,
+          37.67467363333304
+        ]
+      }
+    },
+    "numHole": 18,
+    "course_names": [
+      "MIDAS",
+      "VALLEY"
+    ],
+    "course_namesString": "MIDAS,VALLEY",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC028",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC028",
+    "bbox": []
+  },
+  {
+    "id": "TGC029",
+    "dscourseids": "",
+    "name": "오크밸리리조트",
+    "address": "강원특별자치도 원주시 지정면 월송리 1061",
+    "map_info": {
+      "center": [
+        127.82495886215303,
+        37.420282103282005
+      ],
+      "level": 3,
+      "bounds": {
+        "sw": [
+          127.81438889009719,
+          37.41488635700231
+        ],
+        "ne": [
+          127.83553034064762,
+          37.425676881208865
+        ]
+      }
+    },
+    "numHole": 36,
+    "course_names": [
+      "MAPLE",
+      "OAK",
+      "PINE",
+      "CHERRY"
+    ],
+    "course_namesString": "MAPLE,OAK,PINE,CHERRY",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC029",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC029",
+    "bbox": []
+  },
+  {
+    "id": "TGC030",
+    "dscourseids": "",
+    "name": "성문안CC",
+    "address": "강원특별자치도 원주시 지정면 월송리 1219",
+    "map_info": {
+      "center": [
+        127.83328056029619,
+        37.39902333015911
+      ],
+      "level": 3,
+      "bounds": {
+        "sw": [
+          127.82278077127152,
+          37.39362780868813
+        ],
+        "ne": [
+          127.84378184458976,
+          37.404417895903514
+        ]
+      }
+    },
+    "numHole": 18,
+    "course_names": [
+      "IN",
+      "OUT"
+    ],
+    "course_namesString": "IN,OUT",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC030",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC030",
+    "bbox": []
+  },
+  {
+    "id": "TGC031",
+    "dscourseids": "",
+    "name": "구니컨트리클럽",
+    "address": "대구 군위군 군위읍 외량리 산 13",
+    "map_info": {
+      "center": [
+        128.53905438020954,
+        36.25372389687694
+      ],
+      "level": 3,
+      "bounds": {
+        "sw": [
+          128.5329125723669,
+          36.25027948480661
+        ],
+        "ne": [
+          128.54519672145358,
+          36.257167978560865
+        ]
+      }
+    },
+    "numHole": 18,
+    "course_names": [
+      "EAST",
+      "WEST"
+    ],
+    "course_namesString": "EAST,WEST",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC031",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC031",
+    "bbox": []
+  },
+  {
+    "id": "TGC032",
+    "dscourseids": "",
+    "name": "보라컨트리클럽",
+    "address": "울산 울주군 삼동면 금곡리 547-14",
+    "map_info": {
+      "center": [
+        129.13432380635183,
+        35.49192483437498
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          129.12072177534296,
+          35.48458645245256
+        ],
+        "ne": [
+          129.14792826786294,
+          35.49926158658037
+        ]
+      }
+    },
+    "numHole": 27,
+    "course_names": [
+      "William",
+      "Edward",
+      "Henry"
+    ],
+    "course_namesString": "William,Edward,Henry",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC032",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC032",
+    "bbox": []
+  },
+  {
+    "id": "TGC033",
+    "dscourseids": "",
+    "name": "해운대컨트리클럽",
+    "address": "부산 기장군 정관읍 병산리 산 2-1",
+    "map_info": {
+      "center": [
+        129.19744784405728,
+        35.36010462013176
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          129.1862884811862,
+          35.3541975672742
+        ],
+        "ne": [
+          129.2086088015999,
+          35.3660105771146
+        ]
+      }
+    },
+    "numHole": 27,
+    "course_names": [
+      "실크",
+      "로얄",
+      "골든"
+    ],
+    "course_namesString": "실크,로얄,골든",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC033",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC033",
+    "bbox": []
+  },
+  {
+    "id": "TGC034",
+    "dscourseids": "",
+    "name": "팔공컨트리클럽",
+    "address": "대구 동구 도학동 산 1-1",
+    "map_info": {
+      "center": [
+        128.72105426628193,
+        35.987307001921494
+      ],
+      "level": 2,
+      "bounds": {
+        "sw": [
+          128.71549925112262,
+          35.984485010097316
+        ],
+        "ne": [
+          128.7266096708253,
+          35.99012872429325
+        ]
+      }
+    },
+    "numHole": 18,
+    "course_names": [
+      "IN",
+      "OUT"
+    ],
+    "course_namesString": "IN,OUT",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC034",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC034",
+    "bbox": []
+  },
+  {
+    "id": "TGC035",
+    "dscourseids": "",
+    "name": "웰링턴CC",
+    "address": "경기 이천시 모가면 두미리 955",
+    "map_info": {
+      "center": [
+        127.4279334861313,
+        37.17040385875625
+      ],
+      "level": 1,
+      "bounds": {
+        "sw": [
+          127.42582969413067,
+          37.16895962100725
+        ],
+        "ne": [
+          127.4300373581125,
+          37.17184805829628
+        ]
+      }
+    },
+    "numHole": 27,
+    "course_names": [
+      "그리핀",
+      "휘닉스",
+      "와이번"
+    ],
+    "course_namesString": "그리핀,휘닉스,와이번",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC035",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC035",
+    "bbox": []
+  },
+  {
+    "id": "TGC036",
+    "dscourseids": "",
+    "name": "포도CC",
+    "address": "경북 김천시 구성면 송죽리 611-2",
+    "map_info": {
+      "center": [
+        128.05654450681044,
+        36.04487475303789
+      ],
+      "level": 1,
+      "bounds": {
+        "sw": [
+          128.05340347986206,
+          36.043262246208904
+        ],
+        "ne": [
+          128.05968566063444,
+          36.04648717499088
+        ]
+      }
+    },
+    "numHole": 27,
+    "course_names": [
+      "포도",
+      "자두",
+      "샤인"
+    ],
+    "course_namesString": "포도,자두,샤인",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC036",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC036",
+    "bbox": []
+  },
+  {
+    "id": "TGC037",
+    "dscourseids": "",
+    "name": "힐스카이CC 경주지점",
+    "address": "경북 경주시 천북면 화산리 산 33-16",
+    "map_info": {
+      "center": [
+        129.3143857038021,
+        35.910580197795326
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          129.2993946467945,
+          35.89890280985052
+        ],
+        "ne": [
+          129.32938116271566,
+          35.92225552812036
+        ]
+      }
+    },
+    "numHole": 24,
+    "course_names": [
+      "A",
+      "B",
+      "C",
+      "V"
+    ],
+    "numCourse": 4,
+    "course_namesString": "A,B,C,V",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC037",
+      "MGC999"
+    ],
+    "numCourses": 4,
+    "holesPerCourse": 6,
+    "dsmapcourseid": "MGC037",
+    "bbox": []
+  },
+  {
+    "id": "TGC038",
+    "dscourseids": "",
+    "name": "뉴서울CC",
+    "address": "경기 광주시 삼동 1",
+    "map_info": {
+      "center": [
+        127.2095199438923,
+        37.42365968685719
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          127.18117981162862,
+          37.4117410058342
+        ],
+        "ne": [
+          127.2378690357723,
+          37.4355715203133
+        ]
+      }
+    },
+    "numHole": 36,
+    "course_names": [
+      "예술",
+      "문화"
+    ],
+    "numCourses": 2,
+    "course_namesString": "예술,문화",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC038",
+      "MGC999"
+    ],
+    "holesPerCourse": 18,
+    "dsmapcourseid": "MGC038",
+    "bbox": []
+  },
+  {
+    "id": "TGC039",
+    "dscourseids": "",
+    "name": "가평베네스트GC",
+    "address": "경기 가평군 상면 상동리 산 52",
+    "map_info": {
+      "center": [
+        127.30547054428618,
+        37.79714361913532
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          127.29040242864349,
+          37.785216993694675
+        ],
+        "ne": [
+          127.32054350536579,
+          37.809068271634494
+        ]
+      }
+    },
+    "numHole": 27,
+    "course_names": [
+      "PINE",
+      "MAPLE",
+      "BIRCH"
+    ],
+    "numCourses": 3,
+    "holesPerCourse": 9,
+    "course_namesString": "PINE,MAPLE,BIRCH",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC039",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC039",
+    "bbox": []
+  },
+  {
+    "id": "TGC040",
+    "dscourseids": "",
+    "name": "파인힐스골프&호텔",
+    "address": "전남 순천시 주암면 복다리 산 27",
+    "map_info": {
+      "center": [
+        127.27364902672788,
+        35.036018136510364
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          127.24633611678225,
+          35.024106383870844
+        ],
+        "ne": [
+          127.30096983260769,
+          35.047923679482984
+        ]
+      }
+    },
+    "numHole": 27,
+    "course_names": [
+      "HILLS",
+      "LAKE",
+      "PINE"
+    ],
+    "numCourses": 3,
+    "holesPerCourse": 9,
+    "course_namesString": "HILLS,LAKE,PINE",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC040",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC040",
+    "bbox": []
+  },
+  {
+    "id": "TGC041",
+    "dscourseids": "",
+    "name": "파인리즈리조트",
+    "address": "강원특별자치도 고성군 토성면 인흥리 506-6",
+    "map_info": {
+      "center": [
+        128.54364876717048,
+        38.24797974819561
+      ],
+      "level": 2,
+      "bounds": {
+        "sw": [
+          128.5378891960131,
+          38.24515475601352
+        ],
+        "ne": [
+          128.54940877845434,
+          38.25080444678519
+        ]
+      }
+    },
+    "numHole": 27,
+    "course_names": [
+      "리즈",
+      "파인",
+      "레이크"
+    ],
+    "numCourses": 3,
+    "holesPerCourse": 9,
+    "course_namesString": "리즈,파인,레이크",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC041",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC041",
+    "bbox": []
+  },
+  {
+    "id": "TGC042",
+    "dscourseids": "",
+    "name": "코리아CC",
+    "address": "경기 용인시 처인구 이동읍 서리 784-7",
+    "map_info": {
+      "center": [
+        127.15856477206148,
+        37.22055171010153
+      ],
+      "level": 1,
+      "bounds": {
+        "sw": [
+          127.15670363262221,
+          37.21955177118836
+        ],
+        "ne": [
+          127.16042596057808,
+          37.22155161948566
+        ]
+      }
+    },
+    "numHole": 27,
+    "course_names": [
+      "클라크",
+      "레이크",
+      "챌린지"
+    ],
+    "numCourses": 3,
+    "holesPerCourse": 9,
+    "course_namesString": "클라크,레이크,챌린지",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC042",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC042",
+    "bbox": []
+  },
+  {
+    "id": "TGC043",
+    "dscourseids": "",
+    "name": "창원컨트리클럽",
+    "address": "경남 창원시 의창구 봉림동 647",
+    "map_info": {
+      "center": [
+        128.66328315377555,
+        35.26181527639212
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          128.64252054885952,
+          35.25223962110307
+        ],
+        "ne": [
+          128.68405054589775,
+          35.27138721677333
+        ]
+      }
+    },
+    "numHole": 18,
+    "course_names": [
+      "WEST",
+      "EAST"
+    ],
+    "numCourses": 2,
+    "holesPerCourse": 9,
+    "course_namesString": "WEST,EAST",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC043",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC043",
+    "bbox": []
+  },
+  {
+    "id": "TGC999",
+    "dscourseids": "",
+    "name": "동성관리골프",
+    "address": "경기도 용인시 기흥구 지곡동 292-1",
+    "numHole": 261,
+    "course_names": [
+      "전코스",
+      "동해코스",
+      "태백코스",
+      "VALLEY",
+      "MOUNTAIN",
+      "LAKE",
+      "WEST",
+      "SOUTH",
+      "EAST",
+      "EAST_전반",
+      "EAST_후반",
+      "SOUTH_전반",
+      "SOUTH_후반",
+      "MOON",
+      "SUNFLOWER",
+      "SEAFLOWER",
+      "SKY",
+      "이스턴",
+      "남서울Par3",
+      "TEDDY",
+      "Dream",
+      "Challenge",
+      "Ace",
+      "옥스코스",
+      "필드코스",
+      "강나루코스",
+      "산마루코스",
+      "모나용평",
+      "BIRCH",
+      "HILL"
+    ],
+    "map_info": {
+      "center": [
+        127.136277,
+        37.238655
+      ],
+      "level": 2,
+      "bounds": {
+        "sw": [
+          127.132237,
+          37.233975
+        ],
+        "ne": [
+          127.140958,
+          37.241269
+        ]
+      }
+    },
+    "access_org": [
+      "본사"
+    ],
+    "course_namesString": "전코스,동해코스,태백코스,VALLEY,MOUNTAIN,LAKE,WEST,SOUTH,EAST,EAST_전반,EAST_후반,SOUTH_전반,SOUTH_후반,MOON,SUNFLOWER,SEAFLOWER,SKY,이스턴,남서울Par3,TEDDY,Dream,Challenge,Ace,옥스코스,필드코스,강나루코스,산마루코스,모나용평,BIRCH,HILL",
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "MGC999",
+      "MGC999"
+    ],
+    "dsmapcourseid": "MGC999",
+    "bbox": []
+  },
+  {
+    "id": "TGC044",
+    "dscourseids": "",
+    "name": "오크힐스CC",
+    "address": "강원특별자치도 원주시 지정면 월송리 1016",
+    "map_info": {
+      "center": [
+        127.80889740634503,
+        37.40790079629589
+      ],
+      "level": 4,
+      "bounds": {
+        "sw": [
+          127.79123070107869,
+          37.39915452946935
+        ],
+        "ne": [
+          127.82656818949201,
+          37.41664436130578
+        ]
+      }
+    },
+    "numHole": 9,
+    "course_names": [],
+    "numCourses": 1,
+    "holesPerCourse": 9,
+    "course_namesString": "",
+    "access_org": [
+      "본사"
+    ],
+    "access_orgString": "본사",
+    "access_course_ids": [
+      "TGC044",
+      "TGC999"
+    ]
+  }
+]
