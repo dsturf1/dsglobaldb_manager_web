@@ -11,7 +11,12 @@ const CourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
 
   useEffect(() => {
     if (course) {
-      setEditedCourse(course);
+      setEditedCourse({
+        ...course,
+        access_org: course.access_org || [],
+        course_names: course.course_names || [],
+        access_course_ids: course.access_course_ids || [],
+      });
     }
   }, [course]);
 
@@ -58,10 +63,10 @@ const CourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
   };
 
   const handleAddAccessCourseId = () => {
-    if (newAccessCourseId.trim() && !editedCourse.accesscourseid.includes(newAccessCourseId.trim())) {
+    if (newAccessCourseId.trim() && !editedCourse.access_course_ids.includes(newAccessCourseId.trim())) {
       setEditedCourse(prev => ({
         ...prev,
-        accesscourseid: [...prev.accesscourseid, newAccessCourseId.trim()]
+        access_course_ids: [...prev.access_course_ids, newAccessCourseId.trim()]
       }));
       setNewAccessCourseId('');
     }
@@ -70,7 +75,7 @@ const CourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
   const handleRemoveAccessCourseId = (idToRemove) => {
     setEditedCourse(prev => ({
       ...prev,
-      accesscourseid: prev.accesscourseid.filter(id => id !== idToRemove)
+      access_course_ids: prev.access_course_ids.filter(id => id !== idToRemove)
     }));
   };
 
