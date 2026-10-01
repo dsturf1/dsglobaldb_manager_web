@@ -32,8 +32,8 @@ S3_BUCKET = "dsbaseinfo"
 S3_KEY = "ecount/products_latest.json"
 AWS_PROFILE = "default"
 
-# 약품(dschemicals) 코드 체계와 같은 접두어만 비교 대상
-PREFIXES = ("A1", "A2", "A3", "B0", "C0", "G0")
+# 약품(dschemicals) 코드: A(농약)·B(비료)·C(기타약재)·G(잔디)로 시작하는 품목만 비교 대상
+PREFIXES = ("A", "B", "C", "G")
 SUMMARY_FIELDS = ("PROD_CD", "PROD_DES", "SIZE_DES", "UNIT", "PROD_TYPE", "CLASS_CD", "IN_PRICE")
 PRICE_FIELDS = ("IN_PRICE",)
 
@@ -89,6 +89,8 @@ def main() -> None:
         "prefixes": list(PREFIXES),
         "quantity_info": data.get("QUANTITY_INFO", ""),
         "items": rows,
+        # 모든 품목코드 → 품목명 (웹에서 '여기서 만든 약품'의 이카운트 등록 여부·코드 충돌 확인용)
+        "all_codes": {(i.get("PROD_CD") or "").strip(): (i.get("PROD_DES") or "").strip() for i in items},
     }
     print(f"이카운트 품목 {len(items)}건 (TotalCnt={data.get('TotalCnt')}) → 비교 대상 {len(rows)}건")
     print(f"호출 한도: {payload['quantity_info']}")

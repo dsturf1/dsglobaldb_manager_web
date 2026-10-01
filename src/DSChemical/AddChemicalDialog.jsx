@@ -71,7 +71,9 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
     try {
       const newChemical = {
         ...form,
-        dsids: getPreviewCode()
+        dsids: getPreviewCode(),
+        origin: 'local',  // 여기서 만든 약품 → 이카운트 비교의 '이카운트 미등록'에 나옴
+        createdAt: new Date().toISOString(),
       };
       await addGlobalChemical(newChemical);
       onClose();

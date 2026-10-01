@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { downloadExcel } from '../utils/excelExport';
 
 /**
  * 이카운트 거래처등록 엑셀(ESA001M.xlsx) 파싱 + 거래처 DB(dscustomers) 비교.
@@ -71,9 +72,11 @@ export const parseCustomerExcel = (arrayBuffer) => {
   const warnings = [];
   const byCode = new Map();
   const aliasRows = [];
+  const allCodes = {};   // 이카운트의 모든 거래처코드(별칭 포함) → 거래처명 (미등록·코드충돌 확인용)
 
   for (const row of rows.slice(headerIndex + 1)) {
     const type = get(row, 'type');
+    if (type && get(row, 'code')) allCodes[maskCode(get(row, 'code'))] = get(row, 'name');
     if (type === '거래처코드동일') {
       const custcd = maskCode(get(row, 'code'));
       if (!custcd) continue;
@@ -112,7 +115,7 @@ export const parseCustomerExcel = (arrayBuffer) => {
   const lastRow = rows[rows.length - 1] || [];
   const exportedAt = get(lastRow, 'type') === '' ? clean(lastRow[0]) : '';
 
-  return { customers: [...byCode.values()], warnings, exportedAt };
+  return { customers: [...byCode.values()], allCodes, warnings, exportedAt };
 };
 
 const sameValue = (a, b) => JSON.stringify(a ?? '') === JSON.stringify(b ?? '');
@@ -143,8 +146,9 @@ export const compareCustomers = (excelCustomers, dbCustomers) => {
     else unchanged += 1;
   }
 
+  // 여기서 만든 거래처(origin=local)는 '이카운트 미등록'에서 따로 보여준다
   const excelCodes = new Set(excelCustomers.map(c => c.custcd));
-  const dbOnly = dbCustomers.filter(c => !excelCodes.has(c.custcd));
+  const dbOnly = dbCustomers.filter(c => !excelCodes.has(c.custcd) && c.origin !== 'local');
   return { added, changed, unchanged, dbOnly };
 };
 
@@ -159,6 +163,8 @@ export const toNewCustomer = (excelCustomer) => ({
   category: guessCategory(excelCustomer),
   active: 'Y',
   memo: '',
+  origin: 'ecount',
+  createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 });
 
@@ -171,3 +177,63 @@ export const toUpdatedCustomer = (dbCustomer, excelCustomer) => ({
 
 export const formatAliases = (aliases) =>
   normalizeAliases(aliases).map(a => `${a.code} ${a.name}`).join(', ');
+
+// ---- 여기서 만든 거래처(origin=local) → 이카운트 동기화 ----
+
+export const CUSTOMER_TYPES = { corp: '법인', person: '개인' };
+
+// 사업자등록번호 10자리 검증 (국세청 검증번호 규칙)
+export const isValidBizNo = (bizNo) => {
+  const d = String(bizNo).replace(/\D/g, '');
+  if (d.length !== 10) return false;
+  const w = [1, 3, 7, 1, 3, 7, 1, 3, 5];
+  let sum = w.reduce((acc, weight, i) => acc + Number(d[i]) * weight, 0);
+  sum += Math.floor((Number(d[8]) * 5) / 10);
+  return (10 - (sum % 10)) % 10 === Number(d[9]);
+};
+
+// 개인 거래처 코드: P00001, P00002 ... (주민등록번호는 받지 않음)
+export const nextPersonCode = (customers) => {
+  const max = customers
+    .map(c => /^P(\d{5})$/.exec(c.custcd))
+    .filter(Boolean)
+    .reduce((acc, m) => Math.max(acc, Number(m[1])), 0);
+  return `P${String(max + 1).padStart(5, '0')}`;
+};
+
+const sameName = (a, b) => (a || '').replace(/\s/g, '') === (b || '').replace(/\s/g, '');
+
+/**
+ * 여기서 만든 거래처 중 이카운트 등록 확인(ecountSyncedAt)이 아직 없는 것을
+ * - unsynced: 이카운트에 아직 없는 것 (엑셀로 내려받아 이카운트에 등록)
+ * - confirmed: 같은 코드·같은 이름으로 이카운트에 있는 것 (등록 확인 → ecountSyncedAt 기록)
+ * - conflicts: 같은 코드가 이카운트에 다른 이름으로 있는 것
+ * 로 나눈다. ecountSyncedAt 이 있는 거래처는 예전 엑셀로 비교해도 다시 나오지 않는다.
+ */
+export const findLocalCustomerStatus = (allCodes, customers) => {
+  const pending = customers.filter(c => c.origin === 'local' && !c.ecountSyncedAt);
+  const inEcount = pending.filter(c => c.custcd in allCodes);
+  return {
+    unsynced: pending.filter(c => !(c.custcd in allCodes)),
+    confirmed: inEcount.filter(c => sameName(c.name, allCodes[c.custcd])),
+    conflicts: inEcount
+      .filter(c => !sameName(c.name, allCodes[c.custcd]))
+      .map(c => ({ customer: c, ecountName: allCodes[c.custcd] })),
+  };
+};
+
+// 이카운트 거래처등록 엑셀(ESA001M)과 같은 열 이름. TODO: 이카운트 '엑셀 업로드' 양식을 받으면 맞출 것
+export const downloadCustomersForEcount = (customers) => downloadExcel(customers, [
+  { header: '거래처코드', value: c => c.custcd },
+  { header: 'Email', value: c => c.email },
+  { header: '세무신고거래처구분', value: () => '거래처코드동일' },
+  { header: '세무신고거래처코드', value: c => c.custcd },
+  { header: '세무신고거래처명', value: c => c.name },
+  { header: '거래처명', value: c => c.name },
+  { header: '대표자명', value: c => c.ceo },
+  { header: '업태', value: c => c.bizType },
+  { header: '종목', value: c => c.bizItem },
+  { header: '전화', value: c => c.tel },
+  { header: '사용구분', value: () => 'YES' },
+  { header: '구분(참고)', value: c => CUSTOMER_TYPES[c.custType] || '' },
+], '이카운트_거래처등록_미등록', '거래처등록');

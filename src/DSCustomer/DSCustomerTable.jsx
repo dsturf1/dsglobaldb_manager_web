@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchCustomers, saveCustomers, deleteCustomer } from './customerApi';
-import { CUSTOMER_CATEGORIES, formatAliases } from './customerExcel';
+import { CUSTOMER_CATEGORIES, CUSTOMER_TYPES, formatAliases } from './customerExcel';
 import EditCustomerDialog from './EditCustomerDialog';
+import AddCustomerDialog from './AddCustomerDialog';
 import CustomerExcelCompareDialog from './CustomerExcelCompareDialog';
 
 /**
@@ -13,10 +14,11 @@ export default function DSCustomerTable() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState({ category: 'all', active: 'all' });
+  const [filters, setFilters] = useState({ category: 'all', active: 'all', origin: 'all' });
   const [selectedRow, setSelectedRow] = useState(null);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   const load = async () => {
     setIsLoading(true);
@@ -44,7 +46,8 @@ export default function DSCustomerTable() {
             .some(v => (v || '').toLowerCase().includes(term));
         const categoryMatch = filters.category === 'all' || c.category === filters.category;
         const activeMatch = filters.active === 'all' || c.active === filters.active;
-        return searchMatch && categoryMatch && activeMatch;
+        const originMatch = filters.origin === 'all' || (c.origin === 'local') === (filters.origin === 'local');
+        return searchMatch && categoryMatch && activeMatch && originMatch;
       })
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
   }, [customers, searchTerm, filters]);
@@ -101,6 +104,9 @@ export default function DSCustomerTable() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          <button className="btn btn-primary btn-sm" onClick={() => setIsAddOpen(true)}>
+            신규 추가
+          </button>
           <button className="btn btn-outline btn-sm" onClick={() => setIsCompareOpen(true)}>
             이카운트 엑셀 비교
           </button>
@@ -123,6 +129,15 @@ export default function DSCustomerTable() {
             onChange={(v) => setFilters(prev => ({ ...prev, active: v }))}
             options={['all', 'Y', 'N']}
             labels={{ Y: '사용', N: '미사용' }}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm">출처:</span>
+          <FilterSelect
+            value={filters.origin}
+            onChange={(v) => setFilters(prev => ({ ...prev, origin: v }))}
+            options={['all', 'ecount', 'local']}
+            labels={{ ecount: '이카운트', local: '자체 생성' }}
           />
         </div>
         <span className="text-sm text-gray-500">
@@ -166,7 +181,19 @@ export default function DSCustomerTable() {
                   }`}
                 >
                   <td className="text-center text-xs">{index + 1}</td>
-                  <td className="text-xs">{c.custcd}</td>
+                  <td className="text-xs">
+                    {c.custcd}
+                    {c.origin === 'local' && (
+                      <span
+                        className={`badge badge-xs ml-1 ${c.ecountSyncedAt ? 'badge-success' : 'badge-warning'}`}
+                        title={c.ecountSyncedAt
+                          ? `여기서 만든 거래처 · 이카운트 등록 확인 ${new Date(c.ecountSyncedAt).toLocaleDateString('ko-KR')}`
+                          : '여기서 만든 거래처 · 이카운트 미등록'}
+                      >
+                        자체{c.custType ? `·${CUSTOMER_TYPES[c.custType]}` : ''}·{c.ecountSyncedAt ? '등록됨' : '미등록'}
+                      </span>
+                    )}
+                  </td>
                   <td className="text-sm">{c.name}</td>
                   <td className="text-xs">{c.ceo}</td>
                   <td className="text-xs">{c.bizType}</td>
@@ -200,6 +227,13 @@ export default function DSCustomerTable() {
       <EditCustomerDialog
         customer={editingCustomer}
         onClose={() => setEditingCustomer(null)}
+        onSave={handleSave}
+      />
+
+      <AddCustomerDialog
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        customers={customers}
         onSave={handleSave}
       />
 

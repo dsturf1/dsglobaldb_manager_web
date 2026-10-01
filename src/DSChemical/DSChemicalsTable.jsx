@@ -318,7 +318,19 @@ export default function DSChemicalsTable() {
         </td>
         <td className="w-32 text-xs">{chemical.infoL2}</td>
         <td className="w-32 text-xs">{chemical.infoL1}</td>
-        <td className="w-28 text-sm">{chemical.dsids}</td>
+        <td className="w-28 text-sm">
+          {chemical.dsids}
+          {chemical.origin === 'local' && (
+            <span
+              className={`badge badge-xs ml-1 ${chemical.ecountSyncedAt ? 'badge-success' : 'badge-warning'}`}
+              title={chemical.ecountSyncedAt
+                ? `여기서 만든 약품 · 이카운트 등록 확인 ${new Date(chemical.ecountSyncedAt).toLocaleDateString('ko-KR')}`
+                : '여기서 만든 약품 · 이카운트 미등록'}
+            >
+              자체·{chemical.ecountSyncedAt ? '등록됨' : '미등록'}
+            </span>
+          )}
+        </td>
         <td className="text-sm">{chemical.name}</td>
         <td className="text-xs">{chemical.unit}</td>
         <td className="w-28 text-right text-xs">{chemical.IN_PRICE.toLocaleString()}원</td>
