@@ -2,6 +2,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useGlobalComponent } from '../context/GlobalComponentContext'; // 전역 컴포넌트 컨텍스트 사용
 import AddChemicalDialog from './AddChemicalDialog';
 import EditChemicalDialog from './EditChemicalDialog';
+import EcountCompareDialog from './EcountCompareDialog';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 /**
@@ -179,6 +180,7 @@ export default function DSChemicalsTable() {
 
   // ChemicalsTable 컴포넌트 내부에 상태 추가
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEcountModalOpen, setIsEcountModalOpen] = useState(false);
 
   // handleAddNew 함수 수정
   const handleAddNew = () => {
@@ -380,6 +382,12 @@ export default function DSChemicalsTable() {
           >
             신규 추가
           </button>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => setIsEcountModalOpen(true)}
+          >
+            이카운트 비교
+          </button>
         </div>
       </div>
       <div className="flex items-center gap-4">
@@ -480,6 +488,12 @@ export default function DSChemicalsTable() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddConfirm}
+      />
+
+      {/* 이카운트 비교 다이얼로그 */}
+      <EcountCompareDialog
+        isOpen={isEcountModalOpen}
+        onClose={() => setIsEcountModalOpen(false)}
       />
     </div>
   );

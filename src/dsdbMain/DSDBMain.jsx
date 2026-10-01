@@ -3,6 +3,7 @@ import { Link, Routes, Route, useLocation } from 'react-router-dom';
 import DSChemicalsTable from '../DSChemical/DSChemicalsTable';
 import DSWorkforceTable from '../DSWorkforce/DSWorkforceTable';
 import DSEquipmentTable from '../DSEquipment/DSEquipmentTable';
+import DSCustomerTable from '../DSCustomer/DSCustomerTable';
 import BaseInfoManager from '../DSBaseInfo/BaseInfoManager';
 import DSMapCourse from '../DSMapCourse/DSMapCourse';
 import DSWorkCourse from '../DSWorkCourse/DSWorkCourse';
@@ -14,6 +15,7 @@ const Sidebar = () => {
     { path: '/dsdb', label: '약품정보' },
     { path: '/dsdb/workforce', label: '인력정보' },
     { path: '/dsdb/equipment', label: '장비정보' },
+    { path: '/dsdb/customer', label: '거래처정보' },
     { path: '/dsdb/baseinfo', label: '기본정보' },
     { path: '/dsdb/mapcourse', label: '맵코스' },
     { path: '/dsdb/workcourse', label: '방제작업코스' },
@@ -58,6 +60,7 @@ export default function DSDBMain() {
             <Route path="/" element={<DSChemicalsTable />} />
             <Route path="/workforce" element={<DSWorkforceTable />} />
             <Route path="/equipment" element={<DSEquipmentTable />} />
+            <Route path="/customer" element={<DSCustomerTable />} />
             <Route path="/baseinfo" element={<BaseInfoManager />} />
             <Route path="/mapcourse" element={<DSMapCourse />} />
             <Route path="/workcourse" element={<DSWorkCourse />} />

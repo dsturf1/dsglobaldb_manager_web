@@ -67,11 +67,18 @@ export const GlobalComponentProvider = ({ children }) => {
   // Add Global Chemical
   const addGlobalChemical = async (chemical) => {
     try {
-      await apiClient.post('/dschemical', chemical);
+      const response = await apiClient.post('/dschemical', chemical);
+      // Lambda 오류는 HTTP 200 + body.statusCode 로 온다
+      if (response.data?.statusCode >= 400) {
+        console.error('Error adding global chemical:', response.data);
+        return false;
+      }
       setGlobalChemicals(prev => [...prev, chemical]);
       console.log(`Global Chemical with id ${chemical.dsids} inserted successfully.`);
+      return true;
     } catch (err) {
       console.error('Error adding global chemical:', err);
+      return false;
     }
   };
 
