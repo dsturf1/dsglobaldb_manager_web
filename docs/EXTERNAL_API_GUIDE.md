@@ -3,7 +3,7 @@
 외부 앱과 텔레그램 봇에서 글로벌 DB의 **약품**과 **거래처** 데이터를 읽어 쓰기 위한 안내입니다.
 데이터는 이 저장소의 웹(dsglobaldb_manager)에서 관리하고, 외부에서는 아래 API로 읽습니다.
 
-> 2026-10-01 기준. 약품 658건, 거래처 1,486건.
+> 2026-10-05 기준. 약품 658건, 거래처 1,486건, 창고 19건. 새로 추가는 create API(6장)로 한다.
 
 ---
 
@@ -13,13 +13,14 @@
 |---|---|---|---|---|
 | 약품 | `GET /dschemical` | DynamoDB `dschemicals` | `dsids` (= 이카운트 품목코드) | 658건 · 약 350KB |
 | 거래처 | `GET /dscustomer` | DynamoDB `dscustomers` | `custcd` (= 이카운트 거래처코드) | 1,486건 · 약 490KB |
+| 창고 | `GET /dswarehouse` | DynamoDB `dswarehouses` | `whcd` (= 이카운트 창고코드) | 19건 · 수 KB |
 
 ```
 Base URL: https://jyipsj28s9.execute-api.us-east-1.amazonaws.com/dev
 ```
 
 - **인증 없음.** URL만 알면 누구나 읽고 쓸 수 있습니다. URL을 공개된 곳(공개 저장소, 공개 채널 메시지 등)에 올리지 마세요.
-- **외부 앱·봇은 읽기(GET)만 하세요.** 추가·수정은 웹에서 합니다. 쓰기 API는 [6장](#6-쓰기-api-웹-전용-참고)에 참고로만 적었습니다.
+- **외부 앱·봇은 읽기(GET)와 새로 추가(create API)만 하세요.** 새 약품·거래처는 [6장](#6-새로-추가--create-api)의 create API로만 추가합니다. 수정·삭제는 웹에서 합니다.
 - CORS가 열려 있어 브라우저에서도 바로 호출할 수 있습니다.
 
 ---
@@ -162,6 +163,27 @@ def unwrap(res_json):
 
 ---
 
+## 4-1. 창고 (`/dswarehouse`)
+
+`GET /dswarehouse` — 전체 목록. 조회 조건은 받지 않습니다.
+
+| 필드 | 타입 | 설명 | 예 |
+|---|---|---|---|
+| `whcd` | string | 창고 코드. **이카운트 창고코드와 같음**. 앞자리 0 포함 문자열 | `100`, `00001`, `513` |
+| `name` | string | 창고명 | `본사창고`, `용역 코리아` |
+| `whType` | string | 구분 | `창고` `공장` `외주` |
+| `active` | `Y`/`N` | 사용 여부 (이카운트 '사용') | |
+| `site` | string | 추가사업장명 | `(주)동성그린` |
+| `process`, `outCust` | string | 생산공정명, 외주거래처명 (지금은 모두 비어 있음) | |
+| `memo` | string | 메모 (글로벌 DB에서 관리) | |
+
+동기화 관련 필드(`origin`, `createdAt`, `updatedAt`, `ecountSyncedAt`)는 [5장](#5-출처와-이카운트-동기화-필드)과 같습니다.
+
+- **다른 데이터는 창고를 코드가 아니라 창고명으로 가리킵니다.** 약품의 `warehouse`(예: `"본사창고"`, 여러 개면 `"본사창고,용역 코리아"`)와 방제 기본 정보의 `warehouse`·`outwarehouse`가 그렇습니다. 연결할 때는 `name`으로 맞추세요. 2026-10-05 기준 모두 정확히 일치합니다.
+- 이름 규칙: `용역 {골프장}`은 용역 현장 창고, `본사창고`·`중부방제`·`남부방제`·`중부팀`·`남부팀`은 내부 창고입니다.
+
+---
+
 ## 5. 출처와 이카운트 동기화 필드
 
 약품과 거래처 모두 같은 규칙입니다.
@@ -180,19 +202,132 @@ def unwrap(res_json):
 
 ---
 
-## 6. 쓰기 API (웹 전용, 참고)
+## 6. 새로 추가 — create API
 
-외부 앱·봇에서는 쓰지 않는 것을 원칙으로 합니다. 꼭 필요하면 관리자와 먼저 협의하세요.
+새 약품·거래처는 **이 API로만** 추가하세요. 웹도 같은 API를 씁니다.
+
+- **코드는 서버가 정합니다.** 보낸 `dsids`·`custcd`(개인), `origin`, `createdAt`, `ecountSyncedAt`은 무시됩니다.
+- **이미 있는 코드는 절대 덮어쓰지 않습니다.** 동시에 추가해도 서로 다른 코드를 받습니다.
+- 서버가 `origin: 'local'`, `createdAt`, `updatedAt`을 붙입니다. 그래서 새 항목은 [5장](#5-출처와-이카운트-동기화-필드)의 "이카운트 미등록" 상태로 시작합니다.
+- 응답도 2장과 같은 형식입니다. HTTP는 200이고, 결과는 `statusCode`로 판단합니다.
+
+| 요청 | 동작 |
+|---|---|
+| `POST /dschemical/create` | 약품 추가 |
+| `GET /dschemical/next-code?infoL1=&name=&unit=` | 다음 코드 미리보기와 비슷한 이름 확인. **저장 안 함, 코드는 확정 아님** |
+| `POST /dscustomer/create` | 거래처 추가 |
+| `POST /dswarehouse/create` | 창고 추가 |
+
+### 6.1 약품 추가
+
+```http
+POST /dschemical/create
+{ "name": "몬카트", "unit": "1ℓ", "infoL1": "살균제", "infoL3": "중요도4",
+  "IN_PRICE": 11500, "OUT_PRICE": 12075, "OUT_PRICE1": 13000, "vendors": "", "aliases": [] }
+```
+
+| 필드 | 필수 | 설명 |
+|---|---|---|
+| `name` | ✔ | 제품명 |
+| `infoL1` | ✔ | `살균제` `살충제` `제초제` `비료` `기타약재` `잔디` `기타물품` 중 하나. 대분류(`infoL2`)는 서버가 정합니다(보내면 일치해야 함) |
+| `unit` | | 용량. 예: `1ℓ`, `500㎖`, `20kg` |
+| `infoL3` | | 중요도. 기본 `중요도1` |
+| `IN_PRICE` `OUT_PRICE` `OUT_PRICE1` | | 0 이상 숫자. 기본 0 |
+| `active` `flgWork` `flgOut` | | `Y`/`N`. 기본 `Y` |
+| `vendors` `type` `aliases`(문자열 배열) `createdBy` | | 선택 |
+| `confirmSimilar` | | 아래 409를 사용자가 확인한 뒤 `true`로 다시 보낼 때 |
+
+**코드 규칙** (3.3 코드 체계)
+- 같은 이름이 있으면 그 제품의 다음 용량 순번을 받습니다. 예: 몬카트 `A11042` 다음은 `A11043`.
+- 새 이름이면 새 일련번호를 받고 끝자리는 0입니다. 예: `A18040`.
+- 앞 두 글자는 보낸 `infoL1`을 따릅니다.
+
+**응답**
+
+| statusCode | 의미 | body |
+|---|---|---|
+| `201` | 추가됨 | 저장된 레코드 전체 (`dsids` 포함) |
+| `409` | **비슷한 약품이 있음 — 사용자 확인 필요** | `reason: "similar"`, `similar`, `sameName`, `sameUnit`, `message` |
+| `400` | 입력 오류 | `message` |
+| `503` | 동시 추가가 몰려 코드를 못 정함 | 잠시 후 다시 시도 |
+
+**409 비슷한 이름 확인**: 아래 경우에는 바로 만들지 않고 후보를 돌려줍니다.
+- 띄어쓰기·기호만 다른 이름. 예: `DryCare DS-100` ↔ `DryCareDS-100`
+- 한쪽 이름이 다른 쪽에 포함됨. 예: `루트칼 액제` ↔ `루트칼`
+- 글자가 80% 이상 비슷함. 예: `신승` ↔ `선승`
+- 별칭과 일치함. 예: `몬카르` → 몬카트의 별칭
+- 같은 이름에 **같은 용량**까지 있음 (`sameUnit: true`)
+
+사용자에게 후보를 보여주고, 새 약품이 맞다고 하면 같은 내용에 `"confirmSimilar": true`를 붙여 다시 보내세요. 같은 이름의 *다른 용량*은 정상적인 추가라 409가 나지 않습니다.
+
+```json
+{ "message": "비슷한 이름의 약품이 있습니다. 새 약품이 맞으면 confirmSimilar: true 로 다시 보내세요",
+  "reason": "similar", "sameUnit": false, "sameName": [],
+  "similar": [ { "name": "선승", "score": 0.83, "reason": "비슷한 이름",
+                 "codes": [ { "dsids": "A17802", "unit": "500㎖" } ] } ] }
+```
+
+### 6.2 거래처 추가
+
+```http
+POST /dscustomer/create
+{ "custType": "corp", "bizNo": "123-45-67890", "name": "(주)가나다", "ceo": "홍길동",
+  "bizType": "서비스", "bizItem": "골프장", "tel": "", "email": "", "category": "골프장", "memo": "" }
+
+{ "custType": "person", "name": "김개인", "tel": "", "email": "", "category": "기타" }
+```
+
+| 필드 | 필수 | 설명 |
+|---|---|---|
+| `custType` | ✔ | `corp`(법인) 또는 `person`(개인) |
+| `name` | ✔ | 거래처명 (개인은 이름) |
+| `bizNo` | 법인 ✔ | 사업자등록번호. 하이픈은 있어도 되고, 숫자 10자리가 그대로 거래처코드가 됩니다 |
+| `allowInvalidBizNo` | | 사업자번호 검증번호가 틀려도 맞는 번호라고 사용자가 확인했을 때 `true` |
+| `category` | | `골프장` `매입처` `매출처` `기타`. 기본 `기타` |
+| `ceo` `bizType` `bizItem` `tel` `email` `memo` `createdBy` | | 선택. 개인은 `ceo`가 이름으로 채워지고 업태·종목은 비웁니다 |
+
+- 개인 코드는 서버가 `P00001`부터 순서대로 정합니다. **주민등록번호는 보내지 마세요.**
+- 거래처는 비슷한 이름 확인을 하지 않습니다.
+
+| statusCode | 의미 | body |
+|---|---|---|
+| `201` | 추가됨 | 저장된 레코드 전체 (`custcd` 포함) |
+| `409` | 같은 사업자번호의 거래처가 이미 있음 (덮어쓰지 않음) | `message`, `existing: { custcd, name }` |
+| `422` | 사업자번호 검증번호가 맞지 않음 | `message`. 사용자 확인 후 `allowInvalidBizNo: true`로 다시 보내기 |
+| `400` | 입력 오류 | `message` |
+
+### 6.2-1 창고 추가 — `POST /dswarehouse/create`
+
+```http
+POST /dswarehouse/create
+{ "whcd": "514", "name": "용역 신규골프장", "whType": "창고", "site": "(주)동성그린", "memo": "" }
+```
+
+- 필수: `whcd`(영문·숫자 1~10자, 이카운트처럼 **직접 정함**), `name`. `whType`은 `창고` `공장` `외주` 중 하나이고 기본값은 `창고`입니다.
+- 사용 여부는 `Y`로 만들어집니다. 서버가 `origin: 'local'`, `createdAt`, `updatedAt`을 붙입니다.
+
+| statusCode | 의미 | body |
+|---|---|---|
+| `201` | 추가됨 | 저장된 레코드 전체 |
+| `409` `reason: "code"` | 같은 창고코드가 이미 있음 (덮어쓰지 않음) | `existing: { whcd, name }` |
+| `409` `reason: "name"` | 같은 창고명이 이미 있음 (띄어쓰기 무시) — 창고는 이름으로 연결되므로 막음 | `existing: { whcd, name }` |
+| `400` | 입력 오류 | `message` |
+
+### 6.3 수정·삭제 API (웹 전용, 참고)
+
+외부 앱·봇에서는 쓰지 마세요. 꼭 필요하면 관리자와 먼저 협의하세요.
 
 | API | 동작 |
 |---|---|
-| `POST` / `PUT /dschemical` | 약품 한 건 저장 |
+| `POST` / `PUT /dschemical` | 약품 한 건 저장 (덮어쓰기) |
 | `DELETE /dschemical?id={dsids}` | 약품 삭제 |
-| `POST` / `PUT /dscustomer` | 거래처 한 건(객체) 또는 여러 건(배열) 저장 |
+| `POST` / `PUT /dscustomer` | 거래처 한 건(객체) 또는 여러 건(배열) 저장 (덮어쓰기) |
 | `DELETE /dscustomer?id={custcd}` | 거래처 삭제 |
+| `POST` / `PUT /dswarehouse` | 창고 한 건(객체) 또는 여러 건(배열) 저장 (덮어쓰기) |
+| `DELETE /dswarehouse?id={whcd}` | 창고 삭제 |
 
 - 저장은 **덮어쓰기**입니다. 일부 필드만 보내면 나머지 필드가 지워집니다. 반드시 GET으로 받은 레코드 전체에 바꿀 값만 고쳐서 보내세요.
-- 키(`dsids` / `custcd`)가 없으면 거래처 API는 `statusCode: 400`을 돌려줍니다. 약품 API는 키를 검사하지 않습니다.
+- **새로 추가할 때는 이 API를 쓰지 마세요.** 코드 중복 검사가 없어 기존 레코드를 덮어쓸 수 있습니다. 6.1과 6.2를 쓰세요.
 
 ---
 
@@ -341,6 +476,59 @@ const chemicals = await fetchGlobalDB('/dschemical', { active: 'Y', flgWork: 'Y'
 const customers = await fetchGlobalDB('/dscustomer');
 const golfCourses = customers.filter(c => c.category === '골프장' && c.active === 'Y');
 ```
+
+### 7.4 Python — 새로 추가 (비슷한 이름 확인 포함)
+
+7.1의 `BASE`, `_cache`를 그대로 씁니다.
+
+```python
+def _post(path, body):
+    r = requests.post(BASE + path, json=body, timeout=30)
+    r.raise_for_status()
+    res = r.json()
+    body = res["body"]
+    return res["statusCode"], (json.loads(body) if isinstance(body, str) else body)
+
+
+def describe_similar(res):
+    lines = []
+    if res.get("sameUnit"):
+        lines.append("같은 이름·같은 용량: " + ", ".join(f'{c["dsids"]} {c["unit"]}' for c in res["sameName"]))
+    for s in res.get("similar", []):
+        units = ", ".join(f'{c["dsids"]} {c["unit"]}' for c in s["codes"])
+        lines.append(f'비슷한 약품 {s["name"]} ({s["reason"]}, {round(s["score"] * 100)}%): {units}')
+    return "\n".join(lines)
+
+
+def create_chemical(item, confirm):
+    """confirm(message) -> bool : 비슷한 약품이 있을 때 사용자에게 물어보는 함수."""
+    status, res = _post("/dschemical/create", item)
+    if status == 409 and res.get("reason") == "similar":
+        if not confirm(describe_similar(res)):
+            return None                                    # 사용자가 취소
+        status, res = _post("/dschemical/create", {**item, "confirmSimilar": True})
+    if status != 201:
+        raise RuntimeError(res.get("message", f"추가 실패 ({status})"))
+    _cache.clear()                                         # 목록 캐시 비우기
+    return res                                             # res["dsids"] 가 확정 코드
+
+
+def create_customer(item):
+    status, res = _post("/dscustomer/create", item)
+    if status == 409:
+        raise RuntimeError(f'이미 있는 거래처: {res["existing"]["name"]} ({res["existing"]["custcd"]})')
+    if status != 201:
+        raise RuntimeError(res.get("message", f"추가 실패 ({status})"))   # 422 는 사업자번호 확인 필요
+    _cache.clear()
+    return res                                             # res["custcd"] 가 거래처 코드
+
+
+# 예: 콘솔에서 확인
+new = create_chemical({"name": "신승", "infoL1": "살균제", "unit": "1ℓ"},
+                      confirm=lambda msg: input(msg + "\n그래도 추가할까요? (y/n) ") == "y")
+```
+
+텔레그램 봇에서는 `confirm` 대신 409 후보를 답장으로 보여주고, 사용자가 확인 버튼(InlineKeyboard)을 누르면 `confirmSimilar: True`로 다시 보내면 됩니다.
 
 ---
 

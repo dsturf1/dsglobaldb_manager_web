@@ -14,7 +14,7 @@ import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 export default function DSChemicalsTable() {
   
-  const { globalChemicals, setGlobalChemicals, updateGlobalChemical, deleteGlobalChemical } = useGlobalComponent();
+  const { globalChemicals, updateGlobalChemical, deleteGlobalChemical } = useGlobalComponent();
   
   // 검색어 상태 추가
   const [searchTerm, setSearchTerm] = useState('');
@@ -185,99 +185,6 @@ export default function DSChemicalsTable() {
   // handleAddNew 함수 수정
   const handleAddNew = () => {
     setIsAddModalOpen(true);
-  };
-
-  // 실제 추가 처리 함수
-  const handleAddConfirm = (formData) => {
-    console.log('Form Data:', formData);
-    const newChemical = createNewChemical({
-      ...formData,
-      infoL2: formData.infoL2,
-      infoL1: formData.infoL1,
-      name: formData.name.trim(),
-      unit: `${formData.unit}${formData.unitType}`,  // 여기서만 결합
-      IN_PRICE: Number(formData.IN_PRICE),
-      OUT_PRICE: Number(formData.OUT_PRICE),
-      OUT_PRICE1: Number(formData.OUT_PRICE1)
-    });
-    
-    setGlobalChemicals(prev => [newChemical, ...prev]);
-    console.log('New Chemical:', newChemical);
-    setIsAddModalOpen(false);
-  };
-
-  // createNewChemical 함수 수정
-  const createNewChemical = (formData) => {
-    // 첫 번째 문자 결정 (infoL2 기반)
-    const getFirstChar = (infoL2) => {
-      switch(infoL2) {
-        case '농약': return 'A';
-        case '비료': return 'B';
-        case '기타약재': return 'C';
-        default: return 'A';
-      }
-    };
-
-    // 두 번째 숫자 결정 (infoL1 기반)
-    const getSecondDigit = (infoL1, infoL2) => {
-      if (infoL2 === '농약') {
-        switch(infoL1) {
-          case '살균제': return '1';
-          case '살충제': return '2';
-          case '제초제': return '3';
-          default: return '0';
-        }
-      }
-      return '0';  // 비료나 기타약재의 경우
-    };
-
-    // 3~5 digit 생성 (기존 코드 중 가장 큰 번호 + 1)
-    const getNextSequence = () => {
-      const sequences = globalChemicals
-        .map(c => {
-          const match = c.dsids.match(/^[A-C][0-3](\d{3})/);
-          return match ? parseInt(match[1]) : 0;
-        })
-        .filter(num => !isNaN(num));
-
-      const maxSeq = Math.max(0, ...sequences);
-      return (maxSeq + 1).toString().padStart(3, '0');
-    };
-
-    // 마지막 digit 결정 (같은 이름의 용량 다른 제품 순서)
-    const getLastDigit = (name) => {
-      const sameNameItems = globalChemicals
-        .filter(c => c.name === name)
-        .map(c => {
-          const lastDigit = c.dsids.slice(-1);
-          return parseInt(lastDigit) || 0;
-        });
-
-      if (sameNameItems.length === 0) return '1';
-      return (Math.max(...sameNameItems) + 1).toString();
-    };
-
-    const firstChar = getFirstChar(formData.infoL2);
-    const secondDigit = getSecondDigit(formData.infoL1, formData.infoL2);
-    const sequence = getNextSequence();
-    const lastDigit = getLastDigit(formData.name);
-
-    const newDsids = `${firstChar}${secondDigit}${sequence}${lastDigit}`;
-
-    return {
-      dsids: newDsids,
-      infoL3: '중요도1',
-      infoL2: formData.infoL2,
-      infoL1: formData.infoL1,
-      name: formData.name,
-      unit: formData.unit,          // 이미 결합된 형태로 받음
-      IN_PRICE: formData.IN_PRICE,
-      OUT_PRICE: formData.OUT_PRICE,
-      OUT_PRICE1: formData.OUT_PRICE1,
-      active: 'Y',
-      flgWork: 'Y',
-      flgOut: 'Y'
-    };
   };
 
   // 삭제 핸들러 추가
@@ -499,7 +406,6 @@ export default function DSChemicalsTable() {
       <AddChemicalDialog
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onAdd={handleAddConfirm}
       />
 
       {/* 이카운트 비교 다이얼로그 */}

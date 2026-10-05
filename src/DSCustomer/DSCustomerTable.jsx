@@ -234,7 +234,7 @@ export default function DSCustomerTable() {
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}
         customers={customers}
-        onSave={handleSave}
+        onCreated={(customer) => mergeSaved([customer])}
       />
 
       <CustomerExcelCompareDialog

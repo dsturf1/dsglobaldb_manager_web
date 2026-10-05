@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { CUSTOMER_CATEGORIES, CUSTOMER_TYPES, isValidBizNo, nextPersonCode } from './customerExcel';
+import { createCustomer } from '../utils/globaldbCreateApi';
 
 /**
- * 거래처 신규 추가 (여기서 만든 거래처, origin=local → 이카운트 비교의 '이카운트 미등록'에 나옴).
- * - 법인: 거래처코드 = 사업자등록번호 10자리 (이카운트 관례)
- * - 개인: 거래처코드 = P00001 형식 자동 부여. 주민등록번호는 받지 않는다
+ * 거래처 신규 추가 — 서버(POST /dscustomer/create)가 저장한다. 이미 있는 코드는 덮어쓰지 않음.
+ * 서버가 origin: 'local', createdAt 을 붙인다 → 이카운트 비교의 '이카운트 미등록'에 나옴.
+ * - 법인: 거래처코드 = 사업자등록번호 10자리 (이카운트 관례). 이미 있으면 409
+ * - 개인: 거래처코드 = P00001 형식, 서버가 순번을 정한다. 주민등록번호는 받지 않는다
+ * 화면의 중복·검증 표시는 빠른 안내용이고, 최종 판단은 서버가 한다.
  */
 const EMPTY_FORM = {
   custType: 'corp',
@@ -19,7 +22,7 @@ const EMPTY_FORM = {
   memo: '',
 };
 
-export default function AddCustomerDialog({ isOpen, onClose, customers, onSave }) {
+export default function AddCustomerDialog({ isOpen, onClose, customers, onCreated }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -48,28 +51,38 @@ export default function AddCustomerDialog({ isOpen, onClose, customers, onSave }
     if (!canSave) return;
     if (codeWarning && !window.confirm(`${codeWarning}\n그래도 저장하시겠습니까?`)) return;
 
-    const now = new Date().toISOString();
-    const name = form.name.trim();
     setIsSaving(true);
-    const ok = await onSave({
-      custcd,
-      custType: form.custType,
-      name,
-      ceo: isCorp ? form.ceo.trim() : name,
-      bizType: isCorp ? form.bizType.trim() : '',
-      bizItem: isCorp ? form.bizItem.trim() : '',
-      tel: form.tel.trim(),
-      email: form.email.trim(),
-      aliases: [],
-      category: form.category,
-      active: 'Y',
-      memo: form.memo,
-      origin: 'local',
-      createdAt: now,
-      updatedAt: now,
-    });
-    setIsSaving(false);
-    if (ok) onClose();
+    try {
+      const { status, body } = await createCustomer({
+        custType: form.custType,
+        bizNo: isCorp ? bizNoDigits : undefined,
+        allowInvalidBizNo: Boolean(codeWarning),   // 위에서 확인을 받은 경우만
+        name: form.name.trim(),
+        ceo: form.ceo,
+        bizType: form.bizType,
+        bizItem: form.bizItem,
+        tel: form.tel,
+        email: form.email,
+        category: form.category,
+        memo: form.memo,
+      });
+      if (status === 409) {
+        alert(`이미 있는 거래처입니다: ${body.existing?.name || ''} (${body.existing?.custcd || custcd})`);
+        return;
+      }
+      if (status !== 201) {
+        alert(`추가하지 못했습니다: ${body?.message || status}`);
+        return;
+      }
+      onCreated(body);
+      alert(`추가했습니다: ${body.custcd} ${body.name}`);
+      onClose();
+    } catch (err) {
+      console.error('Failed to create customer:', err);
+      alert(`추가 중 오류가 발생했습니다: ${err.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const input = (field, label, props = {}) => (
@@ -105,7 +118,7 @@ export default function AddCustomerDialog({ isOpen, onClose, customers, onSave }
               </div>
             ) : (
               <div className="col-span-2">
-                <label className="label">거래처코드 (자동)</label>
+                <label className="label">거래처코드 (예상 · 저장할 때 서버가 확정)</label>
                 <div className="input input-bordered w-full flex items-center bg-gray-50">{custcd}</div>
                 <p className="text-xs text-gray-500 mt-1">개인은 주민등록번호를 저장하지 않습니다. 세금계산서용 번호는 이카운트에서 직접 입력하세요.</p>
               </div>

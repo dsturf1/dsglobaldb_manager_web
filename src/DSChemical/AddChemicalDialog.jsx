@@ -1,100 +1,86 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGlobalComponent } from '../context/GlobalComponentContext';
-import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
+import { NumberInput, UnitInput } from '../components/DSInputs';
+import { previewChemicalCode, createChemical, describeSimilar } from '../utils/globaldbCreateApi';
+
+/**
+ * 신규 약품 추가. 코드는 서버(POST /dschemical/create)가 정한다 — 이미 있는 코드를 덮어쓰지 않음.
+ * 입력 중에는 GET /dschemical/next-code 로 예상 코드와 비슷한 이름을 미리 보여준다.
+ * 비슷한 이름이나 같은 이름·같은 용량이 있으면 서버가 409 를 주고, 사용자가 확인하면 confirmSimilar 로 다시 보낸다.
+ * 서버가 origin: 'local', createdAt 을 붙인다 → 이카운트 비교의 '이카운트 미등록'에 나옴.
+ */
+const EMPTY_FORM = {
+  infoL3: '중요도1',
+  infoL2: '농약',
+  infoL1: '살균제',
+  name: '',
+  unit: '0ｇ',
+  IN_PRICE: 0,
+  OUT_PRICE: 0,
+  OUT_PRICE1: 0,
+  active: 'Y',
+  flgWork: 'Y',
+  flgOut: 'Y'
+};
 
 export default function AddChemicalDialog({ isOpen, onClose }) {
-  const { addGlobalChemical, globalChemicals } = useGlobalComponent();
+  const { setGlobalChemicals } = useGlobalComponent();
   const [isSaving, setIsSaving] = useState(false);
-  const [isEditingCode, setIsEditingCode] = useState(false);
-  const [editedCode, setEditedCode] = useState('');
-  const [form, setForm] = useState({
-    infoL3: '중요도1',
-    infoL2: '농약',
-    infoL1: '살균제',
-    name: '',
-    unit: '0ｇ',
-    IN_PRICE: 0,
-    OUT_PRICE: 0,
-    OUT_PRICE1: 0,
-    active: 'Y',
-    flgWork: 'Y',
-    flgOut: 'Y'
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [preview, setPreview] = useState(null);       // { dsids, sameName, sameUnit, similar }
+  const [previewError, setPreviewError] = useState('');
 
-  const getPreviewCode = () => {
-    if (editedCode !== '') {
-      return editedCode;
-    }
-    // 분류에 따른 prefix 결정
-    const getPrefix = () => {
-      switch (form.infoL1) {
-        case '살균제': return 'A1';
-        case '살충제': return 'A2';
-        case '제초제': return 'A3';
-        case '비료': return 'B0';
-        case '기타약재': return 'C0';
-        case '잔디': return 'G0';
-        case '기타물품': return 'D0';
-        default: return 'X0';
+  // 입력이 멈추면 서버에서 예상 코드와 비슷한 이름을 받아온다
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const result = await previewChemicalCode({ infoL1: form.infoL1, name: form.name.trim(), unit: form.unit });
+        if (!cancelled) {
+          setPreview(result);
+          setPreviewError('');
+        }
+      } catch (err) {
+        if (!cancelled) setPreviewError(err.message);
       }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
     };
+  }, [isOpen, form.infoL1, form.name, form.unit]);
 
-    const prefix = getPrefix();
-    const currentName = form.name.trim();
-
-    // 1. 동일한 이름을 가진 항목들 찾기
-    const sameNameItems = globalChemicals.filter(item => 
-      item.name.trim() === currentName
-    );
-
-    if (sameNameItems.length > 0) {
-
-    // 동일한 이름이 있는 경우: 해당 항목들의 코드 중 가장 큰  숫자 + 1
-    const maxNumber = Math.max(...sameNameItems.map(item => 
-      parseInt(item.dsids.slice(prefix.length))
-    ));
-    return `${prefix}${(maxNumber + 1).toString().padStart(4, '0')}`;
-    } else {
-      // 동일한 이름이 없는 경우: 전체 항목 중 가장 큰 3자리 숫자 + 1
-      const maxNumber = globalChemicals.length > 0 
-        ? Math.max(...globalChemicals.map(item => parseInt(item.dsids.slice(-4, -1))))
-        : 0;
-      return `${prefix}${(maxNumber + 1).toString().padStart(3, '0')}0`;
-    }
+  const handleClose = () => {
+    setForm(EMPTY_FORM);
+    setPreview(null);
+    onClose();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name) return;
+    if (!form.name.trim()) return;
 
     setIsSaving(true);
     try {
-      const newChemical = {
-        ...form,
-        dsids: getPreviewCode(),
-        origin: 'local',  // 여기서 만든 약품 → 이카운트 비교의 '이카운트 미등록'에 나옴
-        createdAt: new Date().toISOString(),
-      };
-      await addGlobalChemical(newChemical);
-      onClose();
+      let { status, body } = await createChemical(form);
+      if (status === 409 && body.reason === 'similar') {
+        if (!window.confirm(`${describeSimilar(body)}\n\n그래도 새 약품으로 추가하시겠습니까?`)) return;
+        ({ status, body } = await createChemical(form, { confirmSimilar: true }));
+      }
+      if (status !== 201) {
+        alert(`추가하지 못했습니다: ${body?.message || status}`);
+        return;
+      }
+      setGlobalChemicals(prev => [...prev, body]);
+      alert(`추가했습니다: ${body.dsids} ${body.name}`);
+      handleClose();
     } catch (error) {
       console.error('Failed to add chemical:', error);
+      alert(`추가 중 오류가 발생했습니다: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleCodeDoubleClick = () => {
-    setEditedCode(getPreviewCode());
-    setIsEditingCode(true);
-  };
-
-  const handleCodeBlur = () => {
-    setIsEditingCode(false);
-  };
-
-  const handleCodeChange = (e) => {
-    setEditedCode(e.target.value);
   };
 
   if (!isOpen) return null;
@@ -222,26 +208,14 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
 
             <div>
               <label className="label">예상 코드</label>
-              {isEditingCode ? (
-                <input
-                  type="text"
-                  value={editedCode}
-                  onChange={handleCodeChange}
-                  onBlur={handleCodeBlur}
-                  className="input input-bordered w-full font-mono"
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="text-lg font-mono bg-base-200 p-2 rounded cursor-pointer"
-                  onDoubleClick={handleCodeDoubleClick}
-                >
-                  {getPreviewCode()}
-                </div>
-              )}
+              <div className="text-lg font-mono bg-base-200 p-2 rounded" title="저장할 때 서버가 확정합니다">
+                {preview?.dsids || '…'}
+              </div>
             </div>
           </div>
-          
+
+          <SimilarHint preview={form.name.trim() ? preview : null} error={previewError} />
+
           <div className="modal-action">
             <button 
               type="submit" 
@@ -257,10 +231,10 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
                 '저장'
               )}
             </button>
-            <button 
-              type="button" 
-              className="btn" 
-              onClick={onClose}
+            <button
+              type="button"
+              className="btn"
+              onClick={handleClose}
               disabled={isSaving}
             >
               취소
@@ -270,4 +244,35 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
       </div>
     </dialog>
   );
-} 
+}
+
+// 같은 이름(다른 용량 추가) 안내 + 같은 용량·비슷한 이름 경고
+function SimilarHint({ preview, error }) {
+  if (error) return <p className="text-xs text-error mt-3">미리보기를 불러오지 못했습니다: {error}</p>;
+  if (!preview) return null;
+  const { sameName = [], sameUnit, similar = [] } = preview;
+  if (sameName.length === 0 && similar.length === 0) return null;
+  return (
+    <div className="mt-4 space-y-2 text-sm">
+      {sameName.length > 0 && (
+        <div className={`alert ${sameUnit ? 'alert-warning' : 'alert-info'} block py-2`}>
+          {sameUnit ? '같은 이름·같은 용량이 이미 있습니다. ' : '같은 이름의 다른 용량으로 추가됩니다. '}
+          기존: {sameName.map(c => `${c.dsids} ${c.unit}`).join(', ')}
+        </div>
+      )}
+      {similar.length > 0 && (
+        <div className="alert alert-warning block py-2">
+          <p className="font-semibold">비슷한 약품이 있습니다 — 저장할 때 한 번 더 확인합니다.</p>
+          <ul className="list-disc ml-5">
+            {similar.map(s => (
+              <li key={s.name}>
+                {s.name} <span className="text-xs">({s.reason}, {Math.round(s.score * 100)}%)</span>:{' '}
+                {s.codes.map(c => `${c.dsids} ${c.unit}`).join(', ')}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}

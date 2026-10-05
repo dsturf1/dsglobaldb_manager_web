@@ -52,6 +52,20 @@ def ensure_resource(api_id, path_part):
     return apigw.create_resource(restApiId=api_id, parentId=resources['/']['id'], pathPart=path_part)['id']
 
 
+def ensure_resource_path(api_id, path):
+    """'/dschemical/create' 처럼 여러 단계 경로의 리소스 id 반환 (없는 단계는 생성)."""
+    apigw = boto3.client('apigateway')
+    resources = {r['path']: r['id'] for r in apigw.get_resources(restApiId=api_id, limit=500)['items']}
+    current = ''
+    for part in path.strip('/').split('/'):
+        parent_id = resources['/' if current == '' else current]
+        current = f'{current}/{part}'
+        if current not in resources:
+            resources[current] = apigw.create_resource(restApiId=api_id, parentId=parent_id, pathPart=part)['id']
+            print('리소스 생성:', current)
+    return resources[current]
+
+
 def get_request_template(api_id, template_from, http_method='GET'):
     """기존 리소스의 패스스루 매핑 템플릿."""
     apigw = boto3.client('apigateway')
@@ -118,11 +132,11 @@ def setup_options(api_id, resource_id, methods):
 
 
 def grant_invoke(function_name, api_id, account_id, path_part):
-    """API Gateway 가 이 경로의 모든 메서드로 Lambda 를 호출할 권한."""
+    """API Gateway 가 이 경로의 모든 메서드로 Lambda 를 호출할 권한. path_part 는 'dschemical/create' 처럼 여러 단계 가능."""
     lam = boto3.client('lambda')
     try:
         lam.add_permission(
-            FunctionName=function_name, StatementId=f'apigw-{api_id}-{path_part}',
+            FunctionName=function_name, StatementId=f'apigw-{api_id}-{path_part}'.replace('/', '-'),
             Action='lambda:InvokeFunction', Principal='apigateway.amazonaws.com',
             SourceArn=f'arn:aws:execute-api:{REGION}:{account_id}:{api_id}/*/*/{path_part}',
         )
