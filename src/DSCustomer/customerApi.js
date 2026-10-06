@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { WRITE_HEADERS } from '../utils/globaldbWriteHeaders';
 
 // 거래처 API (Lambda dscustomerDynamoDB, DynamoDB dscustomers)
 const apiClient = axios.create({
@@ -32,3 +33,23 @@ export const saveCustomers = async (customers, onProgress) => {
 
 export const deleteCustomer = async (custcd) =>
   unwrap(await apiClient.delete('/dscustomer', { params: { id: custcd } }));
+
+// ---- 부분 수정 · 별칭 · 이력 (Lambda dsglobaldbCreate, docs/gdb-update-api-request.md) ----
+
+// 상태 코드를 그대로 돌려준다 (409 conflict / aliasTaken 은 화면에서 처리)
+const withStatus = (response) => {
+  const res_ = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+  return { status: res_.statusCode, body: typeof res_.body === 'string' ? JSON.parse(res_.body) : res_.body };
+};
+
+// 바꿀 필드만 보낸다. expectedUpdatedAt 은 화면에 불러온 레코드의 updatedAt (없으면 null)
+export const updateCustomer = async (customer, set, updatedBy) => withStatus(await apiClient.post('/dscustomer/update', {
+  custcd: customer.custcd, expectedUpdatedAt: customer.updatedAt ?? null, set, updatedBy,
+}, { headers: WRITE_HEADERS }));
+
+// add: [{name, code?}], remove: [{name}]
+export const updateCustomerAliases = async (custcd, { add = [], remove = [], force = false }, updatedBy) =>
+  withStatus(await apiClient.post('/dscustomer/alias', { custcd, add, remove, force, updatedBy }, { headers: WRITE_HEADERS }));
+
+export const fetchCustomerHistory = async (custcd) =>
+  unwrap(await apiClient.get('/dscustomer/history', { params: { id: custcd } }));

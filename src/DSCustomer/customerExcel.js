@@ -121,14 +121,25 @@ export const parseCustomerExcel = (arrayBuffer) => {
 const sameValue = (a, b) => JSON.stringify(a ?? '') === JSON.stringify(b ?? '');
 const normalizeAliases = (aliases) => (Array.isArray(aliases) ? aliases : []);
 
+// 이카운트 '검색입력'에서 온 별칭만, {code, name} 순서로 (DB 에서 읽으면 키 순서가 달라짐).
+// 여기서 붙인 현장 별칭(source: 'local', /dscustomer/alias)은 엑셀 비교에서 건드리지 않는다
+const ecountAliases = (aliases) =>
+  normalizeAliases(aliases).filter(a => a.source !== 'local').map(a => ({ code: a.code || '', name: a.name }));
+const localAliases = (aliases) => normalizeAliases(aliases).filter(a => a.source === 'local');
+
 /**
  * 엑셀 거래처 vs DB 거래처.
- * @returns {{ added: object[], changed: {before, after, fields}[], unchanged: number, dbOnly: object[] }}
+ * ecountDirtyFields(여기서 고쳐서 이카운트에도 고쳐야 하는 항목)는 '변경'으로 되돌리지 않고 따로 나눈다.
+ * @returns {{ added, changed: {before, after, fields}[], unchanged, dbOnly,
+ *             dirtyPending: {before, after, fields}[]  여기서 고쳤는데 이카운트는 아직 다름,
+ *             dirtyResolved: object[]                  이카운트도 같아짐 → 반영 완료로 표시할 수 있음 }}
  */
 export const compareCustomers = (excelCustomers, dbCustomers) => {
   const dbMap = new Map(dbCustomers.map(c => [c.custcd, c]));
   const added = [];
   const changed = [];
+  const dirtyPending = [];
+  const dirtyResolved = [];
   let unchanged = 0;
 
   for (const after of excelCustomers) {
@@ -137,19 +148,24 @@ export const compareCustomers = (excelCustomers, dbCustomers) => {
       added.push(after);
       continue;
     }
-    const fields = ECOUNT_FIELDS.filter(f =>
+    const dirty = new Set(before.ecountDirtyFields || []);
+    const differing = ECOUNT_FIELDS.filter(f =>
       f === 'aliases'
-        ? !sameValue(normalizeAliases(before.aliases), after.aliases)
+        ? !sameValue(ecountAliases(before.aliases), after.aliases)
         : !sameValue(before[f], after[f])
     );
+    const fields = differing.filter(f => !dirty.has(f));
+    const pending = differing.filter(f => dirty.has(f));
     if (fields.length > 0) changed.push({ before, after, fields });
-    else unchanged += 1;
+    if (pending.length > 0) dirtyPending.push({ before, after, fields: pending });
+    else if (dirty.size > 0) dirtyResolved.push(before);
+    if (fields.length === 0 && pending.length === 0) unchanged += 1;
   }
 
   // 여기서 만든 거래처(origin=local)는 '이카운트 미등록'에서 따로 보여준다
   const excelCodes = new Set(excelCustomers.map(c => c.custcd));
   const dbOnly = dbCustomers.filter(c => !excelCodes.has(c.custcd) && c.origin !== 'local');
-  return { added, changed, unchanged, dbOnly };
+  return { added, changed, unchanged, dbOnly, dirtyPending, dirtyResolved };
 };
 
 // 분류 초기값 추정 (추가 후 화면에서 수정)
@@ -168,15 +184,25 @@ export const toNewCustomer = (excelCustomer) => ({
   updatedAt: new Date().toISOString(),
 });
 
-// 엑셀 필드만 갱신, DB 관리 필드(category, active, memo)는 유지
-export const toUpdatedCustomer = (dbCustomer, excelCustomer) => ({
-  ...dbCustomer,
-  ...Object.fromEntries(ECOUNT_FIELDS.map(f => [f, excelCustomer[f]])),
-  updatedAt: new Date().toISOString(),
-});
+// 엑셀 필드만 갱신. DB 관리 필드(category, active, memo), 여기서 고친 항목(ecountDirtyFields),
+// 여기서 붙인 현장 별칭(source: 'local')은 유지
+export const toUpdatedCustomer = (dbCustomer, excelCustomer) => {
+  const dirty = new Set(dbCustomer.ecountDirtyFields || []);
+  const updated = { ...dbCustomer, updatedAt: new Date().toISOString(), updatedBy: 'web:엑셀비교' };
+  ECOUNT_FIELDS.filter(f => !dirty.has(f)).forEach(f => {
+    updated[f] = f === 'aliases' ? [...excelCustomer.aliases, ...localAliases(dbCustomer.aliases)] : excelCustomer[f];
+  });
+  return updated;
+};
+
+// 이카운트에도 같게 고쳐진 것을 확인한 거래처 → ecountDirtyFields 지움
+export const toDirtyResolved = (dbCustomer) => {
+  const { ecountDirtyFields, ...rest } = dbCustomer;   // eslint-disable-line no-unused-vars
+  return { ...rest, updatedAt: new Date().toISOString(), updatedBy: 'web:엑셀비교' };
+};
 
 export const formatAliases = (aliases) =>
-  normalizeAliases(aliases).map(a => `${a.code} ${a.name}`).join(', ');
+  normalizeAliases(aliases).map(a => (a.code ? `${a.code} ${a.name}` : a.name)).join(', ');
 
 // ---- 여기서 만든 거래처(origin=local) → 이카운트 동기화 ----
 

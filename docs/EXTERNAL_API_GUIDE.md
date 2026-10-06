@@ -3,7 +3,7 @@
 외부 앱과 텔레그램 봇에서 글로벌 DB의 **약품**과 **거래처** 데이터를 읽어 쓰기 위한 안내입니다.
 데이터는 이 저장소의 웹(dsglobaldb_manager)에서 관리하고, 외부에서는 아래 API로 읽습니다.
 
-> 2026-10-05 기준. 약품 658건, 거래처 1,486건, 창고 19건. 새로 추가는 create API(6장)로 한다.
+> 2026-10-06 기준. 약품 658건, 거래처 1,486건, 창고 19건. 새로 추가는 create API(6장), 거래처 수정·별칭은 update/alias API(6.4)로 한다.
 
 ---
 
@@ -20,7 +20,7 @@ Base URL: https://jyipsj28s9.execute-api.us-east-1.amazonaws.com/dev
 ```
 
 - **인증 없음.** URL만 알면 누구나 읽고 쓸 수 있습니다. URL을 공개된 곳(공개 저장소, 공개 채널 메시지 등)에 올리지 마세요.
-- **외부 앱·봇은 읽기(GET)와 새로 추가(create API)만 하세요.** 새 약품·거래처는 [6장](#6-새로-추가--create-api)의 create API로만 추가합니다. 수정·삭제는 웹에서 합니다.
+- **외부 앱·봇은 읽기(GET), 새로 추가(create), 거래처 부분 수정·별칭(update/alias)만 하세요.** 새 항목은 [6장](#6-새로-추가--create-api)의 create API로, 거래처 수정과 별칭은 [6.4](#64-거래처-부분-수정--별칭--변경-이력)로 합니다. 레코드 전체를 덮어쓰는 PUT/POST와 삭제는 웹 전용입니다.
 - CORS가 열려 있어 브라우저에서도 바로 호출할 수 있습니다.
 
 ---
@@ -133,12 +133,14 @@ def unwrap(res_json):
 | `bizItem` | string | 종목 | `골프장외` |
 | `tel` | string | 전화 (비어 있는 경우가 많음, 약 16%만 있음) | |
 | `email` | string | 이메일 (약 30%만 있음) | |
-| `aliases` | {code, name}[] | 별칭. 이카운트 '검색입력' 코드와 약칭 | `[{"code": "GC005", "name": "대호단양"}]` |
+| `aliases` | {code, name, source?}[] | 별칭. 이카운트 '검색입력' 코드와 약칭, 그리고 여기서 붙인 현장 이름(`source: "local"`, `code`는 보통 빈 문자열) | `[{"code": "GC005", "name": "대호단양"}, {"code": "", "name": "월송리", "source": "local"}]` |
 | `category` | string | 분류 | `골프장` `매입처` `매출처` `기타` |
 | `active` | `Y`/`N` | 사용 여부 | |
 | `memo` | string | 메모 | |
 | `custType` | string | 구분. **웹에서 새로 만든 거래처에만** 있음 | `corp`(법인) / `person`(개인) |
-| `updatedAt` | string | 마지막 수정 시각 (ISO 8601, UTC) | `2026-10-01T06:57:56.951Z` |
+| `updatedAt` | string | 마지막 수정 시각 (ISO 8601, UTC). 6.4 수정 API의 `expectedUpdatedAt`에 그대로 보낸다 | `2026-10-01T06:57:56.951Z` |
+| `updatedBy` | string | 마지막으로 고친 곳 (6.4 API로 고쳤을 때) | `inv:a@b.com`, `web:a@b.com` |
+| `ecountDirtyFields` | string[] | 이카운트에서 온 거래처의 이카운트 항목(`name` `ceo` `bizType` `bizItem`)을 여기서 고쳤다는 표시. 이카운트에도 같게 고치고 웹 엑셀 비교에서 확인하면 지워진다 | `["name"]` |
 
 동기화 관련 필드(`origin`, `createdAt`, `ecountSyncedAt`)는 [5장](#5-출처와-이카운트-동기화-필드)을 보세요.
 
@@ -312,6 +314,147 @@ POST /dswarehouse/create
 | `409` `reason: "code"` | 같은 창고코드가 이미 있음 (덮어쓰지 않음) | `existing: { whcd, name }` |
 | `409` `reason: "name"` | 같은 창고명이 이미 있음 (띄어쓰기 무시) — 창고는 이름으로 연결되므로 막음 | `existing: { whcd, name }` |
 | `400` | 입력 오류 | `message` |
+
+### 6.4 거래처 부분 수정 · 별칭 · 변경 이력
+
+레코드 전체를 덮어쓰지 않고, **바꿀 것만** 보냅니다. 동시 수정을 확인하고, 바꿀 때마다 변경 이력이 남습니다. 웹도 같은 API를 씁니다.
+
+| 요청 | 동작 | API 키 |
+|---|---|---|
+| `POST /dscustomer/update` | 정보 부분 수정 | **필요** |
+| `POST /dscustomer/alias` | 별칭 추가·삭제 | **필요** |
+| `GET /dscustomer/history?id={custcd}` | 변경 이력 (최근 50건, 새것부터) | 없음 |
+
+**API 키**: update·alias 요청에는 `x-api-key` 헤더가 필요합니다. 키가 없거나 틀리면 API Gateway가 **HTTP 403**(`{"message":"Forbidden"}`)을 돌려줍니다. 이때는 Lambda까지 가지 않아서, 다른 오류처럼 `statusCode` 래핑이 없습니다.
+- 키는 앱마다 따로 발급합니다: `globaldb-inv`(재고), `globaldb-quote`(견적), `globaldb-web`(글로벌 DB 웹). 관리자에게 받아 서버의 `.env`에만 두고, 코드·문서·커밋에는 넣지 마세요.
+- 앱별로 키를 끌 수 있습니다. 키가 새어 나가면 관리자에게 알려 주세요.
+- 조회(GET)와 create API에는 아직 키가 필요 없습니다.
+
+#### 6.4.1 정보 부분 수정 — `POST /dscustomer/update`
+
+```json
+{ "custcd": "2248106308",
+  "expectedUpdatedAt": "2026-10-01T06:57:56.951Z",
+  "set": { "category": "골프장", "memo": "월송리 잔디 납품처" },
+  "updatedBy": "inv:a@b.com" }
+```
+
+- `custcd`, `expectedUpdatedAt`, `set`, `updatedBy`는 모두 필수입니다.
+- `expectedUpdatedAt`: 읽어 온 레코드의 `updatedAt`. 없던 레코드면 `null`을 보냅니다. 서버 값과 다르면 저장하지 않고 409를 돌려줍니다.
+- `set`에 쓸 수 있는 필드는 아래와 같고, **여기 있는 필드만** 바뀝니다. 그 밖의 필드는 400입니다(`custcd` `aliases` `origin` `createdAt` `ecountSyncedAt` `custType` `updatedAt` 등).
+
+  | 필드 | 검사 |
+  |---|---|
+  | `name` | 비울 수 없음, 앞뒤 공백 제거 |
+  | `ceo` `bizType` `bizItem` `tel` `memo` | 문자열 |
+  | `email` | 빈 문자열 또는 이메일 형식 |
+  | `category` | `골프장` `매입처` `매출처` `기타` |
+  | `active` | `Y` / `N` |
+
+- 지금과 같은 값은 바꾸지 않습니다. 모두 같으면 저장하지 않고 200으로 지금 레코드를 돌려줍니다.
+- 이카운트에서 온 거래처(`origin: "ecount"`)의 `name` `ceo` `bizType` `bizItem`을 바꾸면 `ecountDirtyFields`에 표시됩니다. 이카운트 거래처등록에도 같게 고쳐야 합니다. 웹 엑셀 비교는 이 항목을 이카운트 값으로 되돌리지 않습니다.
+
+| statusCode | 의미 | body |
+|---|---|---|
+| `200` | 저장됨 (또는 바뀐 것 없음) | 저장된 레코드 전체 — 새 `updatedAt`을 다음 수정에 씁니다 |
+| `400` | 허용 안 되는 필드, 값 오류 | `message`, `field` |
+| `404` | 없는 거래처 코드 | `message` |
+| `409` `reason: "conflict"` | **다른 곳에서 먼저 고침 — 저장 안 됨** | `message`, `current`(지금 레코드 전체). 사용자에게 보여주고 다시 고칠지 묻습니다 |
+
+#### 6.4.2 별칭 추가·삭제 — `POST /dscustomer/alias`
+
+```json
+{ "custcd": "2248106308",
+  "add": [ { "name": "월송리" }, { "name": "월송리cc", "code": "GC100" } ],
+  "remove": [ { "name": "오크밸리" } ],
+  "updatedBy": "inv:a@b.com" }
+```
+
+- `custcd`, `updatedBy`는 필수입니다. `add`와 `remove` 중 하나는 있어야 하고, 합쳐서 한 번에 20개까지입니다. 별칭 이름은 1~40자입니다.
+- `expectedUpdatedAt`은 받지 않습니다. 서버가 지금 목록을 읽어 더하고 빼며, 동시에 다른 수정이 끼면 다시 읽어 최대 3번 시도합니다. 그래서 두 앱이 동시에 별칭을 더해도 둘 다 들어갑니다.
+- 같은 별칭인지는 공백·대소문자·기호를 빼고 비교합니다(`월송리 CC` = `월송리cc`). 이미 있는 별칭을 더하면 조용히 무시하고, `remove`도 이 기준으로 찾습니다.
+- 여기서 더한 별칭에는 `source: "local"`이 붙습니다. 이카운트 엑셀 비교가 이 별칭을 지우지 않습니다.
+- **다른 거래처가 같은 이름을 별칭이나 거래처명으로 쓰고 있으면 409**(`aliasTaken`)입니다. 거래처명은 `(주)`·`주식회사` 같은 법인 표기를 빼고 비교합니다. 사용자가 맞다고 확인하면 `"force": true`로 다시 보냅니다.
+
+| statusCode | 의미 | body |
+|---|---|---|
+| `200` | 저장됨 (또는 바뀐 것 없음) | 레코드 전체 (`aliases` 포함) |
+| `400` | 입력 오류 | `message` |
+| `404` | 없는 거래처 | `message` |
+| `409` `reason: "aliasTaken"` | 다른 거래처가 같은 이름을 씀 — 저장 안 됨 | `taken: [{alias, custcd, name}]` |
+| `503` | 동시 수정이 몰려 3번 모두 실패 | 잠시 후 다시 시도 |
+
+#### 6.4.3 변경 이력 — `GET /dscustomer/history?id={custcd}`
+
+```json
+[ { "at": "2026-10-06T05:12:00.123Z", "by": "inv:a@b.com", "action": "alias",
+    "changes": { "aliases": [["오크밸리"], ["오크밸리", "월송리"]] } },
+  { "at": "2026-10-06T05:10:41.002Z", "by": "web:a@b.com", "action": "update",
+    "changes": { "memo": ["", "월송리 잔디 납품처"], "tel": ["(변경됨)", "(변경됨)"] } } ]
+```
+
+- `changes`는 `{필드: [이전, 이후]}` 형식입니다. 전화·이메일은 값 대신 `(변경됨)`으로만 남깁니다.
+- 이 API를 쓰기 전(2026-10-06 이전)의 수정이나, 웹 엑셀 비교로 반영한 변경은 이력에 없습니다.
+
+#### 6.4.4 예 (Python)
+
+```python
+def update_customer(customer, changes, by):
+    """customer: GET 으로 받은 레코드, changes: {'memo': '...'}"""
+    status, res = _post("/dscustomer/update", {"custcd": customer["custcd"], "expectedUpdatedAt": customer.get("updatedAt"),
+                                               "set": changes, "updatedBy": by})
+    if status == 409:
+        raise RuntimeError("다른 곳에서 먼저 고쳤습니다. 최신 내용: " + res["current"]["name"])
+    if status != 200:
+        raise RuntimeError(res.get("message", f"수정 실패 ({status})"))
+    _cache.clear()
+    return res
+
+
+def add_alias(custcd, name, by, confirm):
+    status, res = _post("/dscustomer/alias", {"custcd": custcd, "add": [{"name": name}], "updatedBy": by})
+    if status == 409 and res.get("reason") == "aliasTaken":
+        owner = res["taken"][0]
+        if not confirm(f"'{name}'은 {owner['name']}({owner['custcd']})도 쓰고 있습니다. 그래도 저장할까요?"):
+            return None
+        status, res = _post("/dscustomer/alias", {"custcd": custcd, "add": [{"name": name}], "updatedBy": by, "force": True})
+    if status != 200:
+        raise RuntimeError(res.get("message", f"별칭 저장 실패 ({status})"))
+    _cache.clear()
+    return res
+```
+
+(`_post`, `_cache`는 7.1·7.4장 코드. update·alias 호출에는 `headers={"x-api-key": os.environ["GDB_API_KEY"]}`를 붙입니다)
+
+### 6.5 약품 부분 수정 · 별칭 · 변경 이력
+
+6.4와 같은 규칙입니다(API 키, `expectedUpdatedAt` 동시 수정 확인, 409 `conflict`·`aliasTaken`, 3번 재시도, 이력). 다른 점만 적습니다.
+
+| 요청 | 동작 | API 키 |
+|---|---|---|
+| `POST /dschemical/update` | 정보 부분 수정 | **필요** |
+| `POST /dschemical/alias` | 별칭 추가·삭제 | **필요** |
+| `GET /dschemical/history?id={dsids}` | 변경 이력 | 없음 |
+
+- 키 필드는 `dsids`입니다. 대부분의 약품은 아직 `updatedAt`이 없으니, 처음 고칠 때는 `"expectedUpdatedAt": null`을 보냅니다. 받은 레코드에 그대로 있는 값을 보내면 됩니다.
+- `set`에 쓸 수 있는 필드:
+
+  | 필드 | 검사 |
+  |---|---|
+  | `name` | 비울 수 없음 |
+  | `unit` `infoL3` `vendors` | 문자열 |
+  | `IN_PRICE` `OUT_PRICE` `OUT_PRICE1` | 0 이상 숫자 (숫자 문자열도 가능) |
+  | `active` `flgWork` `flgOut` | `Y` / `N` |
+
+  `dsids`·`infoL1`·`infoL2`는 코드 체계와 묶여 있어 바꿀 수 없습니다(400).
+- 별칭은 **문자열 목록**입니다: `"add": ["데브리놀"]`, `"remove": ["데브리놀"]`.
+- 별칭 겹침(`aliasTaken`)은 **이름이 다른** 약품의 이름·별칭만 봅니다. 같은 이름의 다른 용량(예: 몬카트 500㎖와 1ℓ)은 같은 제품이라 겹침으로 보지 않습니다.
+- 약품은 `ecountDirtyFields` 표시를 하지 않습니다.
+
+```json
+POST /dschemical/alias
+{ "dsids": "A30410", "add": ["데브리놀"], "updatedBy": "inv:a@b.com" }
+```
 
 ### 6.3 수정·삭제 API (웹 전용, 참고)
 

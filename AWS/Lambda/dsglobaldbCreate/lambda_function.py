@@ -5,6 +5,14 @@ API Gateway jyipsj28s9 (패스스루 매핑 템플릿, 인증 없음)
     GET  /dschemical/next-code   다음 약품 코드 미리보기 (?infoL1=&name=). 확정 아님
     POST /dscustomer/create      거래처 새로 추가. 법인=사업자번호(중복 409), 개인=P##### 순번
     POST /dswarehouse/create     창고 새로 추가. 창고코드는 요청값(중복 409), 같은 창고명도 409
+    POST /dscustomer/update      거래처 부분 수정 (허용 필드만, expectedUpdatedAt 동시 수정 확인, 이력)
+    POST /dscustomer/alias       거래처 별칭 추가·삭제 (다른 거래처와 겹치면 409, 재시도, 이력)
+    GET  /dscustomer/history     거래처 변경 이력 (?id=, 최근 50건)
+    POST /dschemical/update      약품 부분 수정 (위와 같은 규칙)
+    POST /dschemical/alias       약품 별칭 추가·삭제 (문자열 별칭)
+    GET  /dschemical/history     약품 변경 이력
+    update/alias 는 API 키(x-api-key) 필요 — API Gateway 사용량 계획 'globaldb-write'
+    (docs/gdb-update-api-request.md)
 
 기존 /dschemical, /dscustomer 의 GET/POST/PUT/DELETE 는 그대로 두고, 추가만 이 Lambda 가 맡는다.
 모든 쓰기는 attribute_not_exists 조건부 put 이라 기존 레코드를 덮어쓰지 않는다.
@@ -16,15 +24,23 @@ import difflib
 import json
 import re
 import unicodedata
+import uuid
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 import boto3
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 CHEMICAL_TABLE = 'dschemicals'
 CUSTOMER_TABLE = 'dscustomers'
 WAREHOUSE_TABLE = 'dswarehouses'
+CUSTOMER_HISTORY_TABLE = 'dscustomer_history'   # 키 custcd + at
+CHEMICAL_HISTORY_TABLE = 'dschemical_history'   # 키 dsids + at
+ALIAS_MAX_LEN = 40
+ALIAS_MAX_ITEMS = 20
+ALIAS_RETRY = 3
+HISTORY_LIMIT = 50
 WAREHOUSE_TYPES = ('창고', '공장', '외주')
 WAREHOUSE_TEXT_FIELDS = ('process', 'outCust', 'site', 'memo', 'createdBy')
 ECOUNT_BUCKET = 'dsbaseinfo'
@@ -92,6 +108,15 @@ def lambda_handler(event, context):
             return respond(201, create_customer(event.get('body-json') or {}))
         if method == 'POST' and path == '/dswarehouse/create':
             return respond(201, create_warehouse(event.get('body-json') or {}))
+        prefix, _, action = path.strip('/').partition('/')
+        ent = ENTITIES.get(prefix)
+        if ent and method == 'POST' and action == 'update':
+            return respond(200, update_record(ent, event.get('body-json') or {}))
+        if ent and method == 'POST' and action == 'alias':
+            return respond(200, update_aliases(ent, event.get('body-json') or {}))
+        if ent and method == 'GET' and action == 'history':
+            query = event.get('params', {}).get('querystring', {})
+            return respond(200, record_history(ent, query.get('id') or ''))
         return respond(405, {'message': f'Method not allowed: {method} {path}'})
     except ApiError as e:
         return respond(e.status, e.body)
@@ -424,3 +449,269 @@ def create_warehouse(body):
     found = table.get_item(Key={'whcd': item['whcd']}).get('Item', {})
     raise ApiError(409, '이미 있는 창고코드입니다', reason='code',
                    existing={'whcd': item['whcd'], 'name': found.get('name', '')})
+
+
+# ---------------------------------------------------------------- 부분 수정 · 별칭 · 이력 (거래처 · 약품)
+# docs/gdb-update-api-request.md. 로그에는 키 · 바뀐 필드 이름 · updatedBy 만 남긴다 (대표자·전화·이메일 값은 남기지 않음)
+
+EMAIL_RE = re.compile(r'[^@\s]+@[^@\s]+\.[^@\s]+')
+COMPANY_MARKS = re.compile(r'\(주\)|㈜|주식회사|\(유\)|유한회사|\(사\)|사단법인|\(재\)|재단법인')
+
+
+def _norm_company(text):
+    """거래처 이름 비교용: 법인 표기((주)·주식회사 등) 위치가 달라도 같게 본다. (주)새서울레저 = 새서울레저(주)"""
+    return _norm(COMPANY_MARKS.sub('', text or ''))
+
+
+def _str_value(field, value):
+    if not isinstance(value, str):
+        raise ApiError(400, f'{field} 는 문자열이어야 합니다', field=field)
+    return value.strip()
+
+
+def _name_value(field, value):
+    value = _str_value(field, value)
+    if not value:
+        raise ApiError(400, f'{field} 는 비울 수 없습니다', field=field)
+    return value
+
+
+def _email_value(field, value):
+    value = _str_value(field, value)
+    if value and not EMAIL_RE.fullmatch(value):
+        raise ApiError(400, 'email 형식이 아닙니다', field=field)
+    return value
+
+
+def _choice(options):
+    def check(field, value):
+        value = _str_value(field, value)
+        if value not in options:
+            raise ApiError(400, f'{field} 는 {", ".join(options)} 중 하나여야 합니다', field=field)
+        return value
+    return check
+
+
+def _price_value(field, value):
+    if isinstance(value, bool) or not isinstance(value, (int, float, str, Decimal)):
+        raise ApiError(400, f'{field} 는 숫자여야 합니다', field=field)
+    try:
+        price = Decimal(str(value).strip() or 'x')
+    except InvalidOperation:
+        raise ApiError(400, f'{field} 는 숫자여야 합니다', field=field) from None
+    if not price.is_finite() or price < 0:
+        raise ApiError(400, f'{field} 는 0 이상이어야 합니다', field=field)
+    return price
+
+
+YN = _choice(('Y', 'N'))
+
+# 경로 접두어 → 대상 설정
+ENTITIES = {
+    'dscustomer': {
+        'label': '거래처', 'table': CUSTOMER_TABLE, 'key': 'custcd', 'history': CUSTOMER_HISTORY_TABLE,
+        'fields': {'name': _name_value, 'ceo': _str_value, 'bizType': _str_value, 'bizItem': _str_value,
+                   'tel': _str_value, 'email': _email_value, 'memo': _str_value,
+                   'category': _choice(CUSTOMER_CATEGORIES), 'active': YN},
+        'dirty': ('name', 'ceo', 'bizType', 'bizItem'),   # 이카운트 거래처 항목 → ecountDirtyFields
+        'private': ('tel', 'email'),                       # 이력에 값 대신 '(변경됨)'
+        'alias_objects': True,                             # [{name, code, source}]
+        'owner_norm': _norm_company,
+    },
+    'dschemical': {
+        'label': '약품', 'table': CHEMICAL_TABLE, 'key': 'dsids', 'history': CHEMICAL_HISTORY_TABLE,
+        'fields': {'name': _name_value, 'unit': _str_value, 'infoL3': _str_value, 'vendors': _str_value,
+                   'IN_PRICE': _price_value, 'OUT_PRICE': _price_value, 'OUT_PRICE1': _price_value,
+                   'active': YN, 'flgWork': YN, 'flgOut': YN},   # dsids·infoL1·infoL2 는 코드 체계와 묶여 제외
+        'dirty': (),
+        'private': (),
+        'alias_objects': False,                            # ["데브리놀", ...]
+        'owner_norm': _norm,
+    },
+}
+
+
+def _required_by(body):
+    by = _text(body, 'updatedBy')
+    if not by or len(by) > 100:
+        raise ApiError(400, 'updatedBy 는 필수입니다 (예: inv:<이메일>, web:<이메일>)', field='updatedBy')
+    return by
+
+
+def _required_key(ent, body):
+    value = _text(body, ent['key'])
+    if not value:
+        raise ApiError(400, f"{ent['key']} 는 필수입니다", field=ent['key'])
+    return value
+
+
+def _get_record(ent, key_value):
+    item = _table(ent['table']).get_item(Key={ent['key']: key_value}, ConsistentRead=True).get('Item')
+    if not item:
+        raise ApiError(404, f"없는 {ent['label']} 코드입니다: {key_value}")
+    return item
+
+
+def _version_condition(ent, expected):
+    """레코드가 있고, updatedAt 이 읽은 값과 같을 때만 쓴다 (옛 레코드는 updatedAt 없음)."""
+    exists = f"attribute_exists({ent['key']})"
+    if expected is None:
+        return f'{exists} AND attribute_not_exists(updatedAt)', {}
+    return f'{exists} AND updatedAt = :expected', {':expected': expected}
+
+
+def _write_history(ent, key_value, by, action, changes):
+    shown = {f: ['(변경됨)', '(변경됨)'] if f in ent['private'] else v for f, v in changes.items()}
+    at = f'{_now()}#{uuid.uuid4().hex[:8]}'   # 같은 밀리초 겹침 방지
+    try:
+        _table(ent['history']).put_item(
+            Item={ent['key']: key_value, 'at': at, 'by': by, 'action': action, 'changes': shown})
+    except Exception as e:  # noqa: BLE001 — 이력 실패가 수정 자체를 되돌리지는 않음
+        print(f"이력 저장 실패 {ent['key']}={key_value} action={action}: {type(e).__name__}")
+
+
+def _conflict(ent, key_value):
+    return ApiError(409, '다른 곳에서 먼저 고쳤습니다. 지금 내용을 확인하고 다시 고치세요',
+                    reason='conflict', current=_get_record(ent, key_value))
+
+
+def update_record(ent, body):
+    """부분 수정. set 에 있는 허용 필드만 바꾸고, 읽은 뒤 다른 곳에서 고쳤으면 409."""
+    key_value = _required_key(ent, body)
+    if 'expectedUpdatedAt' not in body:
+        raise ApiError(400, 'expectedUpdatedAt 은 필수입니다 (updatedAt 이 없던 레코드면 null)', field='expectedUpdatedAt')
+    expected = body.get('expectedUpdatedAt')
+    values = body.get('set')
+    if not isinstance(values, dict) or not values:
+        raise ApiError(400, 'set 에 바꿀 필드를 넣으세요', field='set')
+    for field in values:
+        if field not in ent['fields']:
+            alias_hint = f" / 별칭은 /{'dscustomer' if ent['alias_objects'] else 'dschemical'}/alias"
+            raise ApiError(400, f"{field} 는 이 API로 바꿀 수 없습니다 (허용: {', '.join(ent['fields'])}{alias_hint})", field=field)
+    values = {f: ent['fields'][f](f, v) for f, v in values.items()}
+    by = _required_by(body)
+
+    current = _get_record(ent, key_value)
+    if current.get('updatedAt') != expected:
+        raise _conflict(ent, key_value)
+    changes = {f: [current.get(f, ''), v] for f, v in values.items() if current.get(f, '') != v}
+    if not changes:
+        return current
+
+    names = {f'#f{i}': f for i, f in enumerate(changes)}
+    expr_values = {f':v{i}': changes[f][1] for i, f in enumerate(changes)}
+    sets = [f'#f{i} = :v{i}' for i in range(len(changes))] + ['updatedAt = :now', 'updatedBy = :by']
+    expr_values.update({':now': _now(), ':by': by})
+    dirty = [f for f in changes if f in ent['dirty']] if current.get('origin') == 'ecount' else []
+    if dirty:
+        sets.append('ecountDirtyFields = :dirty')
+        expr_values[':dirty'] = sorted(set(current.get('ecountDirtyFields') or []) | set(dirty))
+    condition, condition_values = _version_condition(ent, expected)
+    expr_values.update(condition_values)
+    try:
+        saved = _table(ent['table']).update_item(
+            Key={ent['key']: key_value}, UpdateExpression='SET ' + ', '.join(sets), ConditionExpression=condition,
+            ExpressionAttributeNames=names, ExpressionAttributeValues=expr_values, ReturnValues='ALL_NEW')['Attributes']
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'ConditionalCheckFailedException':
+            raise
+        raise _conflict(ent, key_value) from None
+
+    print(f"update {ent['key']}={key_value} fields={sorted(changes)} by={by}")
+    _write_history(ent, key_value, by, 'update', changes)
+    return saved
+
+
+def _alias_name(alias):
+    return alias.get('name', '') if isinstance(alias, dict) else str(alias)
+
+
+def _parse_aliases(ent, items, field):
+    """거래처: [{name, code?}] / 약품: ["이름"] (또는 [{name}]) → [{name, code}]"""
+    if items is None:
+        return []
+    if not isinstance(items, list):
+        raise ApiError(400, f'{field} 는 목록이어야 합니다', field=field)
+    result = []
+    for entry in items:
+        name = entry if isinstance(entry, str) else entry.get('name') if isinstance(entry, dict) else None
+        code = entry.get('code', '') if isinstance(entry, dict) else ''
+        if not isinstance(name, str) or not (1 <= len(name.strip()) <= ALIAS_MAX_LEN) or not _norm(name):
+            raise ApiError(400, f'{field} 의 별칭 이름은 1~{ALIAS_MAX_LEN}자여야 합니다', field=field)
+        result.append({'name': name.strip(), 'code': code.strip() if isinstance(code, str) else ''})
+    return result
+
+
+def _alias_owners(ent, record):
+    """다른 레코드의 별칭·이름 → {정규화 이름: {key, name}}. 봇이 이름으로도 찾으므로 이름도 본다.
+    약품은 같은 이름(다른 용량)은 같은 제품이라 빼고 본다."""
+    key, norm = ent['key'], ent['owner_norm']
+    own_name = _norm(record.get('name'))
+    owners = {}
+    for other in _scan_all(_table(ent['table']), '#k, #n, #a', {'#k': key, '#n': 'name', '#a': 'aliases'}):
+        if other[key] == record[key] or (not ent['alias_objects'] and _norm(other.get('name')) == own_name):
+            continue
+        for label in [other.get('name', '')] + [_alias_name(a) for a in other.get('aliases') or []]:
+            if norm(label):
+                owners.setdefault(norm(label), {key: other[key], 'name': other.get('name', '')})
+    return owners
+
+
+def update_aliases(ent, body):
+    """별칭 추가·삭제. 지금 목록을 읽어 더하고 빼서 조건부로 저장하고, 동시 수정이면 다시 읽어 최대 3번."""
+    key_value = _required_key(ent, body)
+    add, remove = _parse_aliases(ent, body.get('add'), 'add'), _parse_aliases(ent, body.get('remove'), 'remove')
+    if not add and not remove:
+        raise ApiError(400, 'add 나 remove 에 별칭을 넣으세요')
+    if len(add) + len(remove) > ALIAS_MAX_ITEMS:
+        raise ApiError(400, f'별칭은 한 번에 {ALIAS_MAX_ITEMS}개까지입니다')
+    by = _required_by(body)
+    record = _get_record(ent, key_value)
+
+    if add and body.get('force') is not True:
+        owners = _alias_owners(ent, record)
+        norm = ent['owner_norm']
+        taken = [{'alias': a['name'], **owners[norm(a['name'])]} for a in add if norm(a['name']) in owners]
+        if taken:
+            raise ApiError(409, '다른 곳이 같은 별칭(또는 이름)을 쓰고 있습니다. 맞으면 force: true 로 다시 보내세요',
+                           reason='aliasTaken', taken=taken)
+
+    remove_keys = {_norm(r['name']) for r in remove}
+    for _ in range(ALIAS_RETRY):
+        current = _get_record(ent, key_value)
+        before = list(current.get('aliases') or [])
+        after = [a for a in before if _norm(_alias_name(a)) not in remove_keys]
+        have = {_norm(_alias_name(a)) for a in after}
+        for a in add:
+            if _norm(a['name']) not in have:              # 표기만 다른 같은 별칭은 무시
+                after.append({'name': a['name'], 'code': a['code'], 'source': 'local'} if ent['alias_objects'] else a['name'])
+                have.add(_norm(a['name']))
+        if after == before:
+            return current
+        condition, condition_values = _version_condition(ent, current.get('updatedAt'))
+        try:
+            saved = _table(ent['table']).update_item(
+                Key={ent['key']: key_value}, UpdateExpression='SET aliases = :aliases, updatedAt = :now, updatedBy = :by',
+                ConditionExpression=condition,
+                ExpressionAttributeValues={':aliases': after, ':now': _now(), ':by': by, **condition_values},
+                ReturnValues='ALL_NEW')['Attributes']
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                continue
+            raise
+        print(f"alias {ent['key']}={key_value} add={len(add)} remove={len(remove)} by={by}")
+        _write_history(ent, key_value, by, 'alias', {'aliases': [[_alias_name(a) for a in before],
+                                                                [_alias_name(a) for a in after]]})
+        return saved
+    raise ApiError(503, '동시에 고치는 요청이 많아 저장하지 못했습니다. 잠시 후 다시 시도하세요')
+
+
+def record_history(ent, key_value):
+    """최근 변경 이력 50건, 새것부터."""
+    key_value = (key_value or '').strip()
+    if not key_value:
+        raise ApiError(400, f"id({ent['label']} 코드)가 필요합니다", field='id')
+    response = _table(ent['history']).query(
+        KeyConditionExpression=Key(ent['key']).eq(key_value), ScanIndexForward=False, Limit=HISTORY_LIMIT)
+    return [{'at': item['at'].split('#')[0], 'by': item.get('by', ''), 'action': item.get('action', ''),
+             'changes': item.get('changes', {})} for item in response.get('Items', [])]

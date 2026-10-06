@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchCustomers, saveCustomers, deleteCustomer } from './customerApi';
+import { fetchCustomers, deleteCustomer } from './customerApi';
 import { CUSTOMER_CATEGORIES, CUSTOMER_TYPES, formatAliases } from './customerExcel';
 import EditCustomerDialog from './EditCustomerDialog';
 import AddCustomerDialog from './AddCustomerDialog';
@@ -59,18 +59,6 @@ export default function DSCustomerTable() {
       ...prev.map(c => savedMap.get(c.custcd) || c),
       ...saved.filter(c => !prev.some(p => p.custcd === c.custcd)),
     ]);
-  };
-
-  const handleSave = async (customer) => {
-    try {
-      await saveCustomers(customer);
-      mergeSaved([customer]);
-      return true;
-    } catch (err) {
-      console.error('Failed to save customer:', err);
-      alert(`저장에 실패했습니다: ${err.message}`);
-      return false;
-    }
   };
 
   const handleDelete = async (customer) => {
@@ -193,6 +181,12 @@ export default function DSCustomerTable() {
                         자체{c.custType ? `·${CUSTOMER_TYPES[c.custType]}` : ''}·{c.ecountSyncedAt ? '등록됨' : '미등록'}
                       </span>
                     )}
+                    {(c.ecountDirtyFields || []).length > 0 && (
+                      <span className="badge badge-warning badge-xs ml-1"
+                        title={`여기서 고침 — 이카운트에도 고쳐야 함: ${c.ecountDirtyFields.join(', ')}`}>
+                        이카운트 반영 필요
+                      </span>
+                    )}
                   </td>
                   <td className="text-sm">{c.name}</td>
                   <td className="text-xs">{c.ceo}</td>
@@ -227,7 +221,7 @@ export default function DSCustomerTable() {
       <EditCustomerDialog
         customer={editingCustomer}
         onClose={() => setEditingCustomer(null)}
-        onSave={handleSave}
+        onSaved={(c) => mergeSaved([c])}
       />
 
       <AddCustomerDialog

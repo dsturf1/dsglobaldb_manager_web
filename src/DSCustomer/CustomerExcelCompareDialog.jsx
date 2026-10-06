@@ -5,6 +5,7 @@ import {
   compareCustomers,
   toNewCustomer,
   toUpdatedCustomer,
+  toDirtyResolved,
   guessCategory,
   formatAliases,
   findLocalCustomerStatus,
@@ -18,6 +19,8 @@ import { saveCustomers } from './customerApi';
  * 변경 반영 시 이카운트 필드만 바꾸고 분류·사용·메모는 유지한다.
  * '이카운트 미등록' 탭: 여기서 만든 거래처(origin=local) 중 엑셀에 없는 것 → 엑셀로 내려받아 이카운트에 등록.
  *   이카운트에 등록된 것이 확인되면 [등록 완료로 반영] → ecountSyncedAt 기록 (이후 미등록·다운로드 대상에서 제외)
+ * '이카운트 반영 필요' 탭: 여기서(웹·외부 앱 /dscustomer/update) 고친 이카운트 항목(ecountDirtyFields).
+ *   '변경'으로 되돌리지 않는다. 이카운트도 같게 고쳐졌으면 [반영 완료로 표시] → ecountDirtyFields 지움
  */
 export default function CustomerExcelCompareDialog({ isOpen, onClose, customers, onSaved }) {
   const [excel, setExcel] = useState(null);       // { fileName, customers, warnings, exportedAt }
@@ -61,7 +64,7 @@ export default function CustomerExcelCompareDialog({ isOpen, onClose, customers,
     }
   };
 
-  const rows = !result || tab === 'unsynced' ? [] : tab === 'added'
+  const rows = !result || tab === 'unsynced' || tab === 'dirty' ? [] : tab === 'added'
     ? result.added.map(after => ({ key: after.custcd, after }))
     : result.changed.map(change => ({ key: change.after.custcd, ...change }));
 
@@ -126,6 +129,22 @@ export default function CustomerExcelCompareDialog({ isOpen, onClose, customers,
     }
   };
 
+  // 이카운트에도 같게 고쳐진 것을 확인한 거래처의 ecountDirtyFields 를 지움
+  const handleDirtyResolved = async () => {
+    const targets = result.dirtyResolved.map(toDirtyResolved);
+    if (!window.confirm(`${targets.length}건을 이카운트 반영 완료로 표시하시겠습니까?`)) return;
+    setProgress({ done: 0, total: targets.length });
+    try {
+      await saveCustomers(targets, (done, total) => setProgress({ done, total }));
+      onSaved(targets);
+    } catch (err) {
+      console.error('Failed to clear dirty fields:', err);
+      alert(`저장 중 오류가 발생했습니다: ${err.message}`);
+    } finally {
+      setProgress(null);
+    }
+  };
+
   if (!isOpen) return null;
 
   const isSaving = progress !== null;
@@ -175,10 +194,16 @@ export default function CustomerExcelCompareDialog({ isOpen, onClose, customers,
                 이카운트 미등록 {localStatus.unsynced.length}
                 {localStatus.conflicts.length > 0 && <span className="badge badge-warning badge-sm ml-1">충돌 {localStatus.conflicts.length}</span>}
               </button>
+              <button role="tab" className={`tab ${tab === 'dirty' ? 'tab-active' : ''}`} onClick={() => switchTab('dirty')}>
+                이카운트 반영 필요 {result.dirtyPending.length}
+                {result.dirtyResolved.length > 0 && <span className="badge badge-success badge-sm ml-1">반영됨 {result.dirtyResolved.length}</span>}
+              </button>
             </div>
 
             {tab === 'unsynced' ? (
               <UnsyncedCustomers status={localStatus} onConfirm={handleConfirmSynced} isSaving={isSaving} />
+            ) : tab === 'dirty' ? (
+              <DirtyCustomers result={result} showValue={showValue} onResolve={handleDirtyResolved} isSaving={isSaving} />
             ) : rows.length === 0 ? (
               <div className="py-8 text-center text-gray-500">
                 {tab === 'added' ? 'DB에 없는 거래처가 없습니다.' : '바뀐 거래처가 없습니다.'}
@@ -241,7 +266,7 @@ export default function CustomerExcelCompareDialog({ isOpen, onClose, customers,
               </div>
             )}
 
-            {tab !== 'unsynced' && (
+            {(tab === 'added' || tab === 'changed') && (
               <p className="text-xs text-gray-500 mt-3">
                 {tab === 'added'
                   ? '신규는 분류(추정값), 사용 Y로 추가됩니다. 추가 후 목록에서 수정하세요.'
@@ -265,6 +290,14 @@ export default function CustomerExcelCompareDialog({ isOpen, onClose, customers,
             >
               엑셀 다운로드 ({localStatus.unsynced.length})
             </button>
+          ) : tab === 'dirty' ? (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => downloadCustomersForEcount(result.dirtyPending.map(d => d.before))}
+              disabled={!result || result.dirtyPending.length === 0}
+            >
+              엑셀 다운로드 ({result?.dirtyPending.length || 0})
+            </button>
           ) : (
             <button
               className="btn btn-primary btn-sm"
@@ -278,6 +311,57 @@ export default function CustomerExcelCompareDialog({ isOpen, onClose, customers,
         </div>
       </div>
     </dialog>
+  );
+}
+
+// 여기서 고친 이카운트 항목(ecountDirtyFields): 이카운트는 아직 다름 / 이카운트도 같아짐
+function DirtyCustomers({ result, showValue, onResolve, isSaving }) {
+  const { dirtyPending, dirtyResolved } = result;
+  return (
+    <>
+      {dirtyResolved.length > 0 && (
+        <div className="alert alert-success text-sm mb-3 flex justify-between">
+          <span>
+            이카운트에도 같게 고쳐진 거래처 {dirtyResolved.length}건
+            ({dirtyResolved.slice(0, 5).map(c => c.name).join(', ')}{dirtyResolved.length > 5 ? ' …' : ''})
+          </span>
+          <button className="btn btn-sm" onClick={onResolve} disabled={isSaving}>반영 완료로 표시</button>
+        </div>
+      )}
+      {dirtyPending.length === 0 ? (
+        <div className="py-8 text-center text-gray-500">이카운트에 반영할 거래처가 없습니다.</div>
+      ) : (
+        <div className="overflow-y-auto max-h-[55vh]">
+          <table className="table table-zebra table-sm w-full">
+            <thead className="sticky top-0 bg-white z-10">
+              <tr><th className="w-32">거래처코드</th><th>거래처명</th><th>여기 값 → 이카운트에 고칠 값 (지금 이카운트 값)</th><th className="w-40">고친 사람</th></tr>
+            </thead>
+            <tbody>
+              {dirtyPending.map(({ before, after, fields }) => (
+                <tr key={before.custcd}>
+                  <td className="text-xs">{before.custcd}</td>
+                  <td className="text-sm">{before.name}</td>
+                  <td className="text-xs">
+                    {fields.map(f => (
+                      <div key={f}>
+                        <span className="text-gray-500">{FIELD_LABELS[f]}: </span>
+                        <span className="font-semibold">{showValue(f, before[f])}</span>
+                        <span className="text-gray-400"> (이카운트: {showValue(f, after[f])})</span>
+                      </div>
+                    ))}
+                  </td>
+                  <td className="text-xs">{before.updatedBy || ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="text-xs text-gray-500 mt-3">
+        웹이나 외부 앱에서 고친 이카운트 항목입니다. 엑셀 비교의 &lsquo;변경&rsquo;으로 되돌리지 않습니다.
+        이카운트 거래처등록에서 같게 고친 뒤 다시 비교하면 &lsquo;반영 완료로 표시&rsquo;할 수 있습니다.
+      </p>
+    </>
   );
 }
 

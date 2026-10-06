@@ -14,7 +14,7 @@ import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 export default function DSChemicalsTable() {
   
-  const { globalChemicals, updateGlobalChemical, deleteGlobalChemical } = useGlobalComponent();
+  const { globalChemicals, setGlobalChemicals, updateGlobalChemical, deleteGlobalChemical } = useGlobalComponent();
   
   // 검색어 상태 추가
   const [searchTerm, setSearchTerm] = useState('');
@@ -165,18 +165,13 @@ export default function DSChemicalsTable() {
     setIsEditModalOpen(true);
   };
 
-  // 편집 저장
-  const handleSave = async (editedData) => {
-    try {
-      const success = await updateGlobalChemical(editedData);
-      if (!success) {
-        alert('저장에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('Failed to save:', error);
-      alert('저장 중 오류가 발생했습니다.');
-    }
+  // 수정 API(/dschemical/update, alias)가 돌려준 최신 레코드를 목록에 반영
+  const handleSaved = (saved) => {
+    setGlobalChemicals(prev => prev.map(c => (c.dsids === saved.dsids ? saved : c)));
   };
+
+  // 대분류·중분류 변경은 수정 API가 받지 않아 웹 전용 저장(전체 덮어쓰기)으로
+  const handleSaveClass = async (chemical) => (await updateGlobalChemical(chemical)) === true;
 
   // ChemicalsTable 컴포넌트 내부에 상태 추가
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -398,7 +393,8 @@ export default function DSChemicalsTable() {
         isOpen={isEditModalOpen}
         onClose={handleCloseEdit}
         chemical={editingChemical}
-        onSave={handleSave}
+        onSaved={handleSaved}
+        onSaveClass={handleSaveClass}
         filterOptions={filterOptions}
       />
       

@@ -75,19 +75,20 @@ def get_request_template(api_id, template_from, http_method='GET'):
     return integration['requestTemplates']['application/json']
 
 
-def _put_method_fresh(api_id, resource_id, http_method):
+def _put_method_fresh(api_id, resource_id, http_method, api_key_required=False):
     apigw = boto3.client('apigateway')
     try:
         apigw.delete_method(restApiId=api_id, resourceId=resource_id, httpMethod=http_method)
     except apigw.exceptions.NotFoundException:
         pass
-    apigw.put_method(restApiId=api_id, resourceId=resource_id, httpMethod=http_method, authorizationType='NONE')
+    apigw.put_method(restApiId=api_id, resourceId=resource_id, httpMethod=http_method, authorizationType='NONE',
+                     apiKeyRequired=api_key_required)
 
 
-def setup_lambda_method(api_id, resource_id, http_method, function_arn, request_template):
-    """메서드 → Lambda (non-proxy) + CORS 응답 헤더."""
+def setup_lambda_method(api_id, resource_id, http_method, function_arn, request_template, api_key_required=False):
+    """메서드 → Lambda (non-proxy) + CORS 응답 헤더. api_key_required 면 x-api-key 헤더 필요 (사용량 계획 키)."""
     apigw = boto3.client('apigateway')
-    _put_method_fresh(api_id, resource_id, http_method)
+    _put_method_fresh(api_id, resource_id, http_method, api_key_required)
     apigw.put_integration(
         restApiId=api_id, resourceId=resource_id, httpMethod=http_method,
         type='AWS', integrationHttpMethod='POST',
@@ -129,6 +130,29 @@ def setup_options(api_id, resource_id, methods):
         responseParameters=cors_headers,
     )
     print('OPTIONS 설정 완료')
+
+
+def ensure_api_keys(api_id, stage, plan_name, key_names, rate=10, burst=20):
+    """사용량 계획(스테이지 연결)과 앱별 API 키를 만들고 {이름: 키 값} 반환. 키 값은 출력하지 않는다."""
+    apigw = boto3.client('apigateway')
+    plan = next((p for p in apigw.get_usage_plans(limit=500)['items'] if p['name'] == plan_name), None)
+    if plan is None:
+        plan = apigw.create_usage_plan(name=plan_name, description='글로벌 DB 쓰기 API (update/alias)',
+                                       apiStages=[{'apiId': api_id, 'stage': stage}],
+                                       throttle={'rateLimit': rate, 'burstLimit': burst})
+        print('사용량 계획 생성:', plan_name)
+    else:
+        print('사용량 계획 있음:', plan_name)
+    attached = {k['name'] for k in apigw.get_usage_plan_keys(usagePlanId=plan['id'], limit=500)['items']}
+    existing = {k['name']: k for k in apigw.get_api_keys(includeValues=True, limit=500)['items']}
+    values = {}
+    for name in key_names:
+        key = existing.get(name) or apigw.create_api_key(name=name, enabled=True, description=f'{plan_name}: {name}')
+        if name not in attached:
+            apigw.create_usage_plan_key(usagePlanId=plan['id'], keyId=key['id'], keyType='API_KEY')
+        values[name] = key.get('value') or apigw.get_api_key(apiKey=key['id'], includeValue=True)['value']
+        print('API 키:', name, '(값은 출력하지 않음)')
+    return values
 
 
 def grant_invoke(function_name, api_id, account_id, path_part):
