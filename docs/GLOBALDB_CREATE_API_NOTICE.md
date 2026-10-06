@@ -1,5 +1,7 @@
 # 글로벌 DB 변경 안내 — 약품·거래처 추가 API (2026-10-02)
 
+> **API를 쓰는 모든 프로젝트용 최신 변경 이력은 [GLOBALDB_API_CHANGELOG.md](GLOBALDB_API_CHANGELOG.md)를 보세요.** 이 문서는 2026-10-02 create API 안내 원본입니다.
+
 > **받는 곳**: 글로벌 DB를 쓰는 프로젝트 — 견적 시스템(`quotation mg`), 글로벌 DB 텔레그램 봇, 그 밖의 외부 앱
 > **보낸 곳**: `dsglobaldb_manager`
 > 이 문서를 각 프로젝트 저장소의 `docs/`에 복사해 두고, 그 저장소의 Claude Code가 읽고 반영 계획을 세우면 된다.
