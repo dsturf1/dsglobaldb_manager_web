@@ -3,6 +3,8 @@ import { useGlobalComponent } from '../context/GlobalComponentContext'; // 전�
 import AddChemicalDialog from './AddChemicalDialog';
 import EditChemicalDialog from './EditChemicalDialog';
 import EcountCompareDialog from './EcountCompareDialog';
+import ChemicalExcelUploadDialog from './ChemicalExcelUploadDialog';
+import { downloadChemicalList } from './chemicalExcel';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 /**
@@ -24,7 +26,7 @@ export default function DSChemicalsTable() {
     infoL3: 'all',    // 중요도
     infoL2: 'all',    // 대분류
     infoL1: 'all',    // 중분류
-    active: 'all',    
+    active: 'Y',      // 기본은 사용 중인 약품만
     flgWork: 'all',   
     flgOut: 'all'     
   });
@@ -176,6 +178,7 @@ export default function DSChemicalsTable() {
   // ChemicalsTable 컴포넌트 내부에 상태 추가
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEcountModalOpen, setIsEcountModalOpen] = useState(false);
+  const [isExcelUploadOpen, setIsExcelUploadOpen] = useState(false);
 
   // handleAddNew 함수 수정
   const handleAddNew = () => {
@@ -302,6 +305,21 @@ export default function DSChemicalsTable() {
           >
             이카운트 비교
           </button>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => downloadChemicalList(filteredAndSortedChemicals)}
+            disabled={filteredAndSortedChemicals.length === 0}
+            title="지금 보이는 목록(필터·정렬 그대로)을 엑셀로 내려받습니다"
+          >
+            엑셀 다운로드
+          </button>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => setIsExcelUploadOpen(true)}
+            title="내려받아 고친 엑셀을 올려 일괄 수정합니다"
+          >
+            엑셀 업로드
+          </button>
         </div>
       </div>
       <div className="flex items-center gap-4">
@@ -408,6 +426,12 @@ export default function DSChemicalsTable() {
       <EcountCompareDialog
         isOpen={isEcountModalOpen}
         onClose={() => setIsEcountModalOpen(false)}
+      />
+
+      {/* 엑셀 일괄 수정 다이얼로그 */}
+      <ChemicalExcelUploadDialog
+        isOpen={isExcelUploadOpen}
+        onClose={() => setIsExcelUploadOpen(false)}
       />
     </div>
   );

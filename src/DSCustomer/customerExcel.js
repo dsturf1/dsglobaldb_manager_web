@@ -26,7 +26,7 @@ export const FIELD_LABELS = {
   memo: '메모',
 };
 
-export const CUSTOMER_CATEGORIES = ['골프장', '매입처', '매출처', '기타'];
+export const CUSTOMER_CATEGORIES = ['골프장', '매입처', '매출처', '잔디농장', '기타'];
 
 const COLUMNS = {
   code: '거래처코드',

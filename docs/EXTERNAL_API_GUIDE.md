@@ -135,7 +135,7 @@ def unwrap(res_json):
 | `tel` | string | 전화 (비어 있는 경우가 많음, 약 16%만 있음) | |
 | `email` | string | 이메일 (약 30%만 있음) | |
 | `aliases` | {code, name, source?}[] | 별칭. 이카운트 '검색입력' 코드와 약칭, 그리고 여기서 붙인 현장 이름(`source: "local"`, `code`는 보통 빈 문자열) | `[{"code": "GC005", "name": "대호단양"}, {"code": "", "name": "월송리", "source": "local"}]` |
-| `category` | string | 분류 | `골프장` `매입처` `매출처` `기타` |
+| `category` | string | 분류 | `골프장` `매입처` `매출처` `잔디농장` `기타` |
 | `active` | `Y`/`N` | 사용 여부 | |
 | `memo` | string | 메모 | |
 | `custType` | string | 구분. **웹에서 새로 만든 거래처에만** 있음 | `corp`(법인) / `person`(개인) |
@@ -286,7 +286,7 @@ POST /dscustomer/create
 | `name` | ✔ | 거래처명 (개인은 이름) |
 | `bizNo` | 법인 ✔ | 사업자등록번호. 하이픈은 있어도 되고, 숫자 10자리가 그대로 거래처코드가 됩니다 |
 | `allowInvalidBizNo` | | 사업자번호 검증번호가 틀려도 맞는 번호라고 사용자가 확인했을 때 `true` |
-| `category` | | `골프장` `매입처` `매출처` `기타`. 기본 `기타` |
+| `category` | | `골프장` `매입처` `매출처` `잔디농장` `기타`. 기본 `기타` |
 | `ceo` `bizType` `bizItem` `tel` `email` `memo` `createdBy` | | 선택. 개인은 `ceo`가 이름으로 채워지고 업태·종목은 비웁니다 |
 
 - 개인 코드는 서버가 `P00001`부터 순서대로 정합니다. **주민등록번호는 보내지 마세요.**
@@ -349,7 +349,7 @@ POST /dswarehouse/create
   | `name` | 비울 수 없음, 앞뒤 공백 제거 |
   | `ceo` `bizType` `bizItem` `tel` `memo` | 문자열 |
   | `email` | 빈 문자열 또는 이메일 형식 |
-  | `category` | `골프장` `매입처` `매출처` `기타` |
+  | `category` | `골프장` `매입처` `매출처` `잔디농장` `기타` |
   | `active` | `Y` / `N` |
 
 - 지금과 같은 값은 바꾸지 않습니다. 모두 같으면 저장하지 않고 200으로 지금 레코드를 돌려줍니다.

@@ -187,6 +187,11 @@ def test_person_gets_sequential_code(aws):
     assert created['ceo'] == '김개인' and created['bizType'] == '' and created['aliases'] == []
 
 
+def test_person_turf_farm_category(aws):
+    status, created = call('POST', '/dscustomer/create', {'custType': 'person', 'name': '김농장', 'category': '잔디농장'})
+    assert status == 201 and created['category'] == '잔디농장'
+
+
 @pytest.mark.parametrize('body, status', [
     ({'name': 'x'}, 400),                                            # custType 없음
     ({'custType': 'person'}, 400),                                   # name 없음
@@ -385,6 +390,11 @@ def test_update_legacy_record_with_null(cust):
     assert status == 200 and body['category'] == '골프장' and body['updatedAt']
     status, _ = update({'custcd': '1111111111', 'expectedUpdatedAt': None, 'set': {'memo': 'x'}})
     assert status == 409                                                        # 이제 updatedAt 이 있음
+
+
+def test_update_turf_farm_category(cust):
+    status, body = update({'custcd': '2248106308', 'expectedUpdatedAt': T0, 'set': {'category': '잔디농장'}})
+    assert status == 200 and body['category'] == '잔디농장'
 
 
 @pytest.mark.parametrize('field', ['custcd', 'aliases', 'origin', 'createdAt', 'ecountSyncedAt', 'custType', 'updatedAt'])

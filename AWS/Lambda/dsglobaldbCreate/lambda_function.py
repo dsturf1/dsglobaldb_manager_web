@@ -59,7 +59,7 @@ CHEMICAL_CLASSES = {
     '잔디': ('G0', '잔디'),
     '기타물품': ('D0', '기타물품'),
 }
-CUSTOMER_CATEGORIES = ('골프장', '매입처', '매출처', '기타')
+CUSTOMER_CATEGORIES = ('골프장', '매입처', '매출처', '잔디농장', '기타')
 YN_FIELDS = ('active', 'flgWork', 'flgOut')
 PRICE_FIELDS = ('IN_PRICE', 'OUT_PRICE', 'OUT_PRICE1')
 CHEMICAL_TEXT_FIELDS = ('unit', 'infoL3', 'vendors', 'type', 'createdBy')
