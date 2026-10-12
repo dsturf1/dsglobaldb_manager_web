@@ -507,11 +507,11 @@ POST /dschemical/alias
 |---|---|---|
 | `POST /dscustomer/evidence-upload` | 증빙 파일 올릴 주소 받기 | **필요** (모든 앱 키) |
 | `GET /regrequests` | 등록 요청 목록 (약품·거래처 함께) | **필요** (모든 앱 키) |
-| `POST /dschemical/review` · `POST /dscustomer/review` | 승인 · 반려 · 이카운트 제외 | **임시로 `globaldb-inv` 키만** — 재고가 승인을 끄면 **외부 키 전부 403** |
+| `POST /dschemical/review` · `POST /dscustomer/review` | 승인 · 반려 · 이카운트 제외 | **닫힘 — 외부 앱 키는 모두 `statusCode 403`** (2026-10-13). 승인은 글로벌 DB 봇·웹에서만 |
 
 키가 없으면 API Gateway가 HTTP 403을 돌려줍니다(6.4와 같음).
 
-**승인은 글로벌 DB 안에서 합니다** (2026-10-13). 승인자는 **글로벌 DB 슈퍼관리자**이고, 창구는 **글로벌 DB 봇**(텔레그램)과 **글로벌 DB 웹 "등록 요청"** 화면 두 곳입니다. 어디서 결정하든 봇 카드는 결정 문구로 바뀝니다. 재고·견적 같은 외부 앱은 승인하지 않습니다 — review API의 재고 키는 재고 봇 승인 카드를 끌 때까지만 받습니다.
+**승인은 글로벌 DB 안에서 합니다** (2026-10-13). 승인자는 **글로벌 DB 슈퍼관리자**이고, 창구는 **글로벌 DB 봇**(텔레그램)과 **글로벌 DB 웹 "등록 요청"** 화면 두 곳입니다. 어디서 결정하든 봇 카드는 결정 문구로 바뀝니다. 재고·견적 같은 외부 앱은 승인하지 않습니다 — review API는 어떤 앱 키로 불러도 403입니다.
 
 **요청 결과 알리기** — 요청한 앱이 자기 요청자에게 알립니다. 글로벌 DB 봇은 요청자에게 보내지 않습니다.
 ```http
@@ -552,9 +552,9 @@ evidence = {'docType': '세금계산서', 'bizNo': biz_no, 'fileKey': r['fileKey
   - 품목: `unit` `infoL1` `infoL2` `infoL3` `vendors` `IN_PRICE` `OUT_PRICE` `OUT_PRICE1`
   - 거래처: `custType` `bizNo`(법인) `category` `ceo` `bizType` `bizItem`, 증빙이 있으면 `regEvidence`(+ `viewUrl`)
 
-#### 6.6.3 결정 — `POST /dschemical/review` · `POST /dscustomer/review` (임시: 재고 키만)
+#### 6.6.3 결정 규칙 (참고) — 글로벌 DB 봇·웹이 쓰는 규칙
 
-글로벌 DB 봇·웹도 같은 규칙으로 결정합니다. 아래 표는 결정 규칙 참고용입니다.
+외부 review API(`POST /dschemical/review` · `/dscustomer/review`)는 닫혔습니다(모든 키 403). 아래는 글로벌 DB 봇·웹이 결정할 때의 규칙입니다. 요청한 앱은 결과를 6.6의 폴링으로 받습니다.
 
 ```json
 POST /dscustomer/review

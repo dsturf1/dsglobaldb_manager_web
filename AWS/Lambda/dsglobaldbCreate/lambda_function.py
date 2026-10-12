@@ -19,7 +19,7 @@ API Gateway jyipsj28s9 (패스스루 매핑 템플릿, 인증 없음)
     거래처는 증빙(evidence)이 조건을 모두 채우면 바로 등록(regStatus=approved), 아니면 requested.
     POST /dscustomer/evidence-upload   증빙 파일 올릴 주소 (S3 presigned PUT, 10분)          — 키 필요
     GET  /regrequests                  등록 요청 목록 (?pending=&kind=&app=&changedSince=)  — 키 필요
-    POST /dschemical/review            승인·반려·이카운트 제외                               — globaldb-inv 키만 (임시, 재고 봇)
+    POST /dschemical/review            (닫힘) 외부 앱 키는 모두 403 — 승인은 글로벌 DB 봇·웹에서만
     POST /dscustomer/review
     GET  /regreview                    웹 로그인 사람이 승인자인지 (Cognito 권한 부여자)
     POST /regreview                    웹 승인 — 글로벌 DB 슈퍼관리자(GDB_OWNER_EMAILS)만     (Cognito 권한 부여자)
@@ -93,7 +93,6 @@ UPLOAD_URL_SECONDS = 600
 VIEW_URL_SECONDS = 3600
 REQUEST_FIELDS = ('channel', 'by', 'byId', 'note', 'ref')
 REQUEST_TEXT_MAX = 300
-REVIEW_APP = 'inv'                               # 임시: 재고 봇 승인 (재고 승인을 끄면 외부 키 전부 403)
 WEB_DECISION_BY = '글로벌 DB 웹'                 # 웹에서 만든 것은 승인 없이 확정 (4차)
 REVIEW_DECISIONS = ('approve', 'reject', 'exclude')
 
@@ -974,10 +973,10 @@ def _stale(ent, key_value):
 
 
 def review_record(ent, body, app):
-    """외부 API 결정 — 임시로 재고 키만 (재고 봇 승인 카드). 재고 승인을 끄면 외부 키 전부 403."""
-    if app != REVIEW_APP:
-        raise ApiError(403, '승인은 글로벌 DB 슈퍼관리자가 글로벌 DB 봇·웹에서 합니다')
-    return decide(ent, body, app)
+    """외부 API 결정 — 닫힘 (2026-10-13). 재고 봇 승인을 끈 뒤 외부 키는 모두 403.
+    승인은 글로벌 DB 봇(/internal/review)과 웹(/regreview)에서만 받는다."""
+    print(f"review API 거절 app={app} {ent['key']}={_text(body, 'id')}")
+    raise ApiError(403, '승인은 글로벌 DB 슈퍼관리자가 글로벌 DB 봇·웹에서 합니다')
 
 
 def decide(ent, body, channel):

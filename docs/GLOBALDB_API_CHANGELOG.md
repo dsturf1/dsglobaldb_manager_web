@@ -30,8 +30,8 @@
 | 거래처 | `GET /dscustomer` | `POST /dscustomer/create` | `POST /dscustomer/update`, `/dscustomer/alias` | `GET /dscustomer/history?id=` | 웹 전용 |
 | 창고 | `GET /dswarehouse` | `POST /dswarehouse/create` | (없음) | (없음) | 웹 전용 |
 
-- **등록 요청** (모두 키 필요): `POST /dscustomer/evidence-upload`(증빙 파일), `GET /regrequests`(목록), `POST /dschemical/review`·`/dscustomer/review`(임시로 **재고 키만** — 곧 외부 키 전부 403). 승인은 글로벌 DB 봇·웹에서.
-- **외부 앱이 쓸 수 있는 것**: 조회, create, update/alias, evidence-upload, regrequests. review는 재고 승인을 끌 때까지만 재고 키로.
+- **등록 요청** (모두 키 필요): `POST /dscustomer/evidence-upload`(증빙 파일), `GET /regrequests`(목록), `POST /dschemical/review`·`/dscustomer/review`는 **닫힘**(모든 외부 키 403). 승인은 글로벌 DB 봇·웹에서만.
+- **외부 앱이 쓸 수 있는 것**: 조회, create, update/alias, evidence-upload, regrequests. review는 쓰지 않는다(403).
 - **웹 전용**: 전체 덮어쓰기 `PUT/POST /dschemical`·`/dscustomer`·`/dswarehouse`와 `DELETE`. 외부 앱은 쓰지 않는다. 덮어쓰기라 다른 수정을 지울 수 있다.
 - **API 키**: `x-api-key` 헤더에 넣는다. 앱마다 따로 발급하고(`globaldb-inv`·`globaldb-quote`·`globaldb-web`), 관리자에게 받아 서버 `.env`에만 둔다. 코드·문서·커밋에 넣지 않는다. 키가 새어 나가면 관리자가 그 키만 끈다.
 
@@ -44,7 +44,7 @@
 - **승인 창구가 재고에서 글로벌 DB로 옮겨졌다.** 승인 대기가 생기는 순간 **글로벌 DB 봇**(텔레그램)이 글로벌 DB 슈퍼관리자에게 카드를 보낸다. 글로벌 DB 웹 "등록 요청" 화면에서도 슈퍼관리자는 승인·반려·이카운트 제외를 할 수 있다. 어디서 결정하든 봇 카드가 결정 문구로 바뀐다.
 - **글로벌 DB 웹에서 만든 것은 승인 없이 확정** — `regStatus`·`ecountStatus` 둘 다 `approved`, `regDecision.by = "글로벌 DB 웹"`. 응답의 `autoApproved = true`, `autoReason = "글로벌 DB 웹"`.
 - **요청 결과는 요청한 앱이 알린다** — `GET /regrequests?app=<자기>&changedSince=<마지막>` 폴링 (가이드 6.6).
-- review API의 재고 키는 **임시**다. 재고가 승인 카드를 끄면(`REG_APPROVER=gdb`) 외부 키는 전부 403이 된다. 그 전까지는 재고 봇과 글로벌 DB 봇이 둘 다 카드를 보내지만, 결정은 한 번만 된다(나중에 누른 쪽은 `409 decided`).
+- **review API를 닫았다** — 재고가 승인 카드를 끈 뒤(`REG_APPROVER=gdb`), `globaldb-inv` 키를 포함해 **외부 키는 모두 403**이다. 승인은 글로벌 DB 봇·웹에서만 받는다.
 
 ### 2026-10-12 — 등록 요청 · 증빙 자동 등록 · 승인 (docs/gdb-request-registration-queue.md 1단계)
 

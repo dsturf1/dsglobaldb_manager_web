@@ -714,25 +714,34 @@ def test_regrequests_filters(reg):
     assert keyed('GET', '/regrequests', query={'pending': 'x'}, app='inv')[0] == 400
 
 
-def review(kind, body, app='inv'):
-    return keyed('POST', f'/{kind}/review', {'by': '조윤제', 'byId': 'sub-1', **body}, app=app)
+def review(kind, body):
+    """결정 규칙 — 글로벌 DB 봇이 쓰는 /internal/review 로 (외부 review API 는 모두 403)."""
+    return internal_call('/internal/review', {'kind': 'item' if kind == 'dschemical' else 'customer',
+                                              'by': '조윤제', 'byId': 'sub-1', **body})
 
 
-def test_review_permissions_and_validation(reg):
+@pytest.mark.parametrize('app', ['inv', 'quote', 'web', None])
+def test_external_review_api_closed(reg, app):
     _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='quote')
-    assert review('dschemical', {'id': item['dsids'], 'decision': 'approve'}, app='quote')[0] == 403
-    assert keyed('POST', '/dschemical/review', {'id': item['dsids'], 'decision': 'approve', 'by': 'x'})[0] == 403
+    status, body = keyed('POST', '/dschemical/review', {'id': item['dsids'], 'decision': 'approve', 'by': 'x'}, app=app)
+    assert status == 403 and (app is None or '글로벌 DB 봇·웹' in body['message'])   # 키 없으면 'API 키가 필요합니다'
+    assert reg.Table(lf.CHEMICAL_TABLE).get_item(Key={'dsids': item['dsids']})['Item']['regStatus'] == 'requested'
+
+
+def test_review_validation(reg):
+    _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='quote')
     assert review('dschemical', {'id': item['dsids'], 'decision': 'reject'})[0] == 422      # 사유 없음
     assert review('dschemical', {'id': item['dsids'], 'decision': 'maybe'})[0] == 400
     assert review('dschemical', {'id': 'NOPE', 'decision': 'approve'})[0] == 404
-    assert keyed('POST', '/dschemical/review', {'id': item['dsids'], 'decision': 'approve'}, app='inv')[0] == 400  # by 없음
+    assert internal_call('/internal/review', {'kind': 'item', 'id': item['dsids'], 'decision': 'approve'})[0] == 400  # by 없음
 
 
 def test_review_approve_then_decided(reg):
     _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='quote')
     status, body = review('dschemical', {'id': item['dsids'], 'decision': 'approve', 'expectedUpdatedAt': item['updatedAt']})
     assert status == 200 and body['regStatus'] == 'approved' and body['ecountStatus'] == 'approved'
-    assert body['regDecision']['target'] == 'registration' and body['updatedBy'] == 'inv:조윤제'
+    assert body['regDecision']['target'] == 'registration'
+    assert reg.Table(lf.CHEMICAL_TABLE).get_item(Key={'dsids': item['dsids']})['Item']['updatedBy'] == 'gdb-bot:조윤제'
     status, res = review('dschemical', {'id': item['dsids'], 'decision': 'reject', 'comment': '중복'})
     assert status == 409 and res['reason'] == 'decided' and res['regDecision']['by'] == '조윤제'
     _, hist = call('GET', '/dschemical/history', query={'id': item['dsids']})
@@ -845,12 +854,6 @@ def test_web_review_owner_only(reg, monkeypatch):
     assert body['regDecision']['by'] == '조윤제' and body['regDecision']['byId'] == 'sub-9'    # 본문 by 는 무시
     assert body['updatedBy'] == 'gdb-web:조윤제'
     assert web_review('POST', {'kind': 'thing', 'id': 'x', 'decision': 'approve'})[0] == 400
-
-
-def test_review_api_message_points_to_gdb(reg):
-    _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='quote')
-    status, body = review('dschemical', {'id': item['dsids'], 'decision': 'approve'}, app='quote')
-    assert status == 403 and '글로벌 DB' in body['message']
 
 
 def internal_call(path, body=None):
