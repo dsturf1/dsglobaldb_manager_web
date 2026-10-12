@@ -52,7 +52,8 @@ def env(monkeypatch):
             if not bot.is_pending(rec):
                 return 409, {'reason': 'decided', 'regDecision': rec['regDecision']}
             d = body['decision']
-            rec.update({'regDecision': {'decision': d, 'by': body['by'], 'comment': body.get('comment', '')},
+            target = 'registration' if rec['regStatus'] == 'requested' else 'ecount'      # 서버 _decide 와 같음
+            rec.update({'regDecision': {'decision': d, 'by': body['by'], 'comment': body.get('comment', ''), 'target': target},
                         'regStatus': 'rejected' if d == 'reject' else 'approved',
                         'ecountStatus': 'approved' if d == 'approve' else 'excluded'})
             return 200, rec
@@ -80,13 +81,29 @@ def say(text, user=OWNER, reply_to=None):
 
 def test_card_text_matches_registry_shape():
     text = bot.card_text(ITEM)
-    assert text.splitlines()[0] == '🆕 이카운트 등록 승인 요청 — 새 품목'
+    assert text.splitlines()[0] == '🆕 등록 승인 요청 — 새 품목'                       # 5차 문구
     assert '20ℓ · 비료 · 판가 없음 · 구입가 15,000원' in text and '등록: 홍길동 (2026-10-12) · 견적 봇' in text
-    assert [b['callback_data'] for b in bot.card_buttons(ITEM)[0]] == ['ra:i:B05012', 'rr:i:B05012']
+    assert text.splitlines()[-1].endswith('(승인 전에는 쓰지 않음)')
+    assert [(b['text'], b['callback_data']) for b in bot.card_buttons(ITEM)[0]] == [
+        ('✅ 승인 (등록 + 이카운트)', 'ra:i:B05012'), ('❌ 반려', 'rr:i:B05012')]
     ev = bot.card_text(EVIDENCE)
-    assert '(증빙 자동 등록)' in ev and '증빙: 세금계산서 (2026-10-12) · 재고 봇 · 홍길동' in ev
-    assert [b['callback_data'] for row in bot.card_buttons(EVIDENCE) for b in row] == [
-        'ra:c:1234567890', 'rx:c:1234567890', 're:c:1234567890']
+    assert ev.splitlines()[0] == '🆕 이카운트 등록 승인 요청 — 새 거래처 (증빙 자동 등록)'
+    assert '증빙: 세금계산서 (2026-10-12) · 재고 봇 · 홍길동' in ev
+    assert [(b['text'], b['callback_data']) for row in bot.card_buttons(EVIDENCE) for b in row] == [
+        ('✅ 이카운트 등록 승인', 'ra:c:1234567890'), ('🚫 이카운트 제외', 'rx:c:1234567890'),
+        ('📄 증빙 보기', 're:c:1234567890')]
+
+
+def test_decided_labels():
+    both = {**ITEM, 'regStatus': 'approved', 'ecountStatus': 'approved',
+            'regDecision': {'decision': 'approve', 'target': 'registration', 'by': '조윤제'}}
+    assert bot.decided_text(both).splitlines()[0] == '✅ 승인 (등록 + 이카운트) — 새 품목'
+    assert bot.decided_text(both).splitlines()[-1] == '✅ 승인 (등록 + 이카운트) — 조윤제'
+    ev = {**EVIDENCE, 'ecountStatus': 'approved', 'regDecision': {'decision': 'approve', 'target': 'ecount', 'by': '조윤제'}}
+    assert bot.decided_text(ev).splitlines()[0] == '✅ 이카운트 등록 승인 — 새 거래처'
+    rej = {**ITEM, 'regStatus': 'rejected',
+           'regDecision': {'decision': 'reject', 'target': 'registration', 'by': '조윤제', 'comment': '중복'}}
+    assert bot.decided_text(rej).splitlines()[-1] == '❌ 반려 — 조윤제 · 사유: 중복'
 
 
 def test_card_sent_once_to_owners(env):
@@ -103,7 +120,7 @@ def test_approve_button_edits_cards(env):
     assert ('/internal/review', {'kind': 'item', 'id': 'B05012', 'decision': 'approve', 'comment': '',
                                  'by': '조윤제', 'byId': f'tg:{OWNER}'}) in calls
     edits = [p for m, p in sent if m == 'editMessageText']
-    assert edits and edits[0]['text'].startswith('✅ 이카운트 등록 승인 — 새 품목') and '— 조윤제' in edits[0]['text']
+    assert edits and edits[0]['text'].startswith('✅ 승인 (등록 + 이카운트) — 새 품목') and '— 조윤제' in edits[0]['text']
     press('ra:i:B05012')                                                 # 다시 누르면 이미 처리됨
     assert sent[-2][1]['text'].startswith('이미 처리됨: 품목 B05012')
 

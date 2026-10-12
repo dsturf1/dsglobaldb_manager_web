@@ -36,6 +36,7 @@ KIND = {'item': '품목', 'customer': '거래처'}
 KIND_KEY = {'item': 'i', 'customer': 'c'}
 KIND_OF = {'i': 'item', 'c': 'customer'}
 DECIDED = {'approve': '✅ 이카운트 등록 승인', 'reject': '❌ 반려', 'exclude': '🚫 이카운트 제외'}
+APPROVE_BOTH = '✅ 승인 (등록 + 이카운트)'   # (5차) 증빙 없는 요청 — 버튼 하나가 등록·이카운트 둘 다 승인
 ASK = {'reject': '❌ 반려', 'exclude': '🚫 이카운트 제외'}
 HELP = ('글로벌 DB 봇입니다. 품목·거래처 등록 승인 카드를 보냅니다.\n'
         '/pending — 지금 승인 대기 목록 (카드 다시 보내기)\n'
@@ -158,7 +159,9 @@ def card_text(rec):
             f"{rec.get('category') or '분류 없음'} · 대표 {rec.get('ceo') or '-'} · {rec.get('bizType') or '-'}/{rec.get('bizItem') or '-'}",
             f"증빙: {ev.get('docType', '')} ({(ev.get('readAt') or when)[:10]}) · {app_label(rec)} · {req.get('by', '')}",
             '거래처 등록은 끝났습니다. 이카운트에 올릴지 정해 주세요.'])
-    out = [f'🆕 이카운트 등록 승인 요청 — 새 {KIND[k]}', f"코드: {rec['code']} · {rec.get('name', '')}"]
+    requested = rec.get('regStatus') == 'requested'
+    head = '🆕 등록 승인 요청' if requested else '🆕 이카운트 등록 승인 요청'   # (5차) 승인 전에는 어느 앱도 쓰지 않음
+    out = [f'{head} — 새 {KIND[k]}', f"코드: {rec['code']} · {rec.get('name', '')}"]
     if k == 'item':
         out.append(f"{rec.get('unit') or '-'} · {rec.get('infoL1') or '-'} · 판가 {won(rec.get('OUT_PRICE1'))} · "
                    f"구입가 {won(rec.get('IN_PRICE'))}" + (f" · 구매처 {rec['vendors']}" if rec.get('vendors') else ''))
@@ -173,7 +176,7 @@ def card_text(rec):
         out.append('⚠️ 사업자번호 검증번호가 틀린 것을 맞다고 하고 등록함')
     if req.get('note'):
         out.append(f"메모: {req['note']}")
-    out.append('승인하면 등록이 확정되고 이카운트에 등록해도 됩니다. (이미 쓸 수 있음)' if rec.get('regStatus') == 'requested'
+    out.append('승인하면 등록이 확정되어 앱에서 쓸 수 있고, 이카운트에도 등록해도 됩니다. (승인 전에는 쓰지 않음)' if requested
                else '등록은 끝났습니다. 이카운트에 올릴지 정해 주세요.')
     return '\n'.join(out)
 
@@ -181,21 +184,23 @@ def card_text(rec):
 def card_buttons(rec):
     key = f"{KIND_KEY[rec['kind']]}:{rec['code']}"
     if rec.get('regStatus') == 'requested':
-        return [[button('✅ 이카운트 등록 승인', f'ra:{key}'), button('❌ 반려', f'rr:{key}')]]
+        return [[button(APPROVE_BOTH, f'ra:{key}'), button('❌ 반려', f'rr:{key}')]]
     row = [button('✅ 이카운트 등록 승인', f'ra:{key}'), button('🚫 이카운트 제외', f'rx:{key}')]
     return [row, [button('📄 증빙 보기', f're:{key}')]] if rec.get('regEvidence') else [row]
 
 
 def decided_text(rec):
-    """결정 뒤 카드 — `✅ 이카운트 등록 승인` / `❌ 반려 · 사유: …` / `🚫 이카운트 제외 · 사유: …`."""
+    """결정 뒤 카드 — `✅ 승인 (등록 + 이카운트)`(증빙 없는 요청) / `✅ 이카운트 등록 승인`(증빙 등록)
+    / `❌ 반려 · 사유: …` / `🚫 이카운트 제외 · 사유: …`."""
     d = rec.get('regDecision') or {}
     decision = d.get('decision', 'approve')
     if decision not in DECIDED:
         decision = 'approve'
+    label = APPROVE_BOTH if decision == 'approve' and d.get('target') == 'registration' else DECIDED[decision]
     pending_view = {**rec, 'regStatus': 'approved' if rec.get('regEvidence') else 'requested', 'ecountStatus': 'pending'}
     body = card_text(pending_view).split('\n')[1:-1]       # 머리와 마지막 안내 줄을 뺀다
-    tail = f"{DECIDED[decision]} — {d.get('by', '')}" + (f" · 사유: {d['comment']}" if d.get('comment') else '')
-    return '\n'.join([f"{DECIDED[decision]} — 새 {KIND[rec['kind']]}", *body, tail])
+    tail = f"{label} — {d.get('by', '')}" + (f" · 사유: {d['comment']}" if d.get('comment') else '')
+    return '\n'.join([f"{label} — 새 {KIND[rec['kind']]}", *body, tail])
 
 
 def already_text(rec, body):

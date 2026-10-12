@@ -25,10 +25,12 @@ const decisionsFor = (r) => {
   if (r.regStatus === 'approved' && r.ecountStatus === 'pending') return ['approve', 'exclude'];
   return [];
 };
+// 글로벌 DB 봇 카드와 같은 이름 (5차) — 증빙 없는 요청의 승인은 등록·이카운트 둘 다
+const approveLabel = (r) => (r.regStatus === 'requested' ? '✅ 승인 (등록 + 이카운트)' : '✅ 이카운트 등록 승인');
 const DECISION_BUTTONS = {
-  approve: { label: '이카운트 등록 승인', className: 'btn-success' },
-  reject: { label: '반려', className: 'btn-error' },
-  exclude: { label: '이카운트 제외', className: 'btn-warning' },
+  approve: { label: approveLabel, className: 'btn-success' },
+  reject: { label: () => '❌ 반려', className: 'btn-error' },
+  exclude: { label: () => '🚫 이카운트 제외', className: 'btn-warning' },
 };
 
 const formatTime = (iso) => (iso ? new Date(iso).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }) : '-');
@@ -59,7 +61,9 @@ export default function DSRegRequests() {
       comment = window.prompt(`${DECISION_LABELS[decision]} 사유를 적어 주세요 — ${r.code} ${r.name}`) ?? '';
       if (!comment.trim()) return;
     } else if (!window.confirm(`${r.code} ${r.name}
-이카운트 등록을 승인하시겠습니까?${r.regStatus === 'requested' ? ' (등록도 확정됩니다)' : ''}`)) {
+${r.regStatus === 'requested'
+    ? '등록과 이카운트 등록을 함께 승인하시겠습니까? 승인하면 요청한 앱에서 이 코드를 쓸 수 있습니다.'
+    : '이카운트 등록을 승인하시겠습니까?'}`)) {
       return;
     }
     setDeciding(`${r.kind}-${r.code}`);
@@ -85,7 +89,7 @@ export default function DSRegRequests() {
   const decisionButtons = (r, size = 'btn-xs') => decisionsFor(r).map(d => (
     <button key={d} className={`btn ${size} ${DECISION_BUTTONS[d].className} mr-1`} disabled={deciding !== null}
       onClick={(e) => { e.stopPropagation(); decide(r, d); }}>
-      {DECISION_BUTTONS[d].label}
+      {DECISION_BUTTONS[d].label(r)}
     </button>
   ));
 
