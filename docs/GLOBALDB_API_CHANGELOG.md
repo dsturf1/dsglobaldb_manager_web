@@ -16,7 +16,7 @@
 | **재고 관리** | 승인 카드·승인 탭을 끈다(`REG_APPROVER=gdb`) — 글로벌 DB 봇이 대신한다. 결과 알림은 `regrequests?app=inv` 5분 폴링. 요청서 6.3·6.5 (2026-10-13 항목) |
 | **텔레그램 봇** | 별칭으로 찾을 때 거래처 별칭(`{name, code, source}`)과 약품 별칭(문자열)의 형식이 다르다. 같은 이름의 거래처가 여럿일 수 있다(39개 이름) |
 
-**미리 알림**: 지금은 create API(`/…/create`)에 키가 없어도 받는다. 하지만 **곧 create에 키와 `request` 블록이 필수가 된다** (요청서 4.7의 4단계, 재고·견적 배포 뒤). 지금 키를 붙이면 요청한 앱(`regRequest.app`)으로 기록되고, 없으면 `unknown`으로 남는다.
+**알림 (2026-10-13)**: 약품·거래처 create(`/dschemical/create`, `/dscustomer/create`)는 이제 **키와 `request` 블록이 필수**다. 키가 없으면 403, `request`가 없으면 400이다. 창고 create와 `next-code`는 그대로 키 없이 된다.
 
 ---
 
@@ -39,6 +39,12 @@
 
 ## 3. 변경 이력
 
+### 2026-10-13 — create 에 키·request 필수 (요청서 6단계 F1)
+
+- **약품·거래처 create는 `x-api-key`와 `request` 블록이 필수다.** 키가 없거나 모르는 키면 `statusCode 403`, `request`가 없거나 `channel`이 `telegram`·`web`이 아니면 `statusCode 400`(`field: "request"`). 둘 다 내용 검사보다 먼저 보고, 저장하지 않는다.
+- 켜기 전 확인: 지난 3일 동안 키 없는 create 0건. 재고(`.env`)·견적(SSM `/quote-mg/prod/GLOBALDB_API_KEY`)·글로벌 DB 웹 모두 키와 `request`를 보낸다.
+- 그대로인 것: 창고 create(`/dswarehouse/create`), `GET /dschemical/next-code`, 모든 조회 — 키 없이 된다.
+
 ### 2026-10-13 — 승인은 글로벌 DB 봇·웹으로 (요청서 4차 개정)
 
 - **승인 창구가 재고에서 글로벌 DB로 옮겨졌다.** 승인 대기가 생기는 순간 **글로벌 DB 봇**(텔레그램)이 글로벌 DB 슈퍼관리자에게 카드를 보낸다. 글로벌 DB 웹 "등록 요청" 화면에서도 슈퍼관리자는 승인·반려·이카운트 제외를 할 수 있다. 어디서 결정하든 봇 카드가 결정 문구로 바뀐다.
@@ -50,7 +56,7 @@
 
 **create 는 이제 "등록 요청"** (가이드 5.1, 6장)
 - 새 약품·거래처에 `regStatus` `ecountStatus` `regRequest`가 붙는다. 코드는 지금처럼 바로 쓸 수 있다.
-- create 에 **`x-api-key`와 `request` 블록**(`{channel, by, byId, note, ref}`)을 붙인다. 지금은 없어도 받지만 `app = "unknown"`으로 남고, **곧 필수**가 된다.
+- create 에 **`x-api-key`와 `request` 블록**(`{channel, by, byId, note, ref}`)을 붙인다. (2026-10-13부터 필수 — 위 항목)
 - 거래처는 `evidence`(사업자등록증·세금계산서·영수증·견적서·거래명세서, 검증번호 통과, 올라온 파일)가 있으면 **바로 등록**(`regStatus = approved`). 응답에 `autoApproved`·`autoReason`.
 
 **새 API** (가이드 6.6) — 모두 API 키 필요

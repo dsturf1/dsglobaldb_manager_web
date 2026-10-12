@@ -3,6 +3,7 @@
     pip install "moto[dynamodb,s3]" pytest boto3
     pytest AWS/Lambda/dsglobaldbCreate
 """
+import hashlib
 import json
 import os
 from decimal import Decimal
@@ -16,18 +17,33 @@ os.environ.setdefault('AWS_DEFAULT_REGION', 'us-east-1')
 import lambda_function as lf  # noqa: E402
 
 
-def event(method, path, body=None, query=None):
-    return {'context': {'http-method': method, 'resource-path': path},
-            'body-json': body or {}, 'params': {'querystring': query or {}}}
+KEYS = {'inv': 'k-inv-test', 'quote': 'k-quote-test', 'web': 'k-web-test'}
+KEY_APPS = json.dumps({hashlib.sha256(v.encode()).hexdigest(): k for k, v in KEYS.items()})
+# 약품·거래처 create 는 키와 request 가 필수 (F1). 테스트 도우미는 request 가 없으면 기본값을 붙인다
+CREATE_PATHS = ('/dschemical/create', '/dscustomer/create')
+DEFAULT_REQ = {'channel': 'telegram', 'by': '테스트', 'byId': 'tg:0', 'note': '', 'ref': ''}
+
+
+def event(method, path, body=None, query=None, app='inv'):
+    body = dict(body or {})
+    if method == 'POST' and path in CREATE_PATHS:
+        body = {'request': DEFAULT_REQ, **body}
+    ev = {'context': {'http-method': method, 'resource-path': path},
+          'body-json': body, 'params': {'querystring': query or {}}}
+    if app:
+        ev['params']['header'] = {'X-Api-Key': KEYS[app]}
+    return ev
 
 
 def call(method, path, body=None, query=None):
+    """재고 키로 (create 는 request 기본값)."""
     res = lf.lambda_handler(event(method, path, body, query), None)
     return res['statusCode'], json.loads(res['body'])
 
 
 @pytest.fixture
-def aws():
+def aws(monkeypatch):
+    monkeypatch.setenv('KEY_APPS', KEY_APPS)
     with mock_aws():
         lf._resources.clear()
         ddb = boto3.resource('dynamodb', region_name='us-east-1')
@@ -601,23 +617,17 @@ def test_chemical_alias_validation(chem):
 
 # ---------------------------------------------------------------- 등록 요청 (gdb-request-registration-queue.md 4장)
 
-import hashlib  # noqa: E402
-
-KEYS = {'inv': 'k-inv-test', 'quote': 'k-quote-test', 'web': 'k-web-test'}
 VALID_BIZ = '2208162517'
 
 
 def keyed(method, path, body=None, query=None, app=None):
-    ev = event(method, path, body, query)
-    if app:
-        ev['params']['header'] = {'X-Api-Key': KEYS[app]}
-    res = lf.lambda_handler(ev, None)
+    """app 키로 (None 이면 키 없이)."""
+    res = lf.lambda_handler(event(method, path, body, query, app=app), None)
     return res['statusCode'], json.loads(res['body'])
 
 
 @pytest.fixture
 def reg(aws, monkeypatch):
-    monkeypatch.setenv('KEY_APPS', json.dumps({hashlib.sha256(v.encode()).hexdigest(): k for k, v in KEYS.items()}))
     for name, key in [(lf.CUSTOMER_HISTORY_TABLE, 'custcd'), (lf.CHEMICAL_HISTORY_TABLE, 'dsids')]:
         aws.create_table(TableName=name,
                          KeySchema=[{'AttributeName': key, 'KeyType': 'HASH'}, {'AttributeName': 'at', 'KeyType': 'RANGE'}],
@@ -638,10 +648,27 @@ def corp(**extra):
 REQ = {'channel': 'telegram', 'by': '홍길동', 'byId': 'tg:1', 'note': '', 'ref': 'inv#input-501'}
 
 
-def test_create_without_key_is_unknown_request(reg):
-    status, body = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'})
-    assert status == 201 and body['regStatus'] == 'requested' and body['ecountStatus'] == 'pending'
-    assert body['regRequest']['app'] == 'unknown' and body['autoApproved'] is False
+@pytest.mark.parametrize('path, body', [
+    ('/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}),
+    ('/dscustomer/create', {'custType': 'corp', 'bizNo': '2208162517', 'name': '(주)그린필드'}),
+])
+def test_create_requires_key_and_request(reg, monkeypatch, path, body):            # F1
+    status, res = keyed('POST', path, body)                                        # 키 없음
+    assert status == 403 and 'API 키' in res['message']
+    monkeypatch.setenv('KEY_APPS', json.dumps({'other': 'inv'}))                    # 모르는 키
+    assert keyed('POST', path, body, app='inv')[0] == 403
+    monkeypatch.setenv('KEY_APPS', KEY_APPS)
+    for bad in (None, {}, {'channel': 'fax', 'by': 'x'}, 'telegram'):              # request 없음·틀림
+        status, res = keyed('POST', path, {**body, 'request': bad}, app='quote')
+        assert status == 400 and res['field'] == 'request'
+    assert reg.Table(lf.CHEMICAL_TABLE).scan()['Items'] == [] and reg.Table(lf.CUSTOMER_TABLE).scan()['Items'] == []
+    assert keyed('POST', path, body, app='quote')[0] == 201
+    assert keyed('POST', path, {'name': ''})[0] == 403          # 내용이 틀려도 키 없으면 403 이 먼저
+
+
+def test_warehouse_and_preview_stay_open(wh):
+    assert keyed('GET', '/dschemical/next-code', query={'infoL1': '비료', 'name': 'x'})[0] == 200
+    assert keyed('POST', '/dswarehouse/create', {'whcd': '900', 'name': '키없는창고'})[0] == 201
 
 
 def test_create_records_app_from_key_and_request(reg):

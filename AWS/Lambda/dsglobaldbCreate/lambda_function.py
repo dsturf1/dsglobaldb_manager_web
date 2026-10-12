@@ -92,6 +92,7 @@ FILE_KEY_RE = re.compile(r'\d{4}/[0-9a-f]{32}\.(?:' + '|'.join(EVIDENCE_CONTENT_
 UPLOAD_URL_SECONDS = 600
 VIEW_URL_SECONDS = 3600
 REQUEST_FIELDS = ('channel', 'by', 'byId', 'note', 'ref')
+REQUEST_CHANNELS = ('telegram', 'web')
 REQUEST_TEXT_MAX = 300
 WEB_DECISION_BY = '글로벌 DB 웹'                 # 웹에서 만든 것은 승인 없이 확정 (4차)
 REVIEW_DECISIONS = ('approve', 'reject', 'exclude')
@@ -364,10 +365,11 @@ def preview_chemical_code(query):
 
 
 def create_chemical(body, app='unknown'):
-    item = _validate_chemical(body)
     now = _now()
+    request = request_block(body, app, now)              # 키·request 먼저 (없으면 내용과 상관없이 403/400)
+    item = _validate_chemical(body)
     item.update({'origin': 'local', 'createdAt': now, 'updatedAt': now,
-                 'regStatus': 'requested', 'ecountStatus': 'pending', 'regRequest': request_block(body, app, now)})
+                 'regStatus': 'requested', 'ecountStatus': 'pending', 'regRequest': request})
     if body.get('confirmSimilar') is True:
         item['regRequest']['confirmSimilar'] = True     # 승인 카드에 ⚠️ 한 줄
     web = _approve_if_web(item, app, now)
@@ -440,10 +442,11 @@ def _validate_customer(body):
 
 
 def create_customer(body, app='unknown'):
-    item = _validate_customer(body)
     now = _now()
+    request = request_block(body, app, now)              # 키·request 먼저 (없으면 내용과 상관없이 403/400)
+    item = _validate_customer(body)
     item.update({'origin': 'local', 'createdAt': now, 'updatedAt': now,
-                 'regStatus': 'requested', 'ecountStatus': 'pending', 'regRequest': request_block(body, app, now)})
+                 'regStatus': 'requested', 'ecountStatus': 'pending', 'regRequest': request})
     if item['custType'] == 'corp' and not is_valid_biz_no(item['custcd']):
         item['regRequest']['allowInvalidBizNo'] = True  # 검증번호가 틀린 채로 등록 (승인 카드에 ⚠️ 한 줄)
     evidence, reason = check_evidence(body, item)
@@ -793,7 +796,7 @@ def _key_apps():
 
 
 def app_of(event):
-    """요청한 앱 (inv/quote/web). 키가 없거나 모르는 키면 'unknown' — create 는 전환 기간이라 받는다."""
+    """요청한 앱 (inv/quote/web). 키가 없거나 모르는 키면 'unknown' (약품·거래처 create 는 403)."""
     headers = {k.lower(): v for k, v in ((event.get('params') or {}).get('header') or {}).items()}
     key = headers.get('x-api-key') or (event.get('context') or {}).get('api-key') or ''
     if not key:
@@ -809,14 +812,19 @@ def _required_app(event):
 
 
 def request_block(body, app, now):
-    """create 본문의 request → regRequest. app·at 은 서버가 정한다."""
-    request = body.get('request') if isinstance(body.get('request'), dict) else {}
+    """create 본문의 request → regRequest. app·at 은 서버가 정한다.
+    키와 request 는 필수다 (2026-10-13, 요청서 6단계 F1 — 전환 기간 끝)."""
+    if app == 'unknown':
+        print('거절: 키 없는 create')
+        raise ApiError(403, 'API 키(x-api-key)가 필요합니다. 앱별 키(globaldb-inv/quote/web)로 보내세요')
+    request = body.get('request')
+    if not isinstance(request, dict) or request.get('channel') not in REQUEST_CHANNELS:
+        print(f'거절: request 없는 create (app={app})')
+        raise ApiError(400, "request 블록이 필요합니다: {channel: 'telegram'|'web', by, byId, note, ref}", field='request')
     block = {'app': app, 'at': now}
     for field in REQUEST_FIELDS:
         value = request.get(field, '')
         block[field] = value.strip()[:REQUEST_TEXT_MAX] if isinstance(value, str) else ''
-    if app == 'unknown' or not request:
-        print(f"경고: 키 또는 request 없는 create (app={app}, request={'있음' if request else '없음'})")
     return block
 
 

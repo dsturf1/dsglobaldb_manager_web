@@ -211,7 +211,7 @@ create API로 만든 약품·거래처는 **등록 요청**입니다. 코드는 
 |---|---|---|
 | `regStatus` | `requested` / `approved` / `rejected` | **등록 승인** — 이 품목·거래처가 맞는가. **없으면 `approved`로 봅니다** (이카운트에서 온 것, 이전 데이터) |
 | `ecountStatus` | `pending` / `approved` / `excluded` | **이카운트 등록 승인** — 이카운트에 올려도 되는가. 없으면 `origin = ecount`는 해당 없음, `local`은 `approved`로 봅니다 |
-| `regRequest` | `{app, channel, by, byId, at, note, ref}` | 요청 정보. `app`(`inv` `quote` `web`, 키 없으면 `unknown`)은 **서버가 API 키로 정합니다**. 비슷한 품목 확인 후 등록은 `confirmSimilar: true`, 검증번호가 틀린 사업자번호는 `allowInvalidBizNo: true`가 붙습니다 |
+| `regRequest` | `{app, channel, by, byId, at, note, ref}` | 요청 정보. `app`(`inv` `quote` `web`)은 **서버가 API 키로 정합니다** (2026-10-13 이전 데이터에는 키 없이 만든 `unknown`이 있을 수 있음). 비슷한 품목 확인 후 등록은 `confirmSimilar: true`, 검증번호가 틀린 사업자번호는 `allowInvalidBizNo: true`가 붙습니다 |
 | `regEvidence` | `{docType, bizNo, fileKey, extracted, readAt, readBy}` | 거래처 증빙. **증빙으로 바로 등록된 거래처에만** 있습니다 |
 | `regDecision` | `{by, byId, at, comment, target, decision}` | 마지막 결정. `target`은 `registration`(등록) / `ecount`(이카운트 등록), `decision`은 `approve` `reject` `exclude`. 증빙 자동 등록은 `by: "증빙 자동"` |
 
@@ -225,7 +225,7 @@ create API로 만든 약품·거래처는 **등록 요청**입니다. 코드는 
 
 새 약품·거래처는 **이 API로만** 추가하세요. 웹도 같은 API를 씁니다. create는 **등록 요청**입니다([5.1](#51-등록-요청-상태-2026-10-12부터), [6.6](#66-등록-요청--증빙--승인)).
 
-- **`x-api-key` 헤더와 `request` 블록을 붙이세요.** 지금은 없어도 받지만 `regRequest.app = "unknown"`으로 기록되고, **곧 둘 다 필수가 됩니다**(날짜는 따로 알림).
+- **`x-api-key` 헤더와 `request` 블록이 필수입니다** (2026-10-13부터, 약품·거래처 create). 키가 없거나 틀리면 `statusCode 403`, `request`가 없거나 `channel`이 `telegram`·`web`이 아니면 `statusCode 400`(`field: "request"`)이고 저장하지 않습니다. 창고 create와 `next-code` 미리보기는 키가 필요 없습니다.
   ```json
   "request": { "channel": "telegram", "by": "홍길동", "byId": "tg:123456", "note": "", "ref": "inv#input-501" }
   ```
@@ -373,7 +373,7 @@ POST /dswarehouse/create
 **API 키**: update·alias 요청에는 `x-api-key` 헤더가 필요합니다. 키가 없거나 틀리면 API Gateway가 **HTTP 403**(`{"message":"Forbidden"}`)을 돌려줍니다. 이때는 Lambda까지 가지 않아서, 다른 오류처럼 `statusCode` 래핑이 없습니다.
 - 키는 앱마다 따로 발급합니다: `globaldb-inv`(재고), `globaldb-quote`(견적), `globaldb-web`(글로벌 DB 웹). 관리자에게 받아 서버의 `.env`에만 두고, 코드·문서·커밋에는 넣지 마세요.
 - 앱별로 키를 끌 수 있습니다. 키가 새어 나가면 관리자에게 알려 주세요.
-- 조회(GET)와 create API에는 아직 키가 필요 없습니다.
+- 조회(GET)에는 키가 필요 없습니다. **약품·거래처 create에는 키가 필요합니다**(6장).
 
 #### 6.4.1 정보 부분 수정 — `POST /dscustomer/update`
 
