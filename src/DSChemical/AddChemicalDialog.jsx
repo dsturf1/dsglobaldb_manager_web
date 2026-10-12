@@ -73,8 +73,8 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
         return;
       }
       setGlobalChemicals(prev => [...prev, body]);
-      alert(`등록 요청했습니다: ${body.dsids} ${body.name}
-코드는 바로 쓸 수 있습니다. 등록 확인과 이카운트 등록은 재고 슈퍼관리자 승인 뒤에 합니다.`);
+      alert(`추가했습니다: ${body.dsids} ${body.name}
+글로벌 DB 웹에서 만든 것은 승인 없이 확정됩니다. 이카운트에 등록한 뒤 [이카운트 비교]에서 등록 완료로 반영하세요.`);
       handleClose();
     } catch (error) {
       console.error('Failed to add chemical:', error);

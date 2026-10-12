@@ -3,7 +3,7 @@
 외부 앱과 텔레그램 봇에서 글로벌 DB의 **약품**과 **거래처** 데이터를 읽어 쓰기 위한 안내입니다.
 데이터는 이 저장소의 웹(dsglobaldb_manager)에서 관리하고, 외부에서는 아래 API로 읽습니다.
 
-> 2026-10-12 기준. 약품 약 660건, 거래처 1,486건, 창고 19건. 새로 추가는 create API(6장) — **등록 요청**이며 승인은 재고 슈퍼관리자가 한다(6.6). 수정·별칭은 update/alias API(6.4 거래처, 6.5 약품)로 한다.
+> 2026-10-13 기준. 약품 약 660건, 거래처 1,486건, 창고 19건. 새로 추가는 create API(6장) — **등록 요청**이며 승인은 글로벌 DB 슈퍼관리자가 글로벌 DB 봇·웹에서 한다(6.6). 수정·별칭은 update/alias API(6.4 거래처, 6.5 약품)로 한다.
 > 무엇이 언제 바뀌었는지는 [GLOBALDB_API_CHANGELOG.md](GLOBALDB_API_CHANGELOG.md)에 있다.
 
 ---
@@ -205,7 +205,7 @@ def unwrap(res_json):
 
 ### 5.1 등록 요청 상태 (2026-10-12부터)
 
-create API로 만든 약품·거래처는 **등록 요청**입니다. 코드는 바로 쓸 수 있고, 승인은 재고 시스템 슈퍼관리자가 합니다([6.6](#66-등록-요청--증빙--승인)).
+create API로 만든 약품·거래처는 **등록 요청**입니다. 코드는 바로 쓸 수 있고, 승인은 **글로벌 DB 슈퍼관리자**가 **글로벌 DB 봇**(텔레그램)이나 **글로벌 DB 웹 "등록 요청"** 화면에서 합니다([6.6](#66-등록-요청--증빙--승인)). 글로벌 DB 웹에서 만든 것은 승인 없이 확정됩니다.
 
 | 필드 | 값 | 뜻 |
 |---|---|---|
@@ -231,7 +231,9 @@ create API로 만든 약품·거래처는 **등록 요청**입니다. 코드는 
   ```
   `channel`은 `telegram` / `web`, `byId`는 Cognito sub 또는 `tg:<텔레그램 id>`, `ref`는 요청한 앱의 원본(`inv#input-501`, `quote#Q2026-0123`)입니다.
 - 새 항목은 `regStatus: requested`, `ecountStatus: pending`으로 만들어집니다. 거래처는 증빙 조건(6.2)을 채우면 `regStatus: approved`로 바로 등록됩니다.
-- `201` 응답에는 저장된 레코드에 더해 `autoApproved`(증빙으로 바로 등록됐는지)와 `autoReason`(아니라면 이유)이 들어 있습니다. 이 두 값은 저장되는 필드가 아닙니다.
+- **글로벌 DB 웹 키(`globaldb-web`)로 만든 것은 승인 없이** `regStatus`·`ecountStatus` 둘 다 `approved`, `regDecision.by = "글로벌 DB 웹"`으로 만들어집니다 (2026-10-13).
+- 승인 대기가 생기면 그 순간 **글로벌 DB 봇**이 슈퍼관리자에게 승인 카드를 보냅니다. 요청한 앱은 아무것도 보내지 않아도 됩니다.
+- `201` 응답에는 저장된 레코드에 더해 `autoApproved`(증빙·글로벌 DB 웹으로 바로 등록됐는지)와 `autoReason`(그 이유, 또는 승인이 필요한 이유)이 들어 있습니다. 이 두 값은 저장되는 필드가 아닙니다.
 
 - **코드는 서버가 정합니다.** 보낸 `dsids`·`custcd`(개인), `origin`, `createdAt`, `ecountSyncedAt`은 무시됩니다.
 - **이미 있는 코드는 절대 덮어쓰지 않습니다.** 동시에 추가해도 서로 다른 코드를 받습니다.
@@ -505,9 +507,17 @@ POST /dschemical/alias
 |---|---|---|
 | `POST /dscustomer/evidence-upload` | 증빙 파일 올릴 주소 받기 | **필요** (모든 앱 키) |
 | `GET /regrequests` | 등록 요청 목록 (약품·거래처 함께) | **필요** (모든 앱 키) |
-| `POST /dschemical/review` · `POST /dscustomer/review` | 승인 · 반려 · 이카운트 제외 | **`globaldb-inv` 키만** — 다른 키는 `statusCode 403` |
+| `POST /dschemical/review` · `POST /dscustomer/review` | 승인 · 반려 · 이카운트 제외 | **임시로 `globaldb-inv` 키만** — 재고가 승인을 끄면 **외부 키 전부 403** |
 
-키가 없으면 API Gateway가 HTTP 403을 돌려줍니다(6.4와 같음). 승인은 **재고 시스템 슈퍼관리자**만 합니다. 슈퍼관리자인지는 재고 앱이 확인합니다.
+키가 없으면 API Gateway가 HTTP 403을 돌려줍니다(6.4와 같음).
+
+**승인은 글로벌 DB 안에서 합니다** (2026-10-13). 승인자는 **글로벌 DB 슈퍼관리자**이고, 창구는 **글로벌 DB 봇**(텔레그램)과 **글로벌 DB 웹 "등록 요청"** 화면 두 곳입니다. 어디서 결정하든 봇 카드는 결정 문구로 바뀝니다. 재고·견적 같은 외부 앱은 승인하지 않습니다 — review API의 재고 키는 재고 봇 승인 카드를 끌 때까지만 받습니다.
+
+**요청 결과 알리기** — 요청한 앱이 자기 요청자에게 알립니다. 글로벌 DB 봇은 요청자에게 보내지 않습니다.
+```http
+GET /regrequests?app=<자기 앱: inv|quote>&changedSince=<마지막으로 받은 updatedAt>
+```
+`regDecision`이 새로 생긴 줄마다 요청자(`regRequest.byId`가 `tg:<번호>`면 그 사람)에게 결과를 보내고, 받은 줄 중 가장 늦은 `updatedAt`을 저장해 다음에 보냅니다. 5분 간격이면 충분합니다.
 
 #### 6.6.1 증빙 파일 올리기 — `POST /dscustomer/evidence-upload`
 
@@ -542,7 +552,9 @@ evidence = {'docType': '세금계산서', 'bizNo': biz_no, 'fileKey': r['fileKey
   - 품목: `unit` `infoL1` `infoL2` `infoL3` `vendors` `IN_PRICE` `OUT_PRICE` `OUT_PRICE1`
   - 거래처: `custType` `bizNo`(법인) `category` `ceo` `bizType` `bizItem`, 증빙이 있으면 `regEvidence`(+ `viewUrl`)
 
-#### 6.6.3 결정 — `POST /dschemical/review` · `POST /dscustomer/review` (재고 키만)
+#### 6.6.3 결정 — `POST /dschemical/review` · `POST /dscustomer/review` (임시: 재고 키만)
+
+글로벌 DB 봇·웹도 같은 규칙으로 결정합니다. 아래 표는 결정 규칙 참고용입니다.
 
 ```json
 POST /dscustomer/review

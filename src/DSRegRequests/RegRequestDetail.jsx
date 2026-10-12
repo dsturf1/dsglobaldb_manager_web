@@ -34,7 +34,7 @@ function Evidence({ evidence }) {
   );
 }
 
-export default function RegRequestDetail({ request, onClose, onChanged }) {
+export default function RegRequestDetail({ request, onClose, onChanged, decisionButtons }) {
   const { globalChemicals, setGlobalChemicals, updateGlobalChemical } = useGlobalComponent();
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [editingChemical, setEditingChemical] = useState(null);
@@ -146,12 +146,13 @@ export default function RegRequestDetail({ request, onClose, onChanged }) {
                     {' '}· {r.regDecision.by} · {formatTime(r.regDecision.at)}
                     {r.regDecision.comment && <><br />사유: {r.regDecision.comment}</>}
                   </p>
-                ) : <p className="text-gray-500">아직 없음 — 재고 슈퍼관리자가 결정합니다</p>}
+                ) : <p className="text-gray-500">아직 없음 — 글로벌 DB 슈퍼관리자가 결정합니다</p>}
               </section>
             </div>
           </div>
 
           <div className="modal-action">
+            {decisionButtons && decisionButtons.length > 0 && <div className="mr-auto">{decisionButtons}</div>}
             <button className="btn btn-outline" onClick={openEdit} disabled={isOpening}>
               {isOpening ? '여는 중...' : '정보 수정'}
             </button>

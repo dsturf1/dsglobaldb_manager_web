@@ -19,8 +19,13 @@ API Gateway jyipsj28s9 (패스스루 매핑 템플릿, 인증 없음)
     거래처는 증빙(evidence)이 조건을 모두 채우면 바로 등록(regStatus=approved), 아니면 requested.
     POST /dscustomer/evidence-upload   증빙 파일 올릴 주소 (S3 presigned PUT, 10분)          — 키 필요
     GET  /regrequests                  등록 요청 목록 (?pending=&kind=&app=&changedSince=)  — 키 필요
-    POST /dschemical/review            승인·반려·이카운트 제외                               — globaldb-inv 키만
+    POST /dschemical/review            승인·반려·이카운트 제외                               — globaldb-inv 키만 (임시, 재고 봇)
     POST /dscustomer/review
+    GET  /regreview                    웹 로그인 사람이 승인자인지 (Cognito 권한 부여자)
+    POST /regreview                    웹 승인 — 글로벌 DB 슈퍼관리자(GDB_OWNER_EMAILS)만     (Cognito 권한 부여자)
+    (4차) 글로벌 DB 웹(app=web)에서 만든 것은 승인 없이 확정. 승인 대기가 생기거나 결정이 나면 봇 Lambda
+    (GDB_BOT_FUNCTION)를 비동기로 불러 슈퍼관리자 카드를 보내거나 고친다.
+    /internal/*  봇 Lambda 가 이 Lambda 를 직접 호출할 때만 (API Gateway 에 없는 경로라 밖에서는 못 부름)
 
 기존 /dschemical, /dscustomer 의 GET/POST/PUT/DELETE 는 그대로 두고, 추가만 이 Lambda 가 맡는다.
 모든 쓰기는 attribute_not_exists 조건부 put 이라 기존 레코드를 덮어쓰지 않는다.
@@ -88,7 +93,8 @@ UPLOAD_URL_SECONDS = 600
 VIEW_URL_SECONDS = 3600
 REQUEST_FIELDS = ('channel', 'by', 'byId', 'note', 'ref')
 REQUEST_TEXT_MAX = 300
-REVIEW_APP = 'inv'                               # 승인은 재고 슈퍼관리자 (재고 앱 키로만)
+REVIEW_APP = 'inv'                               # 임시: 재고 봇 승인 (재고 승인을 끄면 외부 키 전부 403)
+WEB_DECISION_BY = '글로벌 DB 웹'                 # 웹에서 만든 것은 승인 없이 확정 (4차)
 REVIEW_DECISIONS = ('approve', 'reject', 'exclude')
 
 _resources = {}
@@ -147,6 +153,10 @@ def lambda_handler(event, context):
             return respond(200, update_aliases(ent, event.get('body-json') or {}))
         if ent and method == 'POST' and action == 'review':
             return respond(200, review_record(ent, event.get('body-json') or {}, _required_app(event)))
+        if path == '/regreview':
+            return respond(200, web_review(method, event))
+        if path.startswith('/internal/'):
+            return respond(200, internal(path, event.get('body-json') or {}))
         if ent and method == 'GET' and action == 'history':
             query = event.get('params', {}).get('querystring', {})
             return respond(200, record_history(ent, query.get('id') or ''))
@@ -361,6 +371,7 @@ def create_chemical(body, app='unknown'):
                  'regStatus': 'requested', 'ecountStatus': 'pending', 'regRequest': request_block(body, app, now)})
     if body.get('confirmSimilar') is True:
         item['regRequest']['confirmSimilar'] = True     # 승인 카드에 ⚠️ 한 줄
+    web = _approve_if_web(item, app, now)
     table, taken = _table(CHEMICAL_TABLE), _ecount_codes()
 
     chemicals = _scan_chemicals(table)
@@ -378,7 +389,8 @@ def create_chemical(body, app='unknown'):
         item['dsids'] = next_chemical_code(item['infoL1'], item['name'], chemicals, taken)
         if _put_new(table, 'dsids', item):
             _log_created(ENTITIES['dschemical'], item)
-            return {**item, 'autoApproved': False, 'autoReason': '품목은 승인이 필요합니다'}
+            notify_bot('card', 'item', item)
+            return {**item, 'autoApproved': web, 'autoReason': WEB_DECISION_BY if web else '품목은 승인이 필요합니다'}
     raise ApiError(503, '동시에 추가하는 요청이 많아 코드를 정하지 못했습니다. 잠시 후 다시 시도하세요')
 
 
@@ -440,10 +452,14 @@ def create_customer(body, app='unknown'):
         item.update({'regStatus': 'approved', 'regEvidence': evidence,
                      'regDecision': {'by': '증빙 자동', 'byId': '', 'at': now, 'comment': '', 'target': 'registration',
                                      'decision': 'approve'}})
+    web = _approve_if_web(item, app, now)
     table = _table(CUSTOMER_TABLE)
 
     def created(saved):
         _log_created(ENTITIES['dscustomer'], saved)
+        notify_bot('card', 'customer', saved)
+        if web:
+            return {**saved, 'autoApproved': True, 'autoReason': WEB_DECISION_BY}
         return {**saved, 'autoApproved': bool(evidence), 'autoReason': reason}
 
     if item['custType'] == 'corp':
@@ -958,9 +974,16 @@ def _stale(ent, key_value):
 
 
 def review_record(ent, body, app):
-    """슈퍼관리자 결정 (재고 앱 키만). 반려·제외는 comment 필수. 반려하면 active = N (지우지 않음)."""
+    """외부 API 결정 — 임시로 재고 키만 (재고 봇 승인 카드). 재고 승인을 끄면 외부 키 전부 403."""
     if app != REVIEW_APP:
-        raise ApiError(403, '승인은 재고 시스템 슈퍼관리자만 할 수 있습니다 (globaldb-inv 키)')
+        raise ApiError(403, '승인은 글로벌 DB 슈퍼관리자가 글로벌 DB 봇·웹에서 합니다')
+    return decide(ent, body, app)
+
+
+def decide(ent, body, channel):
+    """결정 (봇·웹·재고 공통). 반려·제외는 comment 필수. 반려하면 active = N (지우지 않음).
+    channel 은 updatedBy 앞에 붙는다 (inv / gdb-bot / gdb-web)."""
+    app = channel
     key_value = _text(body, 'id')
     if not key_value:
         raise ApiError(400, 'id 는 필수입니다', field='id')
@@ -1003,4 +1026,85 @@ def review_record(ent, body, app):
 
     print(f"review {ent['key']}={key_value} decision={decision} target={target} by={app}:{by}")
     _write_history(ent, key_value, f'{app}:{by}', 'review', changes)
+    notify_bot('decided', _kind_of(ent), saved)
     return saved
+
+
+# ---------------------------------------------------------------- 4차: 글로벌 DB 봇 · 웹 승인
+
+def _approve_if_web(item, app, now):
+    """글로벌 DB 웹에서 만든 것은 승인 없이 확정 (등록·이카운트 둘 다)."""
+    if app != 'web':
+        return False
+    item.update({'regStatus': 'approved', 'ecountStatus': 'approved',
+                 'regDecision': {'by': WEB_DECISION_BY, 'byId': item['regRequest'].get('byId', ''), 'at': now,
+                                 'comment': '', 'target': 'registration', 'decision': 'approve'}})
+    return True
+
+
+def _kind_of(ent):
+    return 'customer' if ent['key'] == 'custcd' else 'item'
+
+
+def _entity(kind):
+    if kind not in ('item', 'customer'):
+        raise ApiError(400, 'kind 는 item 또는 customer 입니다', field='kind')
+    return ENTITIES['dschemical' if kind == 'item' else 'dscustomer']
+
+
+def _lambda():
+    if 'lambda' not in _resources:
+        _resources['lambda'] = boto3.client('lambda', region_name='us-east-1')
+    return _resources['lambda']
+
+
+def notify_bot(action, kind, record):
+    """봇 Lambda 를 비동기로 부른다. card = 승인 대기면 카드 보내기, decided = 보낸 카드를 결정 문구로.
+    봇이 없거나 실패해도 저장·결정은 그대로 끝난다 (로그만)."""
+    function = os.environ.get('GDB_BOT_FUNCTION')
+    if not function:
+        return
+    row = _request_row(kind, record)
+    if action == 'card' and not _is_pending(row, 'any'):
+        return
+    try:
+        _lambda().invoke(FunctionName=function, InvocationType='Event',
+                         Payload=json.dumps({'action': action, 'row': row}, default=_json_default, ensure_ascii=False).encode())
+    except Exception as e:  # noqa: BLE001
+        print(f"봇 알림 실패 action={action} {kind}={row['code']}: {type(e).__name__} {e}")
+
+
+def _owner_emails():
+    return {e.strip().lower() for e in os.environ.get('GDB_OWNER_EMAILS', '').split(',') if e.strip()}
+
+
+def web_review(method, event):
+    """웹 승인 — API Gateway Cognito 권한 부여자가 확인한 로그인 사람(claims)이 슈퍼관리자일 때만.
+    GET: {isOwner, email} / POST {kind, id, decision, comment, expectedUpdatedAt}: 결정."""
+    ctx = event.get('context') or {}
+    email = (ctx.get('claims-email') or '').strip().lower()
+    if not email:
+        raise ApiError(401, '로그인이 필요합니다')
+    is_owner = email in _owner_emails()
+    if method == 'GET':
+        return {'isOwner': is_owner, 'email': email}
+    if method != 'POST':
+        raise ApiError(405, f'Method not allowed: {method}')
+    if not is_owner:
+        raise ApiError(403, '승인은 글로벌 DB 슈퍼관리자만 할 수 있습니다')
+    body = dict(event.get('body-json') or {})
+    body['by'] = (ctx.get('claims-name') or '').strip() or email
+    body['byId'] = ctx.get('claims-sub') or ''
+    return decide(_entity(_text(body, 'kind')), body, 'gdb-web')
+
+
+def internal(path, body):
+    """봇 Lambda 전용 (Lambda 직접 호출). request: 한 건 / pending: 승인 대기 / review: 봇에서 결정."""
+    if path == '/internal/pending':
+        return [r for r in list_requests({'pending': 'any'})]
+    ent = _entity(_text(body, 'kind'))
+    if path == '/internal/request':
+        return _request_row(_kind_of(ent), _get_record(ent, _text(body, 'id')))
+    if path == '/internal/review':
+        return _request_row(_kind_of(ent), decide(ent, body, 'gdb-bot'))
+    raise ApiError(404, f'없는 내부 경로: {path}')

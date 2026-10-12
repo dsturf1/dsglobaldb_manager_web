@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { fetchUserAttributes } from 'aws-amplify/auth';
+import { fetchAuthSession, fetchUserAttributes } from 'aws-amplify/auth';
 import { WRITE_HEADERS } from './globaldbWriteHeaders';
 
 /**
@@ -7,7 +7,8 @@ import { WRITE_HEADERS } from './globaldbWriteHeaders';
  * 코드는 서버가 정하고, 이미 있는 코드는 덮어쓰지 않는다.
  * 약품은 비슷한 이름·같은 이름+같은 용량이 있으면 409(reason=similar) → 사용자 확인 후 confirmSimilar 로 다시 보낸다.
  * create 는 등록 요청이다 (docs/gdb-request-registration-queue.md): 웹 키 + request 블록을 붙이면
- * 서버가 regStatus·ecountStatus·regRequest(app=web)를 정한다. 승인은 재고 슈퍼관리자가 한다.
+ * 서버가 regStatus·ecountStatus·regRequest(app=web)를 정한다. 웹에서 만든 것은 승인 없이 확정된다 (4차).
+ * 재고·견적에서 온 요청의 승인은 글로벌 DB 슈퍼관리자가 글로벌 DB 봇이나 '등록 요청' 화면에서 한다.
  */
 const apiClient = axios.create({
   baseURL: 'https://jyipsj28s9.execute-api.us-east-1.amazonaws.com/dev',
@@ -80,6 +81,25 @@ export const fetchRegRequests = async (query = {}) => {
   if (status >= 400) throw new Error(body?.message || `등록 요청 목록을 불러오지 못했습니다 (status ${status})`);
   return body;
 };
+
+// ---- 승인 (글로벌 DB 슈퍼관리자만) — 로그인 토큰(Cognito)을 API Gateway 가 확인한다 ----
+const authHeaders = async () => {
+  const token = (await fetchAuthSession()).tokens?.idToken?.toString();
+  if (!token) throw new Error('로그인 정보를 읽지 못했습니다. 다시 로그인해 주세요.');
+  return { Authorization: token };
+};
+
+// { isOwner, email } — 승인 버튼을 보일지
+export const fetchReviewer = async () => {
+  const { status, body } = unwrap(await apiClient.get('/regreview', { headers: await authHeaders() }));
+  if (status !== 200) throw new Error(body?.message || `승인 권한을 확인하지 못했습니다 (status ${status})`);
+  return body;
+};
+
+// 결정 → { status: 200 | 409(decided/stale) | 422 | 400 | 403, body }
+export const reviewRequest = async ({ kind, code, decision, comment = '', expectedUpdatedAt }) =>
+  unwrap(await apiClient.post('/regreview', { kind, id: code, decision, comment, expectedUpdatedAt },
+    { headers: await authHeaders() }));
 
 // 409 similar 응답 → 확인 창 문구
 export const describeSimilar = ({ sameName = [], sameUnit, similar = [] }) => {

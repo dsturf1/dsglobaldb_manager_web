@@ -1,7 +1,7 @@
 # 글로벌 DB API 변경 이력 · 공유 프로젝트 안내
 
 > **받는 곳**: 글로벌 DB API(`jyipsj28s9 … /dev`)를 쓰는 모든 프로젝트 — 견적 시스템(`quotation mg`), 재고 관리(`inv mg`), 텔레그램 봇, 그 밖의 외부 앱
-> **보낸 곳**: `dsglobaldb_manager` · 최종 갱신 **2026-10-12**
+> **보낸 곳**: `dsglobaldb_manager` · 최종 갱신 **2026-10-13**
 > 이 문서를 각 프로젝트의 `docs/`에 복사해 두고, 그 저장소의 Claude Code가 읽고 반영할 것을 정하면 된다. 새로 바뀌면 이 문서의 맨 위에 추가한다.
 > 자세한 요청·응답 형식은 `EXTERNAL_API_GUIDE.md`(같이 복사할 것). 그 문서에만 Base URL이 있다.
 
@@ -12,15 +12,15 @@
 | 프로젝트 | 해야 할 일 |
 |---|---|
 | **읽기만 하는 앱** | 깨지는 변경은 없다. 다만 3장의 **새 필드**를 무시하도록 되어 있는지 확인한다. 특히 거래처 별칭의 `code`가 빈 문자열일 수 있다 |
-| **견적 시스템** | create에 키(`globaldb-quote`)와 `request` 블록을 붙이고, 이카운트 승인 단계를 재고로 넘긴다 — 요청서 `gdb-request-registration-queue.md` 7장 (2026-10-12 항목). 409(`similar`)·422 처리도 확인 |
-| **재고 관리** | 등록 요청 승인 창구가 된다 — `GET /regrequests` 폴링, `review` API(재고 키만), 증빙 자동 등록. 요청서 6장 (2026-10-12 항목) |
+| **견적 시스템** | create에 키(`globaldb-quote`)와 `request` 블록을 붙이고, 견적 안의 이카운트 승인 단계를 없앤다(승인 카드는 글로벌 DB 봇이 보냄). 결과는 `regrequests?app=quote` 폴링으로 알린다 — 요청서 7장 (2026-10-12·13 항목) |
+| **재고 관리** | 승인 카드·승인 탭을 끈다(`REG_APPROVER=gdb`) — 글로벌 DB 봇이 대신한다. 결과 알림은 `regrequests?app=inv` 5분 폴링. 요청서 6.3·6.5 (2026-10-13 항목) |
 | **텔레그램 봇** | 별칭으로 찾을 때 거래처 별칭(`{name, code, source}`)과 약품 별칭(문자열)의 형식이 다르다. 같은 이름의 거래처가 여럿일 수 있다(39개 이름) |
 
 **미리 알림**: 지금은 create API(`/…/create`)에 키가 없어도 받는다. 하지만 **곧 create에 키와 `request` 블록이 필수가 된다** (요청서 4.7의 4단계, 재고·견적 배포 뒤). 지금 키를 붙이면 요청한 앱(`regRequest.app`)으로 기록되고, 없으면 `unknown`으로 남는다.
 
 ---
 
-## 2. 지금의 API 한눈에 보기 (2026-10-12)
+## 2. 지금의 API 한눈에 보기 (2026-10-13)
 
 모든 응답은 HTTP 200 + `{statusCode, body}`이고 `body`는 JSON 문자열이다. 예외는 **API 키가 없거나 틀린 경우의 HTTP 403**뿐이다(이때는 래핑이 없다).
 
@@ -30,14 +30,21 @@
 | 거래처 | `GET /dscustomer` | `POST /dscustomer/create` | `POST /dscustomer/update`, `/dscustomer/alias` | `GET /dscustomer/history?id=` | 웹 전용 |
 | 창고 | `GET /dswarehouse` | `POST /dswarehouse/create` | (없음) | (없음) | 웹 전용 |
 
-- **등록 요청** (모두 키 필요): `POST /dscustomer/evidence-upload`(증빙 파일), `GET /regrequests`(목록), `POST /dschemical/review`·`/dscustomer/review`(승인 — **재고 키만**).
-- **외부 앱이 쓸 수 있는 것**: 조회, create, update/alias, evidence-upload, regrequests. review는 재고만.
+- **등록 요청** (모두 키 필요): `POST /dscustomer/evidence-upload`(증빙 파일), `GET /regrequests`(목록), `POST /dschemical/review`·`/dscustomer/review`(임시로 **재고 키만** — 곧 외부 키 전부 403). 승인은 글로벌 DB 봇·웹에서.
+- **외부 앱이 쓸 수 있는 것**: 조회, create, update/alias, evidence-upload, regrequests. review는 재고 승인을 끌 때까지만 재고 키로.
 - **웹 전용**: 전체 덮어쓰기 `PUT/POST /dschemical`·`/dscustomer`·`/dswarehouse`와 `DELETE`. 외부 앱은 쓰지 않는다. 덮어쓰기라 다른 수정을 지울 수 있다.
 - **API 키**: `x-api-key` 헤더에 넣는다. 앱마다 따로 발급하고(`globaldb-inv`·`globaldb-quote`·`globaldb-web`), 관리자에게 받아 서버 `.env`에만 둔다. 코드·문서·커밋에 넣지 않는다. 키가 새어 나가면 관리자가 그 키만 끈다.
 
 ---
 
 ## 3. 변경 이력
+
+### 2026-10-13 — 승인은 글로벌 DB 봇·웹으로 (요청서 4차 개정)
+
+- **승인 창구가 재고에서 글로벌 DB로 옮겨졌다.** 승인 대기가 생기는 순간 **글로벌 DB 봇**(텔레그램)이 글로벌 DB 슈퍼관리자에게 카드를 보낸다. 글로벌 DB 웹 "등록 요청" 화면에서도 슈퍼관리자는 승인·반려·이카운트 제외를 할 수 있다. 어디서 결정하든 봇 카드가 결정 문구로 바뀐다.
+- **글로벌 DB 웹에서 만든 것은 승인 없이 확정** — `regStatus`·`ecountStatus` 둘 다 `approved`, `regDecision.by = "글로벌 DB 웹"`. 응답의 `autoApproved = true`, `autoReason = "글로벌 DB 웹"`.
+- **요청 결과는 요청한 앱이 알린다** — `GET /regrequests?app=<자기>&changedSince=<마지막>` 폴링 (가이드 6.6).
+- review API의 재고 키는 **임시**다. 재고가 승인 카드를 끄면(`REG_APPROVER=gdb`) 외부 키는 전부 403이 된다. 그 전까지는 재고 봇과 글로벌 DB 봇이 둘 다 카드를 보내지만, 결정은 한 번만 된다(나중에 누른 쪽은 `409 decided`).
 
 ### 2026-10-12 — 등록 요청 · 증빙 자동 등록 · 승인 (docs/gdb-request-registration-queue.md 1단계)
 

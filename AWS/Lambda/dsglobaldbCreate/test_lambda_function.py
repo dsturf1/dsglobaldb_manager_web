@@ -747,7 +747,7 @@ def test_review_reject_deactivates(reg):
 
 
 def test_review_exclude_requested_keeps_registration(reg):
-    _, cust = keyed('POST', '/dscustomer/create', corp(), app='web')
+    _, cust = keyed('POST', '/dscustomer/create', corp(), app='quote')
     status, body = review('dscustomer', {'id': cust['custcd'], 'decision': 'exclude', 'comment': '한 번만 거래'})
     assert status == 200 and body['regStatus'] == 'approved' and body['ecountStatus'] == 'excluded'
     assert body['active'] == 'Y'
@@ -775,3 +775,97 @@ def test_effective_status_defaults():
     assert lf.effective_status({'origin': 'ecount'}) == ('approved', None)
     assert lf.effective_status({'origin': 'local'}) == ('approved', 'approved')
     assert lf.effective_status({'regStatus': 'requested', 'ecountStatus': 'pending'}) == ('requested', 'pending')
+
+
+# ---------------------------------------------------------------- 4차: 웹 승인 없음 · 봇 알림 · 웹 승인 · 내부 경로
+
+def test_web_create_is_approved_without_review(reg):
+    status, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료', 'request': REQ}, app='web')
+    assert status == 201 and item['regStatus'] == 'approved' and item['ecountStatus'] == 'approved'
+    assert item['regDecision']['by'] == '글로벌 DB 웹' and item['autoApproved'] is True and item['autoReason'] == '글로벌 DB 웹'
+    _, cust = keyed('POST', '/dscustomer/create', corp(), app='web')
+    assert cust['regStatus'] == 'approved' and cust['ecountStatus'] == 'approved' and cust['autoApproved'] is True
+    assert keyed('GET', '/regrequests', query={'pending': 'any'}, app='web')[1] == []
+
+
+@pytest.fixture
+def bot_calls(reg, monkeypatch):
+    calls = []
+
+    class FakeLambda:
+        def invoke(self, FunctionName, InvocationType, Payload):
+            calls.append((FunctionName, InvocationType, json.loads(Payload)))
+
+    monkeypatch.setenv('GDB_BOT_FUNCTION', 'dsglobaldbBot')
+    monkeypatch.setitem(lf._resources, 'lambda', FakeLambda())
+    return calls
+
+
+def test_bot_card_only_for_pending(bot_calls):
+    keyed('POST', '/dschemical/create', {'name': '웹품목', 'infoL1': '비료'}, app='web')         # 승인 없음 → 카드 없음
+    _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료', 'request': REQ}, app='inv')
+    assert [(c[0], c[1], c[2]['action'], c[2]['row']['code']) for c in bot_calls] == [
+        ('dsglobaldbBot', 'Event', 'card', item['dsids'])]
+    assert bot_calls[0][2]['row']['regRequest']['by'] == '홍길동'
+
+
+def test_bot_told_when_decided(bot_calls):
+    _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='quote')
+    review('dschemical', {'id': item['dsids'], 'decision': 'approve'})
+    assert [c[2]['action'] for c in bot_calls] == ['card', 'decided']
+    assert bot_calls[1][2]['row']['regStatus'] == 'approved'
+
+
+def test_bot_failure_does_not_break_create(reg, monkeypatch):
+    class Broken:
+        def invoke(self, **kwargs):
+            raise RuntimeError('down')
+    monkeypatch.setenv('GDB_BOT_FUNCTION', 'dsglobaldbBot')
+    monkeypatch.setitem(lf._resources, 'lambda', Broken())
+    assert keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='quote')[0] == 201
+
+
+def web_review(method, body=None, email='owner@ds.com', name='조윤제'):
+    ev = event(method, '/regreview', body)
+    ev['context'].update({'claims-email': email, 'claims-sub': 'sub-9', 'claims-name': name})
+    res = lf.lambda_handler(ev, None)
+    return res['statusCode'], json.loads(res['body'])
+
+
+def test_web_review_owner_only(reg, monkeypatch):
+    monkeypatch.setenv('GDB_OWNER_EMAILS', 'Owner@ds.com, other@ds.com')
+    _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='inv')
+    assert web_review('GET') == (200, {'isOwner': True, 'email': 'owner@ds.com'})
+    assert web_review('GET', email='staff@ds.com')[1]['isOwner'] is False
+    assert web_review('GET', email='')[0] == 401
+    assert web_review('POST', {'kind': 'item', 'id': item['dsids'], 'decision': 'approve'}, email='staff@ds.com')[0] == 403
+    status, body = web_review('POST', {'kind': 'item', 'id': item['dsids'], 'decision': 'reject', 'comment': '중복',
+                                       'by': '가짜'})
+    assert status == 200 and body['regStatus'] == 'rejected' and body['active'] == 'N'
+    assert body['regDecision']['by'] == '조윤제' and body['regDecision']['byId'] == 'sub-9'    # 본문 by 는 무시
+    assert body['updatedBy'] == 'gdb-web:조윤제'
+    assert web_review('POST', {'kind': 'thing', 'id': 'x', 'decision': 'approve'})[0] == 400
+
+
+def test_review_api_message_points_to_gdb(reg):
+    _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='quote')
+    status, body = review('dschemical', {'id': item['dsids'], 'decision': 'approve'}, app='quote')
+    assert status == 403 and '글로벌 DB' in body['message']
+
+
+def internal_call(path, body=None):
+    res = lf.lambda_handler({'context': {'http-method': 'POST', 'resource-path': path}, 'body-json': body or {}}, None)
+    return res['statusCode'], json.loads(res['body'])
+
+
+def test_internal_routes_for_bot(reg):
+    _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='quote')
+    status, row = internal_call('/internal/request', {'kind': 'item', 'id': item['dsids']})
+    assert status == 200 and row['code'] == item['dsids'] and row['regStatus'] == 'requested'
+    assert [r['code'] for r in internal_call('/internal/pending')[1]] == [item['dsids']]
+    status, row = internal_call('/internal/review', {'kind': 'item', 'id': item['dsids'], 'decision': 'approve',
+                                                     'by': '조윤제', 'byId': 'tg:1'})
+    assert status == 200 and row['regStatus'] == 'approved' and row['regDecision']['byId'] == 'tg:1'
+    status, body = internal_call('/internal/review', {'kind': 'item', 'id': item['dsids'], 'decision': 'approve', 'by': 'x'})
+    assert status == 409 and body['reason'] == 'decided'
+    assert internal_call('/internal/nope', {'kind': 'item'})[0] == 404

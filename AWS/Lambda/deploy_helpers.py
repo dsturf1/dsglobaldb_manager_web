@@ -75,20 +75,23 @@ def get_request_template(api_id, template_from, http_method='GET'):
     return integration['requestTemplates']['application/json']
 
 
-def _put_method_fresh(api_id, resource_id, http_method, api_key_required=False):
+def _put_method_fresh(api_id, resource_id, http_method, api_key_required=False, authorizer_id=None):
     apigw = boto3.client('apigateway')
     try:
         apigw.delete_method(restApiId=api_id, resourceId=resource_id, httpMethod=http_method)
     except apigw.exceptions.NotFoundException:
         pass
-    apigw.put_method(restApiId=api_id, resourceId=resource_id, httpMethod=http_method, authorizationType='NONE',
-                     apiKeyRequired=api_key_required)
+    auth = {'authorizationType': 'COGNITO_USER_POOLS', 'authorizerId': authorizer_id} if authorizer_id else {'authorizationType': 'NONE'}
+    apigw.put_method(restApiId=api_id, resourceId=resource_id, httpMethod=http_method,
+                     apiKeyRequired=api_key_required, **auth)
 
 
-def setup_lambda_method(api_id, resource_id, http_method, function_arn, request_template, api_key_required=False):
-    """메서드 → Lambda (non-proxy) + CORS 응답 헤더. api_key_required 면 x-api-key 헤더 필요 (사용량 계획 키)."""
+def setup_lambda_method(api_id, resource_id, http_method, function_arn, request_template, api_key_required=False,
+                        authorizer_id=None):
+    """메서드 → Lambda (non-proxy) + CORS 응답 헤더. api_key_required 면 x-api-key 헤더 필요 (사용량 계획 키).
+    authorizer_id 면 Cognito 권한 부여자 (Authorization 헤더의 ID 토큰을 API Gateway 가 확인)."""
     apigw = boto3.client('apigateway')
-    _put_method_fresh(api_id, resource_id, http_method, api_key_required)
+    _put_method_fresh(api_id, resource_id, http_method, api_key_required, authorizer_id)
     apigw.put_integration(
         restApiId=api_id, resourceId=resource_id, httpMethod=http_method,
         type='AWS', integrationHttpMethod='POST',
@@ -182,3 +185,16 @@ def deploy_stage_and_check(api_id, stage, path_part, description):
             print(f'{attempt}: HTTP {e.code} - 반영 대기 중...')
             time.sleep(10)
     raise RuntimeError('2분 넘게 응답이 없습니다. 콘솔에서 스테이지 배포를 확인하세요.')
+
+
+def ensure_cognito_authorizer(api_id, name, user_pool_arn):
+    """Cognito 사용자 풀 권한 부여자 id (없으면 생성). Authorization 헤더의 ID 토큰을 확인한다."""
+    apigw = boto3.client('apigateway')
+    found = next((a for a in apigw.get_authorizers(restApiId=api_id, limit=500)['items'] if a['name'] == name), None)
+    if found:
+        print('권한 부여자 있음:', name)
+        return found['id']
+    created = apigw.create_authorizer(restApiId=api_id, name=name, type='COGNITO_USER_POOLS',
+                                      providerARNs=[user_pool_arn], identitySource='method.request.header.Authorization')
+    print('권한 부여자 생성:', name)
+    return created['id']

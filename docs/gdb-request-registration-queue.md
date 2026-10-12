@@ -1,11 +1,36 @@
-# 글로벌 DB 작업 요청 — 품목·거래처 "등록 요청" 통합 (승인은 재고 슈퍼관리자 · 증빙 있는 거래처는 자동 등록 · 봇 화면은 견적 봇 기준)
+# 글로벌 DB 작업 요청 — 품목·거래처 "등록 요청" 통합 (승인은 글로벌 DB 봇 · 글로벌 DB 웹에서 만든 것은 승인 없음 · 증빙 있는 거래처는 자동 등록 · 봇 화면은 견적 봇 기준)
 
-> 요청: 조윤제 · 2026-10-12 (같은 날 2차 개정: 승인자 = 재고 슈퍼관리자 / 3차 개정: 증빙 있는 거래처 자동 등록, 예비 거래처는 견적 전용 / **확정** — 8장 결정, 10장 구현 계획)
+> 요청: 조윤제 · 2026-10-12 (2차 개정: 승인자 = 슈퍼관리자 / 3차 개정: 증빙 있는 거래처 자동 등록, 예비 거래처는 견적 전용 / 확정)
+> **4차 개정 2026-10-13: 승인 창구를 재고 봇에서 새 "글로벌 DB 봇"으로 옮긴다. 글로벌 DB 웹에서 만든 것은 승인하지 않는다.** — 바뀐 곳은 0장에 정리
 > 대상: 글로벌 DB(`dsglobaldb_manager`), 재고 관리(`inv mg`), 견적(`quotation mg`) — 이 문서는 세 저장소의 `docs/`에 같은 내용으로 둔다
-> 관련: `EXTERNAL_API_GUIDE.md` 4장(거래처)·5장(출처·이카운트 동기화 필드)·6장(create API), `GLOBALDB_SAFE_CREATE_API.md`, 견적 `services/ecount_review.py`·`services/prospects.py`·`telegram/bot.py`(품목·거래처 확인 카드)·`telegram/notify.py`(승인 카드), 재고 `api/bot.py` `_owner_telegrams`·`_pricing_text`·`_hq_callback`(`np:`), 재고 `src/parsing/llm_parser.py`(`partner_bizno`)
+> 관련: `EXTERNAL_API_GUIDE.md` 4장(거래처)·5장(출처·이카운트 동기화 필드)·6장(create API, 6.6 등록 요청), `GLOBALDB_SAFE_CREATE_API.md`, 견적 `services/ecount_review.py`·`services/prospects.py`·`telegram/bot.py`(품목·거래처 확인 카드)·`telegram/notify.py`(승인 카드), 재고 `api/registry.py`(지금의 승인 카드 — 글로벌 DB 봇으로 옮길 원본)·`api/register_flow.py`(등록 대화)
 > 작업일지(`outsource extract`, 동성클로이)는 품목·거래처를 다루지 않으므로 변경 없음
 
-## 1. 지금 모습과 문제
+## 0. 4차 개정 — 무엇이 바뀌나 (2026-10-13)
+
+**왜**: 승인은 원래 글로벌 DB의 일이다. 이동 중에도 승인할 수 있게 텔레그램을 쓰려다 보니 재고 봇이 승인 창구가 됐는데, 그러면
+- 재고 봇이 다른 앱의 요청을 알 길이 없어 1분마다 글로벌 DB를 물어봐야 하고(카드가 늦음),
+- 승인 권한을 "재고 슈퍼관리자 + 재고 API 키"로 우회해서 정해야 한다.
+
+글로벌 DB가 자기 봇으로 승인 카드를 보내면 요청이 만들어지는 순간 카드가 가고, 권한도 글로벌 DB가 직접 정한다. 같은 봇을 나중에 신규 아이디(글로벌 로그인 가입) 승인에도 쓸 수 있다.
+
+| | 3차 (지금 배포된 것) | 4차 (이 문서) |
+|---|---|---|
+| 승인 카드를 보내는 봇 | 재고 봇 (1분마다 `GET /regrequests` 폴링) | **글로벌 DB 봇** (create 하는 순간 바로) |
+| 승인하는 사람 | 재고 슈퍼관리자 (재고 `OWNER_EMAILS`) | **글로벌 DB 슈퍼관리자** (글로벌 DB가 정함, 지금 조윤제) |
+| 웹에서 승인 | 재고 웹 "등록 승인" 탭 | **글로벌 DB 웹 "등록 요청" 화면에 승인 버튼** (보기 전용 → 승인 가능) |
+| review API | 외부 API, `globaldb-inv` 키만 | **글로벌 DB 안에서만** (글로벌 DB 봇·웹). 외부 앱 키는 모두 403 |
+| 글로벌 DB 웹 [신규 추가] | 등록 요청(`requested`) | **승인 없이 확정** (`regStatus = approved`, `ecountStatus = approved`) |
+| 요청자 결과 알림 | 재고는 승인 즉시, 견적은 5분 폴링 | **요청한 앱이 자기 요청의 결과를 폴링해 알림** (재고·견적 모두) |
+| 바뀌지 않는 것 | 등록 요청·코드 즉시 사용·증빙 자동 등록·봇 등록 대화(견적 봇 기준)·이카운트 파일 규칙·예비 거래처 | 그대로 |
+
+**지금 상태와 옮기는 순서**
+- 글로벌 DB 1단계(필드·request·evidence·evidence-upload·regrequests·review·웹 "등록 요청" 보기)는 **배포됨** (2026-10-12, `8dd82de`).
+- 재고 2단계는 **배포됨** (2026-10-13): 등록 대화·증빙 자동 등록·이카운트 파일 사유 + **재고 봇 승인 카드·재고 웹 승인 탭(임시)**.
+- 견적 3단계는 **시작 전**.
+- 글로벌 DB 봇이 운영에 들어가기 전까지는 재고 봇 승인 카드가 그대로 돈다. 글로벌 DB 봇이 켜지면 재고에서 승인 부분을 끈다 (10장 순서).
+
+## 1. 지금 모습과 문제 (1차 작성 때)
 
 | | 견적 | 재고 | 글로벌 DB 웹 |
 |---|---|---|---|
@@ -22,44 +47,47 @@
 
 ## 2. 원칙
 
-1. **모든 앱은 "등록 요청"만 만든다.** 코드는 요청 순간 서버가 정하고, 요청한 앱은 **그 코드를 바로 쓴다** (지금 견적과 같음).
+1. **봇과 앱(재고·견적)은 "등록 요청"만 만든다.** 코드는 요청 순간 서버가 정하고, 요청한 앱은 **그 코드를 바로 쓴다** (지금 견적과 같음).
 2. **승인은 두 가지로 나눈다.**
    - **등록 승인** — 이 품목·거래처가 맞는가 (자료가 맞는지, 중복이 아닌지).
    - **이카운트 등록 승인** — 이카운트에 올려도 되는가.
 3. **증빙이 있는 거래처는 등록 승인이 필요 없다.** 사업자등록증·세금계산서·영수증·견적서·거래명세서처럼 사업자등록번호가 공식으로 찍힌 문서에서 번호를 읽고, 그 번호가 검증을 통과하면 **바로 등록된다**. 이카운트 등록 승인만 받는다.
 4. 증빙이 없는 거래처와 모든 새 품목은 등록 승인과 이카운트 등록 승인을 **한 번에** 받는다.
-5. **승인하는 사람은 재고 시스템 슈퍼관리자 한 사람이다** (재고 `OWNER_EMAILS`, 지금 조윤제). 글로벌 DB에는 봇이 없으므로 **재고 봇이 모든 앱의 요청을 슈퍼관리자에게 보낸다**. 슈퍼관리자는 재고 봇 카드나 재고 웹에서 승인한다.
-6. **예비 거래처는 견적 전용이다.** 이름만으로 견적 안에서 만들고 승인 없이 바로 쓴다. 글로벌 DB에 올라가지 않으므로 이 흐름 밖이다. 정식으로 바꿀 때 3·4번 규칙을 따른다. 재고에는 예비 거래처가 없다.
-7. **봇 화면은 견적 봇의 등록 화면을 그대로 따른다** (5장).
-8. 이카운트 등록 확인(`ecountSyncedAt`, [등록 완료로 반영])은 지금처럼 글로벌 DB 웹에서 한다.
+5. **(4차) 글로벌 DB 웹에서 만든 품목·거래처는 승인이 필요 없다.** 글로벌 DB 웹은 관리자(주로 슈퍼관리자)만 쓰므로 만드는 순간 등록·이카운트 승인 둘 다 된 것으로 본다. 이카운트 등록 확인(`ecountSyncedAt`)만 지금처럼 남는다.
+6. **(4차) 승인은 글로벌 DB가 한다.** 승인하는 사람은 **글로벌 DB 슈퍼관리자**(지금 조윤제). 승인 창구는 **글로벌 DB 봇**(텔레그램, 이동 중)과 **글로벌 DB 웹 "등록 요청" 화면**(자리에서) 두 곳이다. 다른 앱은 승인하지 않는다.
+7. **예비 거래처는 견적 전용이다.** 이름만으로 견적 안에서 만들고 승인 없이 바로 쓴다. 글로벌 DB에 올라가지 않으므로 이 흐름 밖이다. 정식으로 바꿀 때 3·4번 규칙을 따른다. 재고에는 예비 거래처가 없다.
+8. **봇 화면은 견적 봇의 등록 화면을 그대로 따른다** (5장).
+9. 이카운트 등록 확인(`ecountSyncedAt`, [등록 완료로 반영])은 지금처럼 글로벌 DB 웹에서 한다.
+10. **(4차) 요청 결과는 요청한 앱이 자기 요청자에게 알린다.** 요청자는 그 앱의 봇과만 대화하므로 글로벌 DB 봇은 요청자에게 보내지 않는다.
 
 ### 2.1 한눈에 — 무엇이 누구의 승인을 받나
 
 | 경우 | 거래처·품목 등록 | 이카운트 등록 |
 |---|---|---|
 | 예비 거래처 (견적 전용) | 견적 안에서 바로, 승인 없음. 글로벌 DB에 없음 | 해당 없음 (정식으로 바꿀 때 아래 규칙) |
-| **증빙 있는 거래처** — 문서에서 읽은 사업자번호가 검증 통과 | **자동 등록, 승인 없음** | 슈퍼관리자 승인 |
-| 증빙 없는 거래처 — 번호를 글로 씀, 개인, 번호 검증 실패, 읽기 애매 | 슈퍼관리자 승인 | 같은 승인에 포함 |
+| **(4차) 글로벌 DB 웹 [신규 추가]** | **승인 없음 — 바로 확정** | **승인 없음** (이카운트에 등록 후 [등록 완료로 반영]만) |
+| **증빙 있는 거래처** (재고·견적) — 문서에서 읽은 사업자번호가 검증 통과 | **자동 등록, 승인 없음** | 글로벌 DB 슈퍼관리자 승인 |
+| 증빙 없는 거래처 (재고·견적) — 번호를 글로 씀, 개인, 번호 검증 실패, 읽기 애매 | 글로벌 DB 슈퍼관리자 승인 | 같은 승인에 포함 |
 | 같은 사업자번호가 이미 있음 | 새로 만들지 않고 그 거래처를 씀 (별칭 저장 제안) | — |
-| 새 품목 | 슈퍼관리자 승인 | 같은 승인에 포함 |
+| 새 품목 (재고·견적) | 글로벌 DB 슈퍼관리자 승인 | 같은 승인에 포함 |
 
 어느 경우든 **코드는 요청 즉시 생기고 바로 쓸 수 있다**. 이카운트 업로드 파일에는 이카운트 등록 확인까지 끝난 것만 올라간다.
 
 ```
- 직원 (견적 봇 · 재고 봇 · 각 웹)
-   │  증빙 사진 → 자동 추출          또는   하나씩 묻기 → 확인 카드 [✅ 등록]
-   ▼
- 글로벌 DB create (+ request, + evidence) ── 코드 발급 ──▶ 요청한 앱은 바로 씀
-   │   증빙 거래처: regStatus = approved(자동), ecountStatus = pending
+ 직원 (견적 봇 · 재고 봇 · 재고 웹 · 견적 웹)            관리자 (글로벌 DB 웹 [신규 추가])
+   │  증빙 사진 → 자동 추출   또는   하나씩 묻기 → 확인 카드 [✅ 등록]        │
+   ▼                                                                      ▼
+ 글로벌 DB create (+ request, + evidence) ── 코드 발급 ──▶ 요청한 앱은 바로 씀    create (app = web)
+   │   증빙 거래처: regStatus = approved(자동), ecountStatus = pending          → 둘 다 approved (승인 없음)
    │   그 밖     : regStatus = requested,       ecountStatus = pending
    │
-   │  재고 봇이 대기 건을 가져감 (재고 요청은 즉시, 다른 앱은 1분마다)
+   │  (4차) 만드는 순간 글로벌 DB 가 직접
    ▼
- 재고 봇 → 슈퍼관리자 1:1 카드   (또는 재고 웹 "등록 승인")
-   │   증빙 거래처: [✅ 이카운트 등록 승인] [🚫 이카운트 제외]
+ 글로벌 DB 봇 → 글로벌 DB 슈퍼관리자 1:1 카드   (또는 글로벌 DB 웹 "등록 요청"의 승인 버튼)
+   │   증빙 거래처: [✅ 이카운트 등록 승인] [🚫 이카운트 제외] [📄 증빙 보기]
    │   그 밖     : [✅ 이카운트 등록 승인] [❌ 반려]
    ▼
- review API (재고 키만) ──▶ 각 앱이 자기 요청자에게 결과 알림
+ 글로벌 DB 안에서 결정 기록 (regDecision) ──▶ 각 앱이 폴링해 자기 요청자에게 결과 알림
    │ (ecountStatus = approved)
    ▼
  사람이 이카운트에 등록 → 글로벌 DB 웹 [등록 완료로 반영] → ecountSyncedAt
@@ -67,7 +95,7 @@
 
 ## 3. 상태 (약품·거래처 공통)
 
-레코드에 필드를 더한다.
+레코드에 필드를 더한다 (1단계에서 배포됨).
 
 | 필드 | 값 | 뜻 |
 |---|---|---|
@@ -75,10 +103,11 @@
 | `ecountStatus` | `pending` / `approved` / `excluded` | **이카운트 등록 승인**. 없으면: `origin = ecount`면 해당 없음, `local`이면 `approved`로 본다 (이전 데이터) |
 | `regRequest` | `{app, channel, by, byId, at, note, ref}` | 요청 정보. `app`은 **서버가 API 키로 정한다** (`inv` / `quote` / `web`) |
 | `regEvidence` | `{docType, bizNo, fileKey, extracted, readAt, readBy}` | 거래처 증빙 (4.2). 증빙 자동 등록일 때만 |
-| `regDecision` | `{by, byId, at, comment, target}` | 마지막 결정. `target` = `registration` / `ecount`. 반려·제외는 `comment` 필수 |
+| `regDecision` | `{by, byId, at, comment, target, decision}` | 마지막 결정. `target` = `registration` / `ecount`. 반려·제외는 `comment` 필수. **(4차) 글로벌 DB 웹에서 만든 것은 `{by: "글로벌 DB 웹", target: "registration", decision: "approve"}`** |
 
 - `channel`: `telegram` / `web`. `by`: 사람 이름. `byId`: Cognito sub 또는 `tg:<텔레그램 id>`. `ref`: 요청한 앱의 원본(`inv#input-501`, `quote#Q2026-0123`).
 - 전이:
+  - **(4차) 글로벌 DB 웹**: 만들 때 `regStatus = approved`, `ecountStatus = approved`.
   - 증빙 거래처: `regStatus = approved`(자동) · `ecountStatus = pending → approved | excluded`.
   - 그 밖: `regStatus = requested`, `ecountStatus = pending` → 슈퍼관리자 **승인**이면 둘 다 `approved` / **반려**면 `regStatus = rejected`, `ecountStatus = excluded`.
   - `ecountStatus = approved` → (이카운트 등록 후) `ecountSyncedAt` 기록.
@@ -88,69 +117,94 @@
 
 ## 4. 글로벌 DB 작업 (`dsglobaldb_manager`)
 
-### 4.1 create API 바꾸기 — `POST /dschemical/create`, `POST /dscustomer/create`
+### 4.1 create API — `POST /dschemical/create`, `POST /dscustomer/create` (1단계 배포됨 + 4차 변경 하나)
 
 - **`x-api-key` 필수** (Usage Plan `globaldb-write`, 키 `globaldb-inv` / `globaldb-quote` / `globaldb-web`). 키로 `regRequest.app`을 정한다.
 - 본문에 `request` 블록: `{"channel":"telegram","by":"홍길동","byId":"tg:123456","note":"…","ref":"inv#input-501"}` (필수, 전환 기간 제외).
 - 거래처는 `evidence` 블록을 받을 수 있다 (4.2). **서버가 아래를 모두 확인하면** `regStatus = approved`, `regDecision = {by:"증빙 자동", target:"registration"}`로 만든다:
   1. `custType = corp`
   2. `evidence.docType`이 `사업자등록증` `세금계산서` `영수증` `견적서` `거래명세서` 중 하나
-  3. `evidence.bizNo` = 본문 `bizNo` (숫자만 비교)이고 **검증번호 통과** (지금 422 규칙과 같은 계산 — `allowInvalidBizNo`로 넘긴 것은 증빙으로 치지 않음)
+  3. `evidence.bizNo` = 본문 `bizNo` (숫자만 비교)이고 **검증번호 통과** (`allowInvalidBizNo`로 넘긴 것은 증빙으로 치지 않음)
   4. `evidence.fileKey`가 4.2 업로드로 실제 저장된 파일
-  
-  하나라도 빠지면 증빙 없는 요청과 같이 `requested`로 만든다 (오류 아님). 응답에 `autoApproved: true/false`와 이유를 넣는다.
+
+  하나라도 빠지면 증빙 없는 요청과 같이 `requested`로 만든다 (오류 아님). 응답에 `autoApproved: true/false`와 이유(`autoReason`)를 넣는다.
 - 같은 사업자번호가 이미 있으면 지금처럼 409 + `existing` (새로 만들지 않음).
-- **글로벌 DB 웹 [신규 추가]도 요청으로 만든다** (`app = web`). 증빙 파일을 같이 올리면 자동 등록 규칙이 같다.
+- **(4차 변경) `app = web`(글로벌 DB 웹 키)으로 만든 것은 `regStatus = approved`, `ecountStatus = approved`, `regDecision = {by: "글로벌 DB 웹", …}`로 만든다.** 응답의 `autoApproved`는 `true`, `autoReason`은 `"글로벌 DB 웹"`. 승인 카드를 보내지 않는다.
 - 나머지(코드 규칙, 409 similar, `confirmSimilar`, 503)는 그대로.
-- 전환 기간: 4.7 순서대로 배포하는 동안에는 키·`request` 없는 호출도 받되 `requested`, `app = "unknown"`으로 기록하고 경고 로그.
+- 전환 기간: 키·`request` 없는 호출도 받되 `requested`, `app = "unknown"`으로 기록하고 경고 로그. `unknown`은 승인 카드를 보낸다 (누가 만들었는지 모르므로).
 
-### 4.2 증빙 파일 — `POST /dscustomer/evidence-upload`
+### 4.2 증빙 파일 — `POST /dscustomer/evidence-upload` (1단계 배포됨, 변경 없음)
 
-- 요청: `{"docType":"세금계산서","contentType":"image/jpeg"}` → 응답 `{fileKey, uploadUrl}` (S3 presigned PUT, 10분). 앱이 그 주소로 원본 사진·PDF를 올린 뒤 create의 `evidence.fileKey`에 넣는다.
-- 저장: S3 `dsbaseinfo/evidence/customers/<yyyy>/<fileKey>` (비공개). 웹은 presigned GET으로 본다.
-- `evidence.extracted`: 문서에서 읽은 값 `{bizNo, name, ceo, bizType, bizItem, address, tel, email}` — 앱이 읽어서 보낸다 (아래 6.1, 7.2). 서버는 저장만 한다.
+- 요청: `{"docType":"세금계산서","contentType":"image/jpeg"}` → 응답 `{fileKey, uploadUrl, contentType, expiresIn}` (S3 presigned PUT, 10분). 앱이 그 주소로 원본 사진·PDF를 올린 뒤 create의 `evidence.fileKey`에 넣는다.
+- 저장: S3 `dsbaseinfo/evidence/customers/<yyyy>/<fileKey>` (비공개). 보기는 presigned GET.
+- `evidence.extracted`: 문서에서 읽은 값 `{bizNo, name, ceo, bizType, bizItem, address, tel, email}` — 앱이 읽어서 보낸다. 서버는 저장만 한다.
 - **개인 거래처 증빙은 받지 않는다** (주민등록번호가 찍힌 문서가 섞일 수 있음). `custType = person`이면 `evidence` 무시.
 - 보관: 5년 (세금계산서 보관 기간). 정리는 S3 수명주기 규칙.
 
-### 4.3 새 API
+### 4.3 API
 
 | 요청 | 동작 | 인증 |
 |---|---|---|
-| `GET /regrequests?pending=registration\|ecount\|any&kind=item\|customer&app=quote&changedSince=<ISO>` | 대기·변경 목록 (약품·거래처 합쳐서). 각 줄: `kind, code, name, unit/bizNo, infoL1/category, prices, regStatus, ecountStatus, regRequest, regEvidence(파일 보기 주소 포함), regDecision, updatedAt` | `x-api-key` (모든 앱 키) |
-| `POST /dschemical/review` · `POST /dscustomer/review` | `{"id":"…","decision":"approve"\|"reject"\|"exclude","comment":"…","by":"이름","byId":"…","expectedUpdatedAt":"…"}` | **`globaldb-inv` 키만** — 다른 키는 403 |
+| `GET /regrequests?pending=registration\|ecount\|any&kind=item\|customer&app=quote&changedSince=<ISO>` | 대기·변경 목록 (약품·거래처 합쳐서). 각 줄: `kind, code, name, unit/bizNo, infoL1/category, prices, regStatus, ecountStatus, regRequest, regEvidence(viewUrl 포함), regDecision, updatedAt` | `x-api-key` (모든 앱 키) — **(4차) 앱은 자기 요청의 결과를 이것으로 가져간다** (`app=<자기>&changedSince=`) |
+| `POST /dschemical/review` · `POST /dscustomer/review` | `{"id":"…","decision":"approve"\|"reject"\|"exclude","comment":"…","by":"이름","byId":"…","expectedUpdatedAt":"…"}` | **(4차) 글로벌 DB 안에서만** — 글로벌 DB 봇 Lambda 와 글로벌 DB 웹(슈퍼관리자 로그인)만. 외부 앱 키(`globaldb-inv` 포함)는 403 |
 
-- `approve`: `requested`면 등록·이카운트 둘 다 승인, 증빙 등록이면 이카운트만 승인. `reject`: `requested`만 (증빙 등록 건은 400 — 대신 `exclude` 또는 웹에서 사용 안 함). `exclude`: 이카운트 제외 (`comment` 필수).
+- `approve`: `requested`면 등록·이카운트 둘 다 승인, 증빙 등록이면 이카운트만 승인. `reject`: `requested`만 (증빙 등록 건은 400 — 대신 `exclude`). `exclude`: 이카운트 제외 (`comment` 필수).
 - 응답: `200` 바뀐 레코드 / `409 {reason:"decided"}` 이미 처리됨 / `409 {reason:"stale"}` 그사이 수정됨 / `422` 사유 없음.
-- 슈퍼관리자인지 확인하는 것은 재고 앱이 한다 (6.3).
+- **(4차) 슈퍼관리자인지는 글로벌 DB가 확인한다** (4.8). 봇은 슈퍼관리자 텔레그램 번호로, 웹은 로그인한 사람(Cognito)으로.
+- 구현 메모: 1단계의 `REVIEW_APP = 'inv'` 키 검사는 글로벌 DB 봇이 운영에 들어간 뒤 **외부 키 전부 403**으로 바꾼다 (재고 봇이 아직 승인하는 동안은 그대로 둔다 — 10장 4단계).
 
-### 4.4 웹 화면 — 왼쪽 메뉴 "등록 요청" (새 메뉴, 약품정보 위) — **보기 전용**
+### 4.4 웹 화면 — 왼쪽 메뉴 "등록 요청" (1단계 배포됨: 보기 전용 → **4차: 슈퍼관리자는 승인**)
 
 - 탭: **승인 대기** (등록·이카운트) / 증빙 자동 등록 / 승인 / 반려·제외 / 전체. 필터: 종류, 앱.
 - 열: 요청 시각 · 앱 · 요청자 · 종류 · 코드 · 이름 · 용량/사업자번호 · 분류 · 증빙(문서 종류 + [보기]) · 상태 · 결정.
 - 줄을 열면 수정 창(지금 것) + 증빙 사진과 읽은 값을 나란히. 오타는 여기서 고친다 (수정 API 그대로).
-- 승인 버튼은 없다. 화면 위에 "승인은 재고 시스템 슈퍼관리자가 재고 봇·재고 웹에서 합니다" 한 줄.
+- **(4차) 슈퍼관리자에게는 승인 버튼**: 대기 줄마다 [이카운트 등록 승인] / [반려](등록 승인 대기) 또는 [이카운트 제외](증빙 등록), 반려·제외는 사유 입력. 결과는 글로벌 DB 봇의 그 카드에도 반영(카드를 결정 문구로 고침). 슈퍼관리자가 아니면 지금처럼 보기 전용.
+- 화면 위 안내를 "승인은 글로벌 DB 슈퍼관리자가 글로벌 DB 봇이나 이 화면에서 합니다"로.
 - 이카운트 승인된 것은 지금처럼 [이카운트 비교] → 이카운트 미등록 탭 → 이카운트 등록 → [등록 완료로 반영]. 이카운트 승인 대기·제외인 것은 그 탭에 나오지 않는다.
 - 약품정보·거래처정보 목록에 3장의 배지. 상단에 승인 대기 건수.
+- **(4차) [신규 추가]는 승인 없이 확정**(4.1) — 창의 "승인 뒤 확정" 안내 문구를 지운다. 증빙 파일 올리기는 선택으로 남긴다(기록용).
 
 ### 4.5 이전 데이터
 
-- 견적 meta `ECOUNT#REVIEW`: `pending → regStatus requested, ecountStatus pending`, `approved → 둘 다 approved`, `rejected → rejected/excluded`. 견적이 내보낸 JSON을 글로벌 DB 쪽 일회성 import(Lambda 노트북)로 기록 (review API는 재고 키만 받으므로).
+- 견적 meta `ECOUNT#REVIEW`: `pending → regStatus requested, ecountStatus pending`, `approved → 둘 다 approved`, `rejected → rejected/excluded`. 견적이 내보낸 JSON을 일회성 import(`(L2-0) Import quote reviews.ipynb`)로 기록.
 - 그 밖의 `origin = local` 데이터는 둘 다 승인된 것으로 본다.
+- **(4차) 1단계 배포 뒤 글로벌 DB 웹에서 만들어져 `requested`로 남은 것(`regRequest.app = web`)은 일회성으로 둘 다 `approved`로 바꾼다** (`regDecision.by = "글로벌 DB 웹"`).
 
 ### 4.6 문서
 
-- `EXTERNAL_API_GUIDE.md` 4장(거래처 필드)·5장·6장(create·evidence·review·regrequests)과 `GLOBALDB_API_CHANGELOG.md`를 갱신하고 재고·견적 `docs/`에 복사.
+- `EXTERNAL_API_GUIDE.md` 5.1·6장(create의 web 규칙, review 인증, 결과 폴링)과 `GLOBALDB_API_CHANGELOG.md`를 갱신하고 재고·견적 `docs/`에 복사.
 
-### 4.7 배포 순서
+### 4.7 배포 순서 (4차)
 
-1. 글로벌 DB: 필드·`request`·`evidence`·증빙 업로드·review·regrequests (키 없는 create도 아직 받음) + 웹 "등록 요청"(보기 전용)
-2. 재고: 6장 (승인 카드·승인 화면이 먼저 있어야 다른 앱 요청을 받음)
-3. 견적: 7장 + 4.5 이전
-4. 글로벌 DB: create에 키와 `request` 필수 적용
+1. 글로벌 DB: 필드·`request`·`evidence`·증빙 업로드·review·regrequests + 웹 "등록 요청"(보기) — **끝남 (1단계)**
+2. 재고: 등록 대화·증빙 자동 등록·이카운트 파일 사유 + 임시 승인 카드 — **끝남 (2단계)**
+3. **글로벌 DB: 글로벌 DB 봇(4.8) + 웹 승인 버튼 + 웹 [신규 추가] 승인 없음 + 4.5 web 이전** (4차)
+4. 재고: 승인 부분 끄기, 결과 알림 폴링 (6.3·6.5)
+5. 글로벌 DB: review 를 외부 키 전부 403으로
+6. 견적: 7장 + 4.5 견적 이전
+7. 글로벌 DB: create에 키와 `request` 필수 적용
+
+### 4.8 글로벌 DB 봇 (4차 새로)
+
+글로벌 DB 전용 텔레그램 봇. 처음 용도는 **품목·거래처 등록 승인**, 나중에 **글로벌 로그인 신규 아이디 승인** 등 글로벌 DB 공통 승인을 같은 봇에 더한다.
+
+- **봇**: BotFather에서 새로 만든다 (예: `@dsgreen_gdb_bot`, 이름 "동성 글로벌 DB"). 토큰은 SSM Parameter Store(SecureString)에만 둔다 — 코드·문서·웹 빌드에 넣지 않는다.
+- **받기**: webhook → API Gateway(`jyipsj28s9`) 새 경로(예: `POST /tgbot`, 텔레그램 `secret_token` 헤더로 확인) → 새 Lambda `dsglobaldbBot`. 폴링 서버를 두지 않는다.
+- **보내기 (즉시)**: create Lambda 가 저장에 성공하고 `app ≠ web`이며 `regStatus = requested` 또는 `ecountStatus = pending`이면, 봇 Lambda를 **비동기 호출**(InvocationType `Event`)해 카드를 보낸다. 카드를 못 보내도 create는 성공으로 끝난다(로그만).
+- **슈퍼관리자**: 글로벌 DB 슈퍼관리자 = Lambda 환경 변수 `GDB_OWNER_TG`(텔레그램 번호 목록, 지금 조윤제 한 사람). 봇은 이 번호에게만 카드를 보내고, 이 번호가 누른 버튼만 받는다. 웹 승인은 `GDB_OWNER_EMAILS`(Cognito 이메일)로 확인한다. 슈퍼관리자는 봇과 1:1을 한 번 시작(`/start`)해 둔다.
+  - 번호를 모를 때: 봇이 `/start` 한 사람에게 "당신의 텔레그램 번호: …"를 알려 준다 (관리자가 환경 변수에 넣음). 연결 코드 방식은 신규 아이디 승인 때 함께 정한다.
+- **카드**: 5.6 문구·버튼 그대로 (재고 `api/registry.py`의 `card_text`·`card_buttons`·`decided_text`·`already_text`를 옮겨 쓴다). 버튼: `ra:i|c:<코드>` 승인, `rr:` 반려, `rx:` 이카운트 제외, `re:` 증빙 보기.
+  - [❌ 반려]·[🚫 이카운트 제외] → "사유를 보내 주세요"(ForceReply) → 그 메시지에 단 답장이 사유. 사유를 기다리는 메시지는 DynamoDB(예: `dsglobaldb-bot` 테이블, TTL 1일)에 둔다.
+  - [📄 증빙 보기] → 증빙 파일을 그 대화에 보낸다 (S3에서 직접 읽어 `sendDocument`).
+  - 결정이 나면(봇·웹 어디서든) 보낸 카드를 모두 결정 문구로 고친다 — 보낸 카드 `(종류, 코드) → [(chat, message_id)]`도 같은 테이블에.
+  - 이미 처리됐으면(409 decided) 카드를 `이미 처리됨: … — 이름`으로.
+- **아침 요약**: EventBridge 매일 08:00 KST → 승인 대기가 있으면 `📋 승인 대기 N건 (등록 승인 a · 이카운트 승인 b)` + 웹 "등록 요청" 링크.
+- **요청자에게는 보내지 않는다** (2장 10번). 반려된 코드를 쓴 거래 알림도 요청한 앱이 한다 (6.4).
+- 1:1 명령: `/start`, `/help`, `/pending`(지금 대기 목록 — 줄마다 카드 다시 보내기). 단체방에는 넣지 않는다.
 
 ## 5. 봇 화면 표준 — 견적 봇 그대로
 
-견적 봇(`quotation mg/backend/app/telegram/agent.py` 시스템 지시, `bot.py` `_item_text`·`_send_item_card`·`_register_item`·`_customer_text`·`_send_customer_card`·`_register_customer`)이 기준이다. 재고 봇은 **같은 순서, 같은 문구, 같은 버튼**을 쓴다. 문구 안의 "견적"만 각 앱의 말로 바꾼다.
+견적 봇(`quotation mg/backend/app/telegram/agent.py` 시스템 지시, `bot.py` `_item_text`·`_send_item_card`·`_register_item`·`_customer_text`·`_send_customer_card`·`_register_customer`)이 기준이다. 재고 봇은 **같은 순서, 같은 문구, 같은 버튼**을 쓴다(2단계에서 `api/register_flow.py`로 구현됨). 문구 안의 "견적"만 각 앱의 말로 바꾼다.
 
 ### 5.1 묻기 전에
 
@@ -166,7 +220,8 @@
 - **한 번에 하나씩**. 이미 나온 것은 건너뛴다. 한 번에 여러 개를 말하면 그대로 받는다.
 - 정해진 보기(중분류, 중요도, 거래처 분류, **법인/개인**, 후보 고르기)는 **버튼**. 선택 항목이면 **[없음]** 버튼을 같이. 버튼을 누르면 질문 메시지가 `질문\n✔ 고른 값`으로 바뀐다.
   - 중분류: `살균제` `살충제` `제초제` `비료` `기타약재` `잔디` `기타물품`
-  - **법인/개인은 반드시 묻는다** — 번호가 없다고 개인으로 정하지 않는다 (재고의 지금 동작을 없앰).
+  - 거래처 분류: `골프장` `매입처` `매출처` `잔디농장` `기타`
+  - **법인/개인은 반드시 묻는다** — 번호가 없다고 개인으로 정하지 않는다.
 - 값을 적는 질문은 한 문장으로, 선택 항목이면 "없으면 '없음'이라고 해 주세요".
 - `나머지 없음` · `그냥 등록` → 남은 선택 항목은 비우고 바로 확인 카드.
 - **꼭 필요한 것**: 품목은 품명·중분류, 거래처는 법인/개인·상호(법인은 사업자번호 10자리).
@@ -228,9 +283,9 @@
 - 짧은 알림(callback answer)도 준다: "등록했습니다: …", "비슷한 품목이 있어 아직 등록하지 않았습니다", "취소했습니다".
 - 견적의 지금 문구 "이카운트 등록은 이카운트 관리자 승인 뒤에 합니다"는 위 표 문구로 바꾼다.
 
-### 5.6 슈퍼관리자에게 가는 승인 카드 (재고 봇이 보냄)
+### 5.6 슈퍼관리자에게 가는 승인 카드 (4차: **글로벌 DB 봇**이 보냄)
 
-견적 `notify.review_text`·`review_buttons`의 모양 그대로:
+견적 `notify.review_text`·`review_buttons`의 모양 그대로 (재고 `api/registry.py`에 구현돼 있음 — 글로벌 DB 봇으로 옮긴다):
 
 **증빙 없는 거래처·새 품목**
 ```
@@ -252,60 +307,56 @@
 [✅ 이카운트 등록 승인] [🚫 이카운트 제외] [📄 증빙 보기]
 ```
 
-- `등록:`/`증빙:` 줄 끝에 **요청한 앱**(재고 봇 · 재고 웹 · 견적 봇 · 견적 웹 · 글로벌 DB 웹).
+- `등록:`/`증빙:` 줄 끝에 **요청한 앱**(재고 봇 · 재고 웹 · 견적 봇 · 견적 웹 · 앱 모름). 글로벌 DB 웹은 승인 카드가 없다.
 - 비슷한 품목을 무릅쓰고 등록한 건(`confirmSimilar`), 번호 검증 실패를 무릅쓴 건(`allowInvalidBizNo`)은 `⚠️ …` 한 줄을 더한다.
 - **[❌ 반려]** / **[🚫 이카운트 제외]** → "사유를 보내 주세요" → 다음 메시지가 사유.
-- **[📄 증빙 보기]** → 증빙 파일(presigned)을 그 대화에 보낸다.
+- **[📄 증빙 보기]** → 증빙 파일을 그 대화에 보낸다.
 - `409 decided`면 카드를 `이미 처리됨: … — 이름`으로 바꾼다.
 - 결과로 카드를 `✅ 이카운트 등록 승인` / `❌ 반려 · 사유: …` / `🚫 이카운트 제외 · 사유: …`로 바꾼다.
-- 요청자 결과 알림 (요청한 앱의 봇이 보냄, 6.5·7.4): 견적 `ecount_decided` 문구. 반려면 "이 코드는 이카운트에 등록되지 않습니다. 고칠 내용은 글로벌 DB 웹에서 수정하세요.", 이카운트 제외면 "거래처는 계속 쓸 수 있고, 이카운트에는 올리지 않습니다."
+- 요청자 결과 알림은 **요청한 앱의 봇이** 보낸다 (6.5·7.4): 견적 `ecount_decided` 문구. 반려면 "이 코드는 이카운트에 등록되지 않습니다. 고칠 내용은 글로벌 DB 웹에서 수정하세요.", 이카운트 제외면 "거래처는 계속 쓸 수 있고, 이카운트에는 올리지 않습니다."
 - 증빙 자동 등록은 등록 순간 요청자 외 알림이 없다. 슈퍼관리자에게는 위 카드만.
 
-## 6. 재고 작업 (`inv mg`) — 승인 창구
+## 6. 재고 작업 (`inv mg`) — 요청만 (4차: 승인 창구 아님)
 
-### 6.1 거래처 — 구매·판매 기록의 증빙으로 자동 등록
+### 6.1 거래처 — 구매·판매 기록의 증빙으로 자동 등록 (구현됨)
 
-- 지금 LLM 출력의 `partner_bizno`에 더해 `partner_doc`(`사업자등록증`·`세금계산서`·`영수증`·`견적서`·`거래명세서`·없음), `partner_name`, `partner_ceo`, `partner_biz_type`, `partner_biz_item`, `partner_tel`을 읽는다 (프롬프트 `prompts/parse_txn*.md`의 출력 스키마). 공급자/공급받는자 구분은 5.3.
+- LLM 출력의 `partner_bizno`에 더해 `partner_doc`(`사업자등록증`·`세금계산서`·`영수증`·`견적서`·`거래명세서`·없음), `partner_name`, `partner_ceo`, `partner_biz_type`, `partner_biz_item`, `partner_tel`을 읽는다. 공급자/공급받는자 구분은 5.3.
 - 줄을 기록할 때 거래처를 못 찾았고, 사진에서 **문서 종류 + 검증 통과한 사업자번호**가 나오면:
-  1. 같은 번호가 있으면 그 거래처로 정하고 끝 (지금 409 처리와 같음).
+  1. 같은 번호가 있으면 그 거래처로 정하고 끝.
   2. 없으면 사진을 4.2로 올리고 create(`evidence` 포함) → 거래처를 기록에 넣는다. **관리자에게 묻지 않는다.**
   3. 기록 카드에 한 줄: `거래처 새로 등록: (주)그린필드 (123-45-67890, 세금계산서에서 읽음)`.
-  4. 응답이 `autoApproved: false`면(증빙으로 인정 안 됨) 아래 일반 흐름.
-- 증빙이 없거나 인정되지 않으면 지금처럼 본사 1:1 요청 카드로 가되, `[🆕 거래처 등록: …]`을 누르면 **바로 등록하지 않고** 5.1~5.2 대화(법인/개인부터)를 그 관리자와 1:1로 진행한다. **번호가 없다고 개인으로 만드는 지금 동작은 없앤다.**
-- 직원이 따로 "거래처 만들어 줘"라고 하면 5.1~5.5 그대로 (사진이면 5.3 카드).
+  4. 응답이 `autoApproved: false`면 기록 카드 줄 끝에 "— 등록 승인 대기".
+- 증빙이 없거나 인정되지 않으면 본사 1:1 요청 카드로 가고, `[🆕 거래처 등록: …]`을 누르면 5.1~5.2 대화(법인/개인부터)를 그 관리자와 1:1로 진행한다. **번호가 없다고 개인으로 만드는 동작은 없앴다.**
+- 직원이 1:1에서 "거래처 만들어 줘"라고 하면 5.1~5.5 그대로 (사진이면 5.3 카드).
 
-### 6.2 품목 — 현장이 직접 신청
+### 6.2 품목 — 현장이 직접 신청 (구현됨)
 
-- 줄 해석에서 `NEW_ITEM`이 나오면 그 줄을 "(새 품목)"으로 기록하고 카드 문구를 바꾼다: `새 품목은 등록 요청 후 기록됩니다` + **[🆕 새 품목 등록 요청]**.
+- 줄 해석에서 새 품목이 나오면 그 줄을 "(새 품목)"으로 기록하고 카드 문구를 바꾼다: `새 품목은 등록 요청 후 기록됩니다` + **[🆕 새 품목 등록 요청]**.
 - 누른 **올린 사람**과 **1:1**에서 5.2 순서대로 묻는다 (단체방에는 묻지 않음). 1:1을 시작하지 않은 사람이면 본사 관리자에게 넘기고, 관리자의 [🆕 품목 등록]은 같은 대화를 관리자와 진행한다.
-- LLM이 뽑은 `new_item` 값은 이미 답한 것으로 건너뛴다. 구현은 LLM 대화든 **정해진 질문 순서(권장)**든 자유, 화면·문구는 5장과 같게.
+- LLM이 뽑은 `new_item` 값은 이미 답한 것으로 건너뛴다.
 - 5.4 카드 → [✅ 등록] → create (`ref = inv#input-<id>`) → 코드를 그 줄에 넣고 기록 카드를 다시 그린다.
-- 신청할 수 있는 사람: 그 방에 연결된 사람 모두 (지금 `groups.can_input`), 텔레그램 전용 직원 포함.
+- 신청할 수 있는 사람: 그 방에 연결된 사람 모두 (`groups.can_input`), 텔레그램 전용 직원 포함.
 
-### 6.3 슈퍼관리자 승인 — 모든 앱의 요청
+### 6.3 승인 — (4차) 재고에서 뺀다
 
-- **승인 권한 = 재고 슈퍼관리자**: 연결된 계정이 `OWNER_EMAILS`에 있는 사람 (지금 `_owner_telegrams()`가 찾는 사람). `inv-admin`만으로는 승인할 수 없다.
-- 카드 보내기:
-  - 재고에서 온 요청: create 직후 5.6 카드.
-  - 다른 앱의 요청: `tick`에서 **1분마다** `GET /regrequests?pending=any&changedSince=<마지막>` → 새 건에 5.6 카드. 보낸 카드는 `reg_cards` 표(code, kind, message_id, sent_at)에 남겨 다시 보내지 않는다.
-  - 슈퍼관리자 텔레그램이 연결돼 있지 않으면 관리자에게 "승인 대기 N건 — 슈퍼관리자 텔레그램 연결 필요"만 (승인 버튼 없음).
-- review API는 `globaldb-inv` 키로. 슈퍼관리자는 자기 요청도 승인할 수 있다.
-- **재고 웹 "등록 승인" 탭** (품목·거래처 화면, 슈퍼관리자에게만): 4.4와 같은 목록 + 증빙 보기 + 버튼(승인 / 반려 / 이카운트 제외).
-- 아침 8시에 대기가 남아 있으면 `승인 대기 N건` 요약 1:1 (웹 링크).
+- 2단계에서 임시로 만든 **재고 봇 승인 카드**(1분 폴링·아침 요약·`ra:`/`rr:`/`rx:`/`re:` 버튼)와 **재고 웹 "등록 승인" 탭**·`/regrequests` 중계·review 호출은 **글로벌 DB 봇이 운영에 들어가면 끈다** (환경 변수 `REG_APPROVER=gdb` → 끔, 기본은 지금처럼 켬). 확인되면 코드를 지운다.
+- 승인 카드 코드(`api/registry.py`의 문구·버튼)는 글로벌 DB 봇의 원본으로 넘긴다.
 
-### 6.4 이카운트 파일
+### 6.4 이카운트 파일 (구현됨)
 
-- 업로드 시트: `origin = ecount` 또는 `ecountSyncedAt` 있는 품목·거래처만 (지금 규칙). 나머지는 **확인 필요** 시트, 사유를 더한다: `등록 승인 대기` / `이카운트 승인 대기` / `이카운트 제외 — 이카운트 밖에서 처리` / `반려 — 다른 것으로 고치기` / `이카운트 미등록`.
-- 반려된 품목·거래처를 쓴 거래는 관리자에게 1:1로 알린다 (웹 "표로 고치기" 링크).
+- 업로드 시트: `origin = ecount` 또는 `ecountSyncedAt` 있는 품목·거래처만. 나머지는 **확인 필요** 시트, 사유: `등록 승인 대기` / `이카운트 승인 대기` / `이카운트 제외 — 이카운트 밖에서 처리` / `반려 — 다른 것으로 고치기` / `이카운트 미등록`.
+- **(4차) 반려된 품목·거래처를 쓴 거래 알림**: 6.5 결과 폴링에서 `reject`를 받으면 그 코드를 쓴 재고 거래를 찾아 관리자에게 1:1 (웹 "표로 고치기" 링크). 지금은 재고 봇이 승인할 때 보낸다.
 
-### 6.5 결과 알리기
+### 6.5 결과 알리기 (4차: 폴링으로)
 
-- 재고에서 온 요청: 슈퍼관리자가 결정하는 즉시 요청자에게 1:1 (5.6 마지막).
-- 다른 앱의 요청 결과는 그 앱이 알린다 (7.4).
+- 재고 봇이 **5분마다** `GET /regrequests?app=inv&changedSince=<마지막>` → `regDecision`이 새로 생긴 건마다:
+  - 요청자(`regRequest.byId = tg:<번호>`, 또는 Cognito sub → 연결된 텔레그램)에게 1:1로 5.6 마지막의 결과 문구.
+  - `reject`면 6.4의 관리자 알림.
+- 마지막 시각은 재고 DB(`reg_meta`)에 둔다. 이미 알린 결정은 다시 알리지 않는다.
 
-### 6.6 웹 [+ 새 품목] / [+ 새 거래처]
+### 6.6 웹 [+ 새 품목] / [+ 새 거래처] (구현됨)
 
-- `request` 블록을 붙인다 (`channel = web`). 새 거래처 창에 **증빙 파일 올리기**(선택)를 더한다 — 올리면 읽어서 칸을 채우고 5.3 규칙.
+- `request` 블록을 붙인다 (`channel = web`, app은 `inv` — 재고 키). 새 거래처 창에 **증빙 파일 올리기**(선택) — 올리면 읽어서 칸을 채우고 5.3 규칙.
 
 ## 7. 견적 작업 (`quotation mg`) — 요청만, 승인은 하지 않음
 
@@ -313,14 +364,14 @@
 2. `services/globaldb.py` create에 `request` 블록과 `x-api-key`(`globaldb-quote`)를 항상 보낸다. 거래처는 증빙이 있으면 4.2로 올리고 `evidence`를 붙인다.
 3. **봇에 사진·PDF 받기를 더한다** (지금은 받지 않음). 거래처 등록 중이거나 사진 설명에 거래처 얘기가 있으면 5.3: Claude(Bedrock, 이미지 입력)로 읽어 확인 카드. 견적 대화 도구에 `read_business_doc`(사진 → 읽은 값·문서 종류·검증 결과)를 더하고, `propose_new_customer`에 `evidence` 인자를 더한다. 웹 [+ 새 거래처] 창에도 증빙 올리기.
 4. **견적 안의 이카운트 승인 단계를 없앤다.**
-   - `EcountReviewService.requested()`는 meta에 쓰지 않는다. 승인 요청 알림(`ecount_requested`)과 승인 카드(`eca:`/`ecr:`)는 보내지 않는다 — 재고 봇이 보낸다.
+   - `EcountReviewService.requested()`는 meta에 쓰지 않는다. 승인 요청 알림(`ecount_requested`)과 승인 카드(`eca:`/`ecr:`)는 보내지 않는다 — **(4차) 글로벌 DB 봇이 보낸다.**
    - 웹 "이카운트 승인" 메뉴 → **"등록 요청 현황"(보기 전용)**: `GET /regrequests?app=quote`.
    - 결과 알리기: EventBridge로 **5분마다** `GET /regrequests?app=quote&changedSince=<마지막>` → 요청자에게 `ecount_decided` 문구로 1:1, 견적 슈퍼관리자(견적 `OWNER_EMAILS`)에게는 `(통보)`.
    - 이카운트 관리자 역할(`quote-ecount`)은 승인 권한 없이 남겨 두고 결과 통보만 (기본안).
 5. 이전: meta `ECOUNT#REVIEW`를 JSON으로 내보내는 일회성 스크립트(`scripts/export_reviews_for_gdb.py`) → 글로벌 DB 4.5 import.
 6. 등록 대화·확인 카드는 **바꾸지 않는다** — 이 문서 5장의 기준이 견적 봇이다. 바뀌는 것: 거래처 묻기 앞의 증빙 질문(5.1), 증빙 카드(5.3), 등록 뒤 문구(5.5).
 
-## 8. 결정 사항 (2026-10-12 확정 — 조윤제)
+## 8. 결정 사항
 
 | 질문 | 결정 |
 |---|---|
@@ -331,82 +382,90 @@
 | 승인 전에도 코드를 쓰게 할까? | **쓴다**. 이카운트 파일에는 승인·동기화 뒤에만 |
 | 현장 텔레그램 전용 직원도 신청? | 재고 방에 연결된 사람이면 **된다** |
 | 반려하면 지울까? | **안 지움**, `active = N` |
-| 슈퍼관리자가 자리를 비우면? | 대리 없음. 코드는 쓸 수 있으므로 이카운트 등록만 늦어짐. 필요하면 재고 `OWNER_EMAILS`에 한 사람 더 |
+| 슈퍼관리자가 자리를 비우면? | 대리 없음. 코드는 쓸 수 있으므로 이카운트 등록만 늦어짐. 필요하면 글로벌 DB 슈퍼관리자에 한 사람 더 |
 | 견적 이카운트 관리자 역할 | 승인 권한 없이 결과 통보만 |
+| **(4차) 승인 창구** | **글로벌 DB 봇**(새 텔레그램 봇) + 글로벌 DB 웹 "등록 요청" 승인 버튼. 재고 봇·재고 웹은 승인하지 않음 |
+| **(4차) 승인자** | **글로벌 DB 슈퍼관리자** — 봇은 `GDB_OWNER_TG`, 웹은 `GDB_OWNER_EMAILS` (지금 조윤제) |
+| **(4차) 글로벌 DB 웹에서 만든 것** | **승인 없음** (등록·이카운트 둘 다 승인된 것으로). 이카운트 등록 확인만 지금처럼 |
+| **(4차) 요청자 결과 알림** | 요청한 앱이 `regrequests?app=<자기>&changedSince=` 폴링으로 (재고·견적 5분) |
+| **(4차) 글로벌 DB 봇의 다른 용도** | 나중에 글로벌 로그인 신규 아이디 승인 등을 같은 봇에 (이 문서 밖) |
 
 ## 9. 확인 시나리오
 
-1. **재고 구매 + 세금계산서 사진**: 현장 방에 세금계산서 사진과 `비료 10포 구매` → 거래처를 못 찾음 → 사진에서 공급자 사업자번호 검증 통과 → 관리자에게 묻지 않고 거래처 자동 등록, 기록 카드에 `거래처 새로 등록: … (세금계산서에서 읽음)` → 슈퍼관리자에게 `(증빙 자동 등록)` 카드 → [✅ 이카운트 등록 승인] → 글로벌 DB 이카운트 미등록 탭에 나옴.
-2. **재고 구매, 사진에 번호 없음**: 손글씨 영수증 → 본사 1:1 요청 → [🆕 거래처 등록] → 법인/개인 버튼부터 하나씩 → 확인 카드 [✅ 등록] → 슈퍼관리자 `[✅ 이카운트 등록 승인] [❌ 반려]` 카드.
-3. **견적 봇, 사업자등록증 사진**: `새 거래처 등록할래` → [📷 사진 보낼게요] → 사진 → 증빙 확인 카드 → [✅ 등록] → `✅ 등록됨 — 거래처코드 … (증빙 확인)` → 견적에 바로 씀 → 1분 안에 재고 봇이 슈퍼관리자에게 증빙 카드.
+1. **재고 구매 + 세금계산서 사진**: 현장 방에 세금계산서 사진과 `비료 10포 구매` → 거래처를 못 찾음 → 사진에서 공급자 사업자번호 검증 통과 → 관리자에게 묻지 않고 거래처 자동 등록, 기록 카드에 `거래처 새로 등록: … (세금계산서에서 읽음)` → **(4차) 글로벌 DB 봇이 바로** 슈퍼관리자에게 `(증빙 자동 등록)` 카드 → [✅ 이카운트 등록 승인] → 글로벌 DB 이카운트 미등록 탭에 나옴 → 5분 안에 재고 봇이 요청자에게 결과.
+2. **재고 구매, 사진에 번호 없음**: 손글씨 영수증 → 본사 1:1 요청 → [🆕 거래처 등록] → 법인/개인 버튼부터 하나씩 → 확인 카드 [✅ 등록] → 글로벌 DB 봇 `[✅ 이카운트 등록 승인] [❌ 반려]` 카드.
+3. **견적 봇, 사업자등록증 사진**: `새 거래처 등록할래` → [📷 사진 보낼게요] → 사진 → 증빙 확인 카드 → [✅ 등록] → `✅ 등록됨 — 거래처코드 … (증빙 확인)` → 견적에 바로 씀 → **글로벌 DB 봇이 바로** 슈퍼관리자에게 증빙 카드.
 4. **견적 봇, 증빙 카드에서 사업자번호를 [✏️ 고치기]** → 증빙 줄이 사라지고 일반 요청 → 슈퍼관리자 승인 필요.
 5. **예비 거래처**: 견적 봇에서 [예비 거래처로 등록(이름만)] → `PGC…`로 바로 견적, 승인 카드 없음. 나중에 웹 [정식 거래처로 등록]에서 증빙을 올리면 1번처럼 자동, 없으면 2번처럼 승인.
-6. **새 품목**: 재고 현장 `그린영양제X 20리터 3통 구매 15,000` → [🆕 새 품목 등록 요청] → 1:1 중분류 버튼 → `그냥 등록` → [✅ 등록] → 코드가 기록에 들어감 → 슈퍼관리자 승인 카드.
+6. **새 품목**: 재고 현장 `그린영양제X 20리터 3통 구매 15,000` → [🆕 새 품목 등록 요청] → 1:1 중분류 버튼 → `그냥 등록` → [✅ 등록] → 코드가 기록에 들어감 → 글로벌 DB 봇 승인 카드.
 7. **같은 사업자번호가 이미 있음** → 새로 만들지 않고 그 거래처, 별칭 저장 제안.
 8. 증빙 등록 건에 [🚫 이카운트 제외] → 거래처는 계속 쓰이고, 재고 확인 필요 시트에 `이카운트 제외`.
-9. 견적 키로 review API → 403. `inv-admin`이지만 슈퍼관리자가 아닌 사람에게는 승인 카드·승인 탭이 없음.
+9. **(4차)** 재고·견적 키로 review API → 403. 글로벌 DB 슈퍼관리자가 아닌 텔레그램 번호가 버튼을 누르면 거절, 웹에서는 승인 버튼이 안 보임.
+10. **(4차) 글로벌 DB 웹 [신규 추가]** → 승인 카드 없음, `regStatus`·`ecountStatus` 둘 다 `approved`, 이카운트 미등록 탭에 바로 나옴.
+11. **(4차) 웹에서 승인** → 글로벌 DB 봇의 그 카드도 결정 문구로 바뀜.
 
 ## 10. 구현 계획
 
-단계마다 **끝났다고 볼 기준**(9장 시나리오 번호)을 적었다. 크기는 S(반나절 안) · M(하루 안팎) · L(이틀 이상) 어림이다.
+크기는 S(반나절 안) · M(하루 안팎) · L(이틀 이상) 어림이다.
 
-### 1단계 — 글로벌 DB (`dsglobaldb_manager`)
+### 1단계 — 글로벌 DB 기본 (끝남, 2026-10-12)
 
-| # | 작업 | 손댈 곳 | 크기 |
-|---|---|---|---|
-| G1 | 레코드 필드(`regStatus` `ecountStatus` `regRequest` `regEvidence` `regDecision`), create의 `request`·`evidence` 처리, 자동 등록 판단(4.1 조건 1~4), 응답 `autoApproved` | `AWS/Lambda/dsglobaldbCreate/lambda_function.py` + `test_lambda_function.py` | M |
-| G2 | 증빙 업로드 `POST /dscustomer/evidence-upload` (presigned PUT), S3 `dsbaseinfo/evidence/` 수명주기 5년 | 같은 Lambda 또는 새 Lambda, `deploy_helpers.py`, 새 `(L1-6)` 노트북 | S |
-| G3 | `GET /regrequests`, `POST /dschemical/review`·`/dscustomer/review` (review는 `globaldb-inv` 키만 — 키 id로 판별), `*_history` 기록 | 같은 Lambda + API Gateway `jyipsj28s9` 리소스 4개 (`setup_lambda_method` api_key_required) | M |
-| G4 | 웹 "등록 요청" 메뉴(보기 전용, 증빙 보기), 약품·거래처 목록 배지, 상단 대기 건수, [신규 추가]에 `request`·증빙 올리기 | `src/dsdbMain/DSDBMain.jsx`(메뉴), 새 `src/DSRegRequests/`, `src/DSChemical/`·`src/DSCustomer/` 목록, `src/utils/globaldbCreateApi.js`·`globaldbWriteHeaders.js` | L |
-| G5 | 견적 승인 기록 import 노트북 (4.5) | 새 `(L2-0) Import quote reviews.ipynb` | S |
-| G6 | 문서: `EXTERNAL_API_GUIDE.md` 4·5·6장, `GLOBALDB_API_CHANGELOG.md` → 재고·견적 `docs/`에 복사 | `docs/` | S |
+G1 필드·create의 `request`·`evidence`·자동 등록 판단 / G2 증빙 업로드 / G3 `regrequests`·review / G4 웹 "등록 요청"(보기)·배지 / G5 견적 승인 import 노트북 / G6 문서.
 
-끝난 기준: API만으로 9장 1·3·7의 서버 쪽 동작(자동 등록 판단, 409 기존 거래처, review 키 제한) 확인. **create 키 필수는 아직 켜지 않는다** (4단계).
+### 2단계 — 재고 요청 쪽 (끝남, 2026-10-13)
 
-### 2단계 — 재고 (`inv mg`) — 승인 창구 먼저, 그다음 현장 신청
+I1 글로벌 DB 연동 / I4 증빙 자동 등록 / I5 등록 대화(`api/register_flow.py`) / I6 현장 [🆕 새 품목 등록 요청]·본사 1:1을 대화로·개인 자동 생성 삭제 / I7 이카운트 파일 사유·반려 사용 거래 알림 / I8 웹 새 품목·거래처에 `request`·증빙 / I9 테스트 / I10 매뉴얼. **임시로** I2 재고 봇 승인 카드·I3 재고 웹 승인 탭 (`api/registry.py`, 웹 `RegRequests.jsx`) — 4단계에서 끈다.
+
+### 3단계 — 글로벌 DB 봇 (`dsglobaldb_manager`, 4차 새로)
 
 | # | 작업 | 손댈 곳 | 크기 |
 |---|---|---|---|
-| I1 | 글로벌 DB 연동: `request`·`evidence` 붙이기, 증빙 업로드, `regrequests`·`review` 호출 | `src/masters/globaldb.py` | S |
-| I2 | **슈퍼관리자 승인 카드** (5.6 두 종류, 반려·제외 사유 답장, 증빙 보기, `409 decided`), `reg_cards` 표, `tick` 1분 폴링, 아침 8시 요약, 슈퍼관리자 미연결 안내 | `api/bot.py`(새 콜백 접두어, `_owner_telegrams` 재사용), `api/cards.py`, `api/inputs.py`(표 추가) | M |
-| I3 | 재고 웹 "등록 승인" 탭 (슈퍼관리자만) + API (`/regrequests` 중계, `/review`) | `api/main.py`(`require` 슈퍼관리자), `web/src/pages/Items.jsx`·`Partners.jsx` 또는 새 페이지 | M |
-| I4 | **거래처 증빙 자동 등록**: 파서 출력에 `partner_doc` `partner_name` `partner_ceo` `partner_biz_type` `partner_biz_item` `partner_tel`, 공급자/공급받는자 규칙, 기록 시 자동 create, 기록 카드 한 줄 | `src/parsing/llm_parser.py`(OUTPUT_SCHEMA), `prompts/parse_txn*.md` 4개, `api/inputs.py`(기록 단계), `api/cards.py` | M |
-| I5 | **등록 대화** (5.1~5.5, 견적 봇 문구 그대로): 품목·거래처 질문 순서 상태 기계, 버튼 질문(`✔ 고른 값`), `없음`·`그냥 등록`, 확인 카드, 409·422 처리, [이 품목 쓰기], 1:1 진행 | `api/bot.py`(새 대화 모듈 `api/register_flow.py` 권장), `api/inputs.py`(대화 상태 표) | L |
-| I6 | 현장 카드 문구·[🆕 새 품목 등록 요청], 본사 1:1 [🆕 품목/거래처 등록]을 I5 대화로 연결, **번호 없으면 개인으로 만드는 동작 삭제** (`_hq_callback` `np:`) | `api/bot.py` `_pricing_text`·`_hq_callback`, `api/cards.py` | S |
-| I7 | 이카운트 파일 확인 필요 사유 (6.4), 반려 품목 사용 거래 알림 | `api/report.py` | S |
-| I8 | 웹 [+ 새 품목]·[+ 새 거래처]에 `request`·증빙 올리기 | `web/src/components/CreateDialogs.jsx` | S |
-| I9 | 테스트: 자동 등록 판단 경계(검증 실패, 번호 고침, 우리 회사 번호), 대화 순서, 승인 카드 권한 | `tests/` | M |
-| I10 | 매뉴얼: `3-본사.md`(승인 카드·등록 승인 탭), `2-용역창고.md`·`1-기본`(새 품목 신청, 증빙 사진) | `docs/manual/` | S |
+| G7 | **글로벌 DB 봇**: BotFather 봇, 토큰 SSM, webhook(`POST /tgbot`, secret_token) → 새 Lambda `dsglobaldbBot`. 카드 문구·버튼은 재고 `api/registry.py`에서 옮김. 반려·제외 사유 답장, 증빙 보기, 409 decided, 보낸 카드 기록(DynamoDB `dsglobaldb-bot`, 사유 대기는 TTL), `/start`·`/help`·`/pending` | 새 `AWS/Lambda/dsglobaldbBot/`, 새 `(L1-7) Deploy GDB bot.ipynb`, `deploy_helpers.py` | L |
+| G8 | create 가 저장 뒤 봇 Lambda 를 비동기 호출 (`app ≠ web`이고 승인 대기일 때). 실패해도 create 는 성공 | `dsglobaldbCreate/lambda_function.py` | S |
+| G9 | `app = web` create → 둘 다 `approved` (`regDecision.by = "글로벌 DB 웹"`), `autoReason` | 같은 Lambda + 테스트 | S |
+| G10 | 웹 "등록 요청" 승인 버튼 (슈퍼관리자만 — Cognito 이메일이 `GDB_OWNER_EMAILS`), review 를 웹 로그인으로 부르는 길 (Cognito 토큰 확인), 결정 뒤 봇 카드 고치기(봇 Lambda 호출), [신규 추가] 안내 문구 | `src/DSRegRequests/`, `src/utils/globaldbCreateApi.js`, review 처리 | M |
+| G11 | 아침 08:00 KST 요약 (EventBridge → 봇 Lambda) | 배포 노트북 | S |
+| G12 | 1단계 뒤 웹에서 만들어진 `requested`(app=web) 일괄 승인 (4.5) | 일회성 노트북 | S |
+| G13 | 문서: `EXTERNAL_API_GUIDE.md` 5.1·6.6(review 인증, web 규칙, 결과 폴링), `GLOBALDB_API_CHANGELOG.md` → 재고·견적 `docs/`에 복사 | `docs/` | S |
 
-순서: I1 → I2 → I3 (여기까지면 견적·웹 요청을 받을 수 있음) → I4 → I5 → I6 → I7·I8 → I9·I10.
-끝난 기준: 9장 1·2·6·7·8·9.
+끝난 기준: 9장 1(봇 카드가 바로 감)·10·11, 그리고 재고 봇 승인 카드와 함께 돌아도 결정이 한 번만 되는 것(먼저 누른 쪽이 결정, 다른 쪽은 409 decided로 카드가 "이미 처리됨").
 
-### 3단계 — 견적 (`quotation mg`)
+### 4단계 — 재고 승인 끄기 (`inv mg`)
+
+| # | 작업 | 손댈 곳 | 크기 |
+|---|---|---|---|
+| I11 | `REG_APPROVER=gdb` 이면 재고 봇 승인 카드·1분 폴링·아침 요약·`ra:`/`rr:`/`rx:`/`re:`·웹 "등록 승인" 탭·`/regrequests` 중계 끄기. 확인 뒤 코드 삭제 | `api/bot.py`, `api/main.py`, `web/src/pages/Partners.jsx`·`RegRequests.jsx` | S |
+| I12 | **결과 알림 폴링**: 5분마다 `regrequests?app=inv&changedSince` → 새 결정을 요청자에게 1:1, `reject`면 그 코드를 쓴 거래를 관리자에게 | `api/bot.py`(`tick`), `api/registry.py`(결과 문구는 그대로) | S |
+| I13 | 매뉴얼: `3-본사.md` "등록 승인" 장을 "글로벌 DB 봇"으로 (승인자·봇 이름), README 등록 규칙 | `docs/manual/` | S |
+
+그다음 글로벌 DB: review 를 외부 키 전부 403으로 (4.3 구현 메모).
+
+### 5단계 — 견적 (`quotation mg`)
 
 | # | 작업 | 손댈 곳 | 크기 |
 |---|---|---|---|
 | Q1 | 글로벌 DB 연동: `request`·`evidence`·키, `autoApproved` 처리 | `app/services/globaldb.py`, `app/schemas/catalog.py`(`ItemCreateIn`·`CustomerCreateIn`) | S |
 | Q2 | **봇 사진·PDF 받기** + 문서 읽기 (Bedrock Claude 이미지 입력), 도구 `read_business_doc`, `propose_new_customer`에 `evidence` | `app/telegram/bot.py`(메시지 종류), `app/telegram/llm.py`, `app/telegram/quote_tools.py` | L |
 | Q3 | 증빙 확인 카드 (5.3) [✅ 등록] [✏️ 고치기] [취소], 고치기 흐름(번호 고치면 증빙 해제), 등록 뒤 문구 (5.5) | `app/telegram/bot.py` `_customer_text`·`_send_customer_card`·`_register_customer` | M |
-| Q4 | 대화 지시: 거래처 묻기 전 증빙 질문 (5.1), 예비 거래처 버튼은 그대로 | `app/telegram/agent.py` 시스템 지시 (프롬프트 편집 기본값) | S |
+| Q4 | 대화 지시: 거래처 묻기 전 증빙 질문 (5.1), 예비 거래처 버튼은 그대로 | `app/telegram/agent.py` 시스템 지시 | S |
 | Q5 | 이카운트 승인 단계 제거: `ecount_review.requested()` meta 기록·`ecount_requested` 알림·`eca:`/`ecr:` 카드 중지, 웹 메뉴 → "등록 요청 현황"(보기 전용) | `app/services/ecount_review.py`, `app/telegram/notify.py`, `app/api/ecount.py`, `frontend/src/pages/EcountReviews.tsx` | M |
 | Q6 | 결과 알림: EventBridge 5분 → `regrequests?app=quote&changedSince` → 요청자·슈퍼관리자 통보, 마지막 시각 meta 저장 | `infra/template.yaml`(Schedule), `app/main.py` handler 분기, 새 `app/services/reg_results.py` | M |
 | Q7 | 웹 [+ 새 거래처] 증빙 올리기, [정식 거래처로 등록](예비 전환)에도 증빙 | `frontend/src/components/CreateDialogs.tsx`, `CustomerDetail.tsx` | S |
 | Q8 | 이전 스크립트 `scripts/export_reviews_for_gdb.py` → G5로 넘김 | `backend/scripts/` | S |
 | Q9 | SSM에 `GLOBALDB_API_KEY` 확인 (이미 있음), 테스트 (`moto`), 매뉴얼(`사용설명서 v1.md` 2.2·4.4, 슬라이드 원고 S14·S18) | `tests/`, `docs/` | M |
 
-순서: Q1 → Q5·Q6 (승인을 재고로 넘김) → Q8 → Q2 → Q3 → Q4 → Q7 → Q9.
-끝난 기준: 9장 3·4·5.
+순서: Q1 → Q5·Q6 → Q8 → Q2 → Q3 → Q4 → Q7 → Q9. 끝난 기준: 9장 3·4·5.
 
-### 4단계 — 마무리
+### 6단계 — 마무리
 
 | # | 작업 | 크기 |
 |---|---|---|
-| F1 | 글로벌 DB create에 키·`request` 필수 켜기 → 키 없는 호출 403 확인 (9장 9) | S |
+| F1 | 글로벌 DB create에 키·`request` 필수 켜기 → 키 없는 호출 403 확인 | S |
 | F2 | 2주 동안 `regRequest.app = "unknown"` 로그가 0건인지 확인 | — |
 | F3 | `projects manual/README.md`와 덱 원고(D01 글로벌 DB, D04 재고 본사, D07·D08 견적)에 새 흐름 반영 → `sync_manuals` | S |
 
 ### 단계 사이에 깨지지 않게
 
-- 1단계 뒤 2·3단계 전: 지금 앱들은 `request` 없이 create를 부르므로 `requested`, `app = unknown`으로 쌓인다 — 재고 승인 카드가 생기기 전까지 쌓이기만 하고 동작은 지금과 같다.
-- 2단계 뒤 3단계 전: 견적의 이카운트 관리자 승인과 재고 슈퍼관리자 승인이 **둘 다** 돈다. 견적 쪽 승인은 글로벌 DB에 반영되지 않으므로, 이 기간은 짧게(같은 주 안에) 3단계 Q5까지 배포한다.
+- 3단계(글로벌 DB 봇) 배포 뒤 4단계 전: 재고 봇과 글로벌 DB 봇이 **둘 다** 승인 카드를 보낸다. 결정은 review 한 번만 되므로(먼저 누른 쪽, 다른 쪽은 409 decided) 기록이 꼬이지 않는다. 이 기간은 짧게 — 글로벌 DB 봇 확인 뒤 바로 재고 `REG_APPROVER=gdb`.
+- 5단계 전: 견적은 지금처럼 자기 이카운트 관리자 승인을 돌린다. 견적 쪽 승인은 글로벌 DB에 반영되지 않으므로 Q5까지 같은 주 안에 배포한다.
+- 4.3의 "외부 키 전부 403"은 재고 승인을 끈 뒤에 켠다 (먼저 켜면 재고 봇 승인 카드가 동작하지 않음).
