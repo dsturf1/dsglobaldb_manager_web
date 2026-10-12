@@ -149,19 +149,26 @@ def biz(no):
     return f'{d[:3]}-{d[3:5]}-{d[5:]}' if len(d) == 10 else (no or '')
 
 
-def card_text(rec):
+def is_quote_customer_in_use(rec):
+    """(6차) 견적에서 온 증빙 없는 거래처 요청 — 견적은 승인 대기에도 이 코드로 쓴다."""
+    return (rec.get('kind') == 'customer' and rec.get('regStatus') == 'requested'
+            and (rec.get('regRequest') or {}).get('app') == 'quote')
+
+
+def card_parts(rec):
+    """(머리, 본문 줄들, 안내 줄들). 결정 뒤 카드는 본문만 다시 쓴다."""
     k, req = rec['kind'], rec.get('regRequest') or {}
     when = (req.get('at') or '')[:10]
     if is_evidence(rec):
         ev = rec['regEvidence']
-        return '\n'.join([
-            '🆕 이카운트 등록 승인 요청 — 새 거래처 (증빙 자동 등록)', f"코드: {rec['code']} · {rec.get('name', '')}",
+        return ('🆕 이카운트 등록 승인 요청 — 새 거래처 (증빙 자동 등록)', [
+            f"코드: {rec['code']} · {rec.get('name', '')}",
             f"{rec.get('category') or '분류 없음'} · 대표 {rec.get('ceo') or '-'} · {rec.get('bizType') or '-'}/{rec.get('bizItem') or '-'}",
             f"증빙: {ev.get('docType', '')} ({(ev.get('readAt') or when)[:10]}) · {app_label(rec)} · {req.get('by', '')}",
-            '거래처 등록은 끝났습니다. 이카운트에 올릴지 정해 주세요.'])
+        ], ['거래처 등록은 끝났습니다. 이카운트에 올릴지 정해 주세요.'])
     requested = rec.get('regStatus') == 'requested'
     head = '🆕 등록 승인 요청' if requested else '🆕 이카운트 등록 승인 요청'   # (5차) 승인 전에는 어느 앱도 쓰지 않음
-    out = [f'{head} — 새 {KIND[k]}', f"코드: {rec['code']} · {rec.get('name', '')}"]
+    out = [f"코드: {rec['code']} · {rec.get('name', '')}"]
     if k == 'item':
         out.append(f"{rec.get('unit') or '-'} · {rec.get('infoL1') or '-'} · 판가 {won(rec.get('OUT_PRICE1'))} · "
                    f"구입가 {won(rec.get('IN_PRICE'))}" + (f" · 구매처 {rec['vendors']}" if rec.get('vendors') else ''))
@@ -176,9 +183,19 @@ def card_text(rec):
         out.append('⚠️ 사업자번호 검증번호가 틀린 것을 맞다고 하고 등록함')
     if req.get('note'):
         out.append(f"메모: {req['note']}")
-    out.append('승인하면 등록이 확정되어 앱에서 쓸 수 있고, 이카운트에도 등록해도 됩니다. (승인 전에는 쓰지 않음)' if requested
-               else '등록은 끝났습니다. 이카운트에 올릴지 정해 주세요.')
-    return '\n'.join(out)
+    if is_quote_customer_in_use(rec):                                       # (6차) 견적 거래처
+        guide = ["견적에서는 승인 전에도 이 코드로 쓰는 중입니다 ('승인 대기' 표시). 승인하면 확정되고 이카운트에도 등록해도 됩니다.",
+                 '반려하면 새 견적에는 못 쓰고, 이미 만든 견적은 남습니다 (요청자에게 건수를 알림).']
+    elif requested:
+        guide = ['승인하면 등록이 확정되어 앱에서 쓸 수 있고, 이카운트에도 등록해도 됩니다. (승인 전에는 쓰지 않음)']
+    else:
+        guide = ['등록은 끝났습니다. 이카운트에 올릴지 정해 주세요.']
+    return f'{head} — 새 {KIND[k]}', out, guide
+
+
+def card_text(rec):
+    head, body, guide = card_parts(rec)
+    return '\n'.join([head, *body, *guide])
 
 
 def card_buttons(rec):
@@ -198,7 +215,7 @@ def decided_text(rec):
         decision = 'approve'
     label = APPROVE_BOTH if decision == 'approve' and d.get('target') == 'registration' else DECIDED[decision]
     pending_view = {**rec, 'regStatus': 'approved' if rec.get('regEvidence') else 'requested', 'ecountStatus': 'pending'}
-    body = card_text(pending_view).split('\n')[1:-1]       # 머리와 마지막 안내 줄을 뺀다
+    _, body, _ = card_parts(pending_view)                  # 머리와 안내 줄은 빼고 본문만
     tail = f"{label} — {d.get('by', '')}" + (f" · 사유: {d['comment']}" if d.get('comment') else '')
     return '\n'.join([f"{label} — 새 {KIND[rec['kind']]}", *body, tail])
 

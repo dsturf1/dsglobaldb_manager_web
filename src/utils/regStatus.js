@@ -17,7 +17,11 @@ export const isPendingApproval = (record) => {
   return reg === 'requested' || (ecount === 'pending' && reg !== 'rejected');
 };
 
-export const APP_LABELS = { inv: '재고', quote: '견적', web: '글로벌 DB 웹', unknown: '알 수 없음' };
+// (6차 개정) 견적에서 온 증빙 없는 거래처 요청 — 견적은 승인 대기에도 이 코드로 쓴다 (봇 is_quote_customer_in_use 와 같음)
+export const isQuoteCustomerInUse = (r) =>
+  r?.kind === 'customer' && r?.regStatus === 'requested' && r?.regRequest?.app === 'quote';
+
+export const APP_LABELS ={ inv: '재고', quote: '견적', web: '글로벌 DB 웹', unknown: '알 수 없음' };
 export const CHANNEL_LABELS = { telegram: '봇', web: '웹' };
 
 export const requestSource = (regRequest) => {

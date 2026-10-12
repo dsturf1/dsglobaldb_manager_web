@@ -94,6 +94,29 @@ def test_card_text_matches_registry_shape():
         ('📄 증빙 보기', 're:c:1234567890')]
 
 
+QUOTE_CUSTOMER = {'kind': 'customer', 'code': '1234567890', 'name': '(주)새솔', 'custType': 'corp', 'bizNo': '1234567890',
+                  'category': '골프장', 'ceo': '김민수', 'regStatus': 'requested', 'ecountStatus': 'pending',
+                  'regRequest': {'app': 'quote', 'channel': 'telegram', 'by': '홍길동', 'at': '2026-10-13T02:00:00.000Z'}}
+
+
+def test_quote_customer_card_6th():
+    lines = bot.card_text(QUOTE_CUSTOMER).splitlines()
+    assert lines[0] == '🆕 등록 승인 요청 — 새 거래처'
+    assert lines[2] == '법인 123-45-67890 · 골프장 · 대표 김민수' and lines[3] == '등록: 홍길동 (2026-10-13) · 견적 봇'
+    assert lines[-2].startswith('견적에서는 승인 전에도 이 코드로 쓰는 중입니다')
+    assert lines[-1] == '반려하면 새 견적에는 못 쓰고, 이미 만든 견적은 남습니다 (요청자에게 건수를 알림).'
+    assert [b['text'] for b in bot.card_buttons(QUOTE_CUSTOMER)[0]] == ['✅ 승인 (등록 + 이카운트)', '❌ 반려']
+    # 견적 품목·재고 거래처는 5차 문구 그대로
+    assert bot.card_text({**QUOTE_CUSTOMER, 'regRequest': {**QUOTE_CUSTOMER['regRequest'], 'app': 'inv'}}).endswith('(승인 전에는 쓰지 않음)')
+    assert bot.card_text({**ITEM, 'regRequest': {**ITEM['regRequest'], 'app': 'quote'}}).endswith('(승인 전에는 쓰지 않음)')
+    # 결정 뒤에는 안내 두 줄이 모두 빠진다
+    decided = bot.decided_text({**QUOTE_CUSTOMER, 'regStatus': 'rejected',
+                                'regDecision': {'decision': 'reject', 'target': 'registration', 'by': '조윤제', 'comment': '중복'}})
+    assert '견적에서는' not in decided and '반려하면' not in decided
+    assert decided.splitlines() == ['❌ 반려 — 새 거래처', '코드: 1234567890 · (주)새솔', '법인 123-45-67890 · 골프장 · 대표 김민수',
+                                    '등록: 홍길동 (2026-10-13) · 견적 봇', '❌ 반려 — 조윤제 · 사유: 중복']
+
+
 def test_decided_labels():
     both = {**ITEM, 'regStatus': 'approved', 'ecountStatus': 'approved',
             'regDecision': {'decision': 'approve', 'target': 'registration', 'by': '조윤제'}}

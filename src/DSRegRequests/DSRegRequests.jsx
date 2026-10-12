@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchRegRequests, fetchReviewer, reviewRequest } from '../utils/globaldbCreateApi';
-import { APP_LABELS, regBadges, requestSource } from '../utils/regStatus';
+import { APP_LABELS, isQuoteCustomerInUse, regBadges, requestSource } from '../utils/regStatus';
 import RegRequestDetail from './RegRequestDetail';
 
 /**
@@ -202,6 +202,11 @@ ${r.regStatus === 'requested'
                     <span key={b.label} className={`badge badge-xs mr-1 ${b.className}`} title={b.title}>{b.label}</span>
                   ))}
                   {r.active === 'N' && r.regStatus !== 'rejected' && <span className="badge badge-xs badge-error">미사용</span>}
+                  {isQuoteCustomerInUse(r) && (
+                    <span className="badge badge-xs badge-info" title="견적은 거래처를 승인 대기에도 이 코드로 씁니다 (6차 개정)">
+                      견적에서 사용 중
+                    </span>
+                  )}
                 </td>
                 <td className="text-xs">
                   {r.regDecision

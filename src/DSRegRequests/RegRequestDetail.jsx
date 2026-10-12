@@ -3,7 +3,7 @@ import { useGlobalComponent } from '../context/GlobalComponentContext';
 import { fetchCustomers } from '../DSCustomer/customerApi';
 import EditCustomerDialog from '../DSCustomer/EditCustomerDialog';
 import EditChemicalDialog from '../DSChemical/EditChemicalDialog';
-import { regBadges, requestSource } from '../utils/regStatus';
+import { isQuoteCustomerInUse, regBadges, requestSource } from '../utils/regStatus';
 
 /**
  * 등록 요청 한 건 — 증빙(사진·PDF)과 읽은 값, 요청·결정 정보. 보기 전용.
@@ -97,6 +97,11 @@ export default function RegRequestDetail({ request, onClose, onChanged, decision
                 {r.regRequest?.note && <p className="text-gray-500">메모: {r.regRequest.note}</p>}
                 {r.regRequest?.confirmSimilar && <p className="text-warning">⚠️ 비슷한 품목이 있다는 안내를 확인하고 등록함</p>}
                 {r.regRequest?.allowInvalidBizNo && <p className="text-warning">⚠️ 사업자번호 검증번호가 틀린 채로 등록함</p>}
+                {isQuoteCustomerInUse(r) && (
+                  <p className="text-info">
+                    견적에서는 승인 전에도 이 코드로 쓰는 중입니다 (&apos;승인 대기&apos; 표시). 반려하면 새 견적에는 못 쓰고, 이미 만든 견적은 남습니다.
+                  </p>
+                )}
               </section>
 
               <section>
