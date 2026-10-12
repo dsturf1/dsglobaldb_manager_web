@@ -14,6 +14,14 @@ API Gateway jyipsj28s9 (패스스루 매핑 템플릿, 인증 없음)
     update/alias 는 API 키(x-api-key) 필요 — API Gateway 사용량 계획 'globaldb-write'
     (docs/gdb-update-api-request.md)
 
+등록 요청 (docs/gdb-request-registration-queue.md 4장)
+    create 는 등록 요청이다: regStatus · ecountStatus · regRequest(app 은 API 키로 정함) 를 붙인다.
+    거래처는 증빙(evidence)이 조건을 모두 채우면 바로 등록(regStatus=approved), 아니면 requested.
+    POST /dscustomer/evidence-upload   증빙 파일 올릴 주소 (S3 presigned PUT, 10분)          — 키 필요
+    GET  /regrequests                  등록 요청 목록 (?pending=&kind=&app=&changedSince=)  — 키 필요
+    POST /dschemical/review            승인·반려·이카운트 제외                               — globaldb-inv 키만
+    POST /dscustomer/review
+
 기존 /dschemical, /dscustomer 의 GET/POST/PUT/DELETE 는 그대로 두고, 추가만 이 Lambda 가 맡는다.
 모든 쓰기는 attribute_not_exists 조건부 put 이라 기존 레코드를 덮어쓰지 않는다.
 
@@ -21,7 +29,9 @@ API Gateway jyipsj28s9 (패스스루 매핑 템플릿, 인증 없음)
 후보를 돌려주고, 사용자가 확인한 뒤 confirmSimilar: true 로 다시 보내야 만든다.
 """
 import difflib
+import hashlib
 import json
+import os
 import re
 import unicodedata
 import uuid
@@ -29,7 +39,8 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 import boto3
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Attr, Key
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 CHEMICAL_TABLE = 'dschemicals'
@@ -64,6 +75,21 @@ YN_FIELDS = ('active', 'flgWork', 'flgOut')
 PRICE_FIELDS = ('IN_PRICE', 'OUT_PRICE', 'OUT_PRICE1')
 CHEMICAL_TEXT_FIELDS = ('unit', 'infoL3', 'vendors', 'type', 'createdBy')
 CUSTOMER_TEXT_FIELDS = ('ceo', 'bizType', 'bizItem', 'tel', 'email', 'memo', 'createdBy')
+
+# 등록 요청
+EVIDENCE_BUCKET = 'dsbaseinfo'
+EVIDENCE_PREFIX = 'evidence/customers/'          # + fileKey (<yyyy>/<32자리>.<확장자>), 수명주기 5년
+EVIDENCE_DOC_TYPES = ('사업자등록증', '세금계산서', '영수증', '견적서', '거래명세서')
+EVIDENCE_CONTENT_TYPES = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/heic': 'heic', 'image/webp': 'webp',
+                          'application/pdf': 'pdf'}
+EVIDENCE_EXTRACTED_FIELDS = ('bizNo', 'name', 'ceo', 'bizType', 'bizItem', 'address', 'tel', 'email')
+FILE_KEY_RE = re.compile(r'\d{4}/[0-9a-f]{32}\.(?:' + '|'.join(EVIDENCE_CONTENT_TYPES.values()) + ')')
+UPLOAD_URL_SECONDS = 600
+VIEW_URL_SECONDS = 3600
+REQUEST_FIELDS = ('channel', 'by', 'byId', 'note', 'ref')
+REQUEST_TEXT_MAX = 300
+REVIEW_APP = 'inv'                               # 승인은 재고 슈퍼관리자 (재고 앱 키로만)
+REVIEW_DECISIONS = ('approve', 'reject', 'exclude')
 
 _resources = {}
 
@@ -100,12 +126,17 @@ def lambda_handler(event, context):
     path = event['context'].get('resource-path', '')
     try:
         if method == 'POST' and path == '/dschemical/create':
-            return respond(201, create_chemical(event.get('body-json') or {}))
+            return respond(201, create_chemical(event.get('body-json') or {}, app_of(event)))
         if method == 'GET' and path == '/dschemical/next-code':
             query = event.get('params', {}).get('querystring', {})
             return respond(200, preview_chemical_code(query))
         if method == 'POST' and path == '/dscustomer/create':
-            return respond(201, create_customer(event.get('body-json') or {}))
+            return respond(201, create_customer(event.get('body-json') or {}, app_of(event)))
+        if method == 'POST' and path == '/dscustomer/evidence-upload':
+            return respond(200, evidence_upload(event.get('body-json') or {}, _required_app(event)))
+        if method == 'GET' and path == '/regrequests':
+            _required_app(event)
+            return respond(200, list_requests(event.get('params', {}).get('querystring', {})))
         if method == 'POST' and path == '/dswarehouse/create':
             return respond(201, create_warehouse(event.get('body-json') or {}))
         prefix, _, action = path.strip('/').partition('/')
@@ -114,6 +145,8 @@ def lambda_handler(event, context):
             return respond(200, update_record(ent, event.get('body-json') or {}))
         if ent and method == 'POST' and action == 'alias':
             return respond(200, update_aliases(ent, event.get('body-json') or {}))
+        if ent and method == 'POST' and action == 'review':
+            return respond(200, review_record(ent, event.get('body-json') or {}, _required_app(event)))
         if ent and method == 'GET' and action == 'history':
             query = event.get('params', {}).get('querystring', {})
             return respond(200, record_history(ent, query.get('id') or ''))
@@ -321,10 +354,13 @@ def preview_chemical_code(query):
     return result
 
 
-def create_chemical(body):
+def create_chemical(body, app='unknown'):
     item = _validate_chemical(body)
     now = _now()
-    item.update({'origin': 'local', 'createdAt': now, 'updatedAt': now})
+    item.update({'origin': 'local', 'createdAt': now, 'updatedAt': now,
+                 'regStatus': 'requested', 'ecountStatus': 'pending', 'regRequest': request_block(body, app, now)})
+    if body.get('confirmSimilar') is True:
+        item['regRequest']['confirmSimilar'] = True     # 승인 카드에 ⚠️ 한 줄
     table, taken = _table(CHEMICAL_TABLE), _ecount_codes()
 
     chemicals = _scan_chemicals(table)
@@ -341,7 +377,8 @@ def create_chemical(body):
             chemicals = _scan_chemicals(table)
         item['dsids'] = next_chemical_code(item['infoL1'], item['name'], chemicals, taken)
         if _put_new(table, 'dsids', item):
-            return item
+            _log_created(ENTITIES['dschemical'], item)
+            return {**item, 'autoApproved': False, 'autoReason': '품목은 승인이 필요합니다'}
     raise ApiError(503, '동시에 추가하는 요청이 많아 코드를 정하지 못했습니다. 잠시 후 다시 시도하세요')
 
 
@@ -391,15 +428,27 @@ def _validate_customer(body):
     return item
 
 
-def create_customer(body):
+def create_customer(body, app='unknown'):
     item = _validate_customer(body)
     now = _now()
-    item.update({'origin': 'local', 'createdAt': now, 'updatedAt': now})
+    item.update({'origin': 'local', 'createdAt': now, 'updatedAt': now,
+                 'regStatus': 'requested', 'ecountStatus': 'pending', 'regRequest': request_block(body, app, now)})
+    if item['custType'] == 'corp' and not is_valid_biz_no(item['custcd']):
+        item['regRequest']['allowInvalidBizNo'] = True  # 검증번호가 틀린 채로 등록 (승인 카드에 ⚠️ 한 줄)
+    evidence, reason = check_evidence(body, item)
+    if evidence:
+        item.update({'regStatus': 'approved', 'regEvidence': evidence,
+                     'regDecision': {'by': '증빙 자동', 'byId': '', 'at': now, 'comment': '', 'target': 'registration',
+                                     'decision': 'approve'}})
     table = _table(CUSTOMER_TABLE)
+
+    def created(saved):
+        _log_created(ENTITIES['dscustomer'], saved)
+        return {**saved, 'autoApproved': bool(evidence), 'autoReason': reason}
 
     if item['custType'] == 'corp':
         if _put_new(table, 'custcd', item):
-            return item
+            return created(item)
         existing = table.get_item(Key={'custcd': item['custcd']}).get('Item', {})
         raise ApiError(409, '이미 있는 거래처코드입니다',
                        existing={'custcd': item['custcd'], 'name': existing.get('name', '')})
@@ -408,7 +457,7 @@ def create_customer(body):
         codes = [c['custcd'] for c in _scan_all(table, '#k', {'#k': 'custcd'})]
         item['custcd'] = next_person_code(codes)
         if _put_new(table, 'custcd', item):
-            return item
+            return created(item)
     raise ApiError(503, '동시에 추가하는 요청이 많아 코드를 정하지 못했습니다. 잠시 후 다시 시도하세요')
 
 
@@ -715,3 +764,243 @@ def record_history(ent, key_value):
         KeyConditionExpression=Key(ent['key']).eq(key_value), ScanIndexForward=False, Limit=HISTORY_LIMIT)
     return [{'at': item['at'].split('#')[0], 'by': item.get('by', ''), 'action': item.get('action', ''),
              'changes': item.get('changes', {})} for item in response.get('Items', [])]
+
+
+# ---------------------------------------------------------------- 등록 요청 (docs/gdb-request-registration-queue.md)
+# 앱은 API 키로 정한다. KEY_APPS 환경 변수 = {sha256(키 값): "inv"|"quote"|"web"} (배포 노트북 (L1-6) 이 넣음, 키 값은 두지 않음)
+
+def _key_apps():
+    try:
+        return json.loads(os.environ.get('KEY_APPS') or '{}')
+    except ValueError:
+        print('KEY_APPS 환경 변수 형식 오류')
+        return {}
+
+
+def app_of(event):
+    """요청한 앱 (inv/quote/web). 키가 없거나 모르는 키면 'unknown' — create 는 전환 기간이라 받는다."""
+    headers = {k.lower(): v for k, v in ((event.get('params') or {}).get('header') or {}).items()}
+    key = headers.get('x-api-key') or (event.get('context') or {}).get('api-key') or ''
+    if not key:
+        return 'unknown'
+    return _key_apps().get(hashlib.sha256(key.encode()).hexdigest(), 'unknown')
+
+
+def _required_app(event):
+    app = app_of(event)
+    if app == 'unknown':
+        raise ApiError(403, 'API 키(x-api-key)가 필요합니다')
+    return app
+
+
+def request_block(body, app, now):
+    """create 본문의 request → regRequest. app·at 은 서버가 정한다."""
+    request = body.get('request') if isinstance(body.get('request'), dict) else {}
+    block = {'app': app, 'at': now}
+    for field in REQUEST_FIELDS:
+        value = request.get(field, '')
+        block[field] = value.strip()[:REQUEST_TEXT_MAX] if isinstance(value, str) else ''
+    if app == 'unknown' or not request:
+        print(f"경고: 키 또는 request 없는 create (app={app}, request={'있음' if request else '없음'})")
+    return block
+
+
+def _s3():
+    if 's3' not in _resources:
+        _resources['s3'] = boto3.client('s3', region_name='us-east-1', config=Config(signature_version='s3v4'))
+    return _resources['s3']
+
+
+def _evidence_exists(file_key):
+    try:
+        _s3().head_object(Bucket=EVIDENCE_BUCKET, Key=EVIDENCE_PREFIX + file_key)
+        return True
+    except ClientError:
+        return False
+
+
+def check_evidence(body, item):
+    """증빙 자동 등록 조건(4.1의 1~4)을 모두 채우면 (regEvidence, '') / 아니면 (None, 이유)."""
+    evidence = body.get('evidence')
+    if not isinstance(evidence, dict) or not evidence:
+        return None, '증빙 없음'
+    if item['custType'] != 'corp':
+        return None, '개인 거래처는 증빙을 받지 않습니다'
+    doc_type = _text(evidence, 'docType')
+    if doc_type not in EVIDENCE_DOC_TYPES:
+        return None, f'증빙 문서 종류는 {", ".join(EVIDENCE_DOC_TYPES)} 중 하나여야 합니다'
+    if re.sub(r'\D', '', _text(evidence, 'bizNo')) != item['custcd']:
+        return None, '증빙의 사업자번호와 등록할 사업자번호가 다릅니다'
+    if not is_valid_biz_no(item['custcd']):
+        return None, '사업자번호 검증번호가 맞지 않습니다'
+    file_key = _text(evidence, 'fileKey')
+    if not FILE_KEY_RE.fullmatch(file_key) or not _evidence_exists(file_key):
+        return None, '증빙 파일이 올라와 있지 않습니다 (evidence-upload 로 먼저 올리세요)'
+    extracted = evidence.get('extracted') if isinstance(evidence.get('extracted'), dict) else {}
+    return {
+        'docType': doc_type, 'bizNo': item['custcd'], 'fileKey': file_key,
+        'extracted': {f: _text(extracted, f)[:REQUEST_TEXT_MAX] for f in EVIDENCE_EXTRACTED_FIELDS if _text(extracted, f)},
+        'readAt': _text(evidence, 'readAt')[:40] or item['createdAt'],
+        'readBy': _text(evidence, 'readBy')[:REQUEST_TEXT_MAX] or item['regRequest'].get('by', ''),
+    }, ''
+
+
+def evidence_upload(body, app):
+    doc_type = _text(body, 'docType')
+    if doc_type not in EVIDENCE_DOC_TYPES:
+        raise ApiError(400, f'docType 은 {", ".join(EVIDENCE_DOC_TYPES)} 중 하나여야 합니다', field='docType')
+    content_type = _text(body, 'contentType').lower()
+    if content_type not in EVIDENCE_CONTENT_TYPES:
+        raise ApiError(400, f'contentType 은 {", ".join(EVIDENCE_CONTENT_TYPES)} 중 하나여야 합니다', field='contentType')
+    file_key = f'{datetime.now(timezone.utc).year}/{uuid.uuid4().hex}.{EVIDENCE_CONTENT_TYPES[content_type]}'
+    url = _s3().generate_presigned_url(
+        'put_object', Params={'Bucket': EVIDENCE_BUCKET, 'Key': EVIDENCE_PREFIX + file_key, 'ContentType': content_type},
+        ExpiresIn=UPLOAD_URL_SECONDS)
+    print(f'evidence-upload app={app} docType={doc_type} fileKey={file_key}')
+    return {'fileKey': file_key, 'uploadUrl': url, 'contentType': content_type, 'expiresIn': UPLOAD_URL_SECONDS}
+
+
+def evidence_view_url(file_key):
+    return _s3().generate_presigned_url('get_object', Params={'Bucket': EVIDENCE_BUCKET, 'Key': EVIDENCE_PREFIX + file_key},
+                                        ExpiresIn=VIEW_URL_SECONDS)
+
+
+def effective_status(record):
+    """(regStatus, ecountStatus). 필드가 없는 이전 데이터: 등록은 approved, 이카운트는 ecount 출처면 None(해당 없음)."""
+    reg = record.get('regStatus') or 'approved'
+    ecount = record.get('ecountStatus') or (None if record.get('origin') == 'ecount' else 'approved')
+    return reg, ecount
+
+
+def _log_created(ent, item):
+    by = item['regRequest'].get('by') or '-'
+    _write_history(ent, item[ent['key']], f"{item['regRequest']['app']}:{by}", 'create',
+                   {'regStatus': ['', item['regStatus']], 'ecountStatus': ['', item['ecountStatus']]})
+
+
+def _request_row(kind, record):
+    reg, ecount = effective_status(record)
+    row = {'kind': kind, 'name': record.get('name', ''), 'regStatus': reg, 'ecountStatus': ecount,
+           'regRequest': record.get('regRequest'), 'regDecision': record.get('regDecision'),
+           'updatedAt': record.get('updatedAt', ''), 'active': record.get('active', 'Y'),
+           'ecountSyncedAt': record.get('ecountSyncedAt', '')}
+    if kind == 'item':
+        row.update({'code': record['dsids'], 'unit': record.get('unit', ''), 'infoL1': record.get('infoL1', ''),
+                    'infoL2': record.get('infoL2', ''), 'infoL3': record.get('infoL3', ''),
+                    'vendors': record.get('vendors', ''), **{f: record.get(f, 0) for f in PRICE_FIELDS}})
+    else:
+        row.update({'code': record['custcd'], 'custType': record.get('custType', ''),
+                    'bizNo': record['custcd'] if record.get('custType') == 'corp' else '',
+                    'category': record.get('category', ''), 'ceo': record.get('ceo', ''),
+                    'bizType': record.get('bizType', ''), 'bizItem': record.get('bizItem', '')})
+        if record.get('regEvidence'):
+            row['regEvidence'] = {**record['regEvidence'], 'viewUrl': evidence_view_url(record['regEvidence']['fileKey'])}
+    return row
+
+
+def _is_pending(row, pending):
+    reg_wait = row['regStatus'] == 'requested'
+    ecount_wait = row['ecountStatus'] == 'pending' and row['regStatus'] != 'rejected'
+    return {'registration': reg_wait, 'ecount': ecount_wait, 'any': reg_wait or ecount_wait}[pending]
+
+
+def list_requests(query):
+    """등록 요청 목록 (약품·거래처). regRequest 가 있는 레코드만, 요청 시각 새것부터."""
+    pending = (query.get('pending') or '').strip()
+    kind = (query.get('kind') or '').strip()
+    app = (query.get('app') or '').strip()
+    since = (query.get('changedSince') or '').strip()
+    if pending and pending not in ('registration', 'ecount', 'any'):
+        raise ApiError(400, 'pending 은 registration, ecount, any 중 하나입니다', field='pending')
+    if kind and kind not in ('item', 'customer'):
+        raise ApiError(400, 'kind 는 item 또는 customer 입니다', field='kind')
+
+    rows = []
+    for row_kind, table_name in (('item', CHEMICAL_TABLE), ('customer', CUSTOMER_TABLE)):
+        if kind and kind != row_kind:
+            continue
+        table, kwargs = _table(table_name), {'FilterExpression': Attr('regRequest').exists()}
+        while True:
+            response = table.scan(**kwargs)
+            rows.extend(_request_row(row_kind, r) for r in response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+    rows = [r for r in rows
+            if (not pending or _is_pending(r, pending))
+            and (not app or (r['regRequest'] or {}).get('app') == app)
+            and (not since or r['updatedAt'] > since)]
+    rows.sort(key=lambda r: (r['regRequest'] or {}).get('at', ''), reverse=True)
+    return rows
+
+
+def _decide(record, decision):
+    """(target, 새 regStatus, 새 ecountStatus). 처리할 수 없으면 ApiError.
+    requested: approve → 둘 다 승인 / reject → 반려·제외 / exclude → 등록은 승인, 이카운트만 제외
+    증빙 등록(approved + pending): approve → 이카운트 승인 / exclude → 이카운트 제외 / reject → 400"""
+    reg, ecount = effective_status(record)
+    if reg == 'requested':
+        return {'approve': ('registration', 'approved', 'approved'),
+                'reject': ('registration', 'rejected', 'excluded'),
+                'exclude': ('registration', 'approved', 'excluded')}[decision]
+    if reg == 'approved' and ecount == 'pending':
+        if decision == 'reject':
+            raise ApiError(400, '이미 등록된 거래처(증빙 등록)는 반려할 수 없습니다. 이카운트 제외(exclude)를 쓰세요',
+                           field='decision')
+        return 'ecount', 'approved', 'approved' if decision == 'approve' else 'excluded'
+    raise ApiError(409, '이미 처리된 요청입니다', reason='decided', regDecision=record.get('regDecision'),
+                   regStatus=reg, ecountStatus=ecount)
+
+
+def _stale(ent, key_value):
+    return ApiError(409, '그사이 다른 곳에서 고쳤습니다. 지금 내용을 확인하고 다시 결정하세요', reason='stale',
+                    current=_get_record(ent, key_value))
+
+
+def review_record(ent, body, app):
+    """슈퍼관리자 결정 (재고 앱 키만). 반려·제외는 comment 필수. 반려하면 active = N (지우지 않음)."""
+    if app != REVIEW_APP:
+        raise ApiError(403, '승인은 재고 시스템 슈퍼관리자만 할 수 있습니다 (globaldb-inv 키)')
+    key_value = _text(body, 'id')
+    if not key_value:
+        raise ApiError(400, 'id 는 필수입니다', field='id')
+    decision = _text(body, 'decision')
+    if decision not in REVIEW_DECISIONS:
+        raise ApiError(400, f'decision 은 {", ".join(REVIEW_DECISIONS)} 중 하나여야 합니다', field='decision')
+    comment = _text(body, 'comment')[:REQUEST_TEXT_MAX]
+    if decision != 'approve' and not comment:
+        raise ApiError(422, '반려·이카운트 제외는 사유(comment)가 필요합니다', field='comment')
+    by = _text(body, 'by')[:100]
+    if not by:
+        raise ApiError(400, 'by(결정한 사람 이름)는 필수입니다', field='by')
+
+    record = _get_record(ent, key_value)
+    target, reg, ecount = _decide(record, decision)        # 이미 처리됐으면 stale 보다 decided 를 먼저 알린다
+    if 'expectedUpdatedAt' in body and body.get('expectedUpdatedAt') != record.get('updatedAt'):
+        raise _stale(ent, key_value)
+    before = effective_status(record)
+    now = _now()
+    values = {':reg': reg, ':ecount': ecount, ':now': now, ':by': f'{app}:{by}',
+              ':decision': {'by': by, 'byId': _text(body, 'byId')[:100], 'at': now, 'comment': comment,
+                            'target': target, 'decision': decision}}
+    sets = 'SET regStatus = :reg, ecountStatus = :ecount, regDecision = :decision, updatedAt = :now, updatedBy = :by'
+    changes = {'regStatus': [before[0], reg], 'ecountStatus': [before[1] or '', ecount]}
+    if reg == 'rejected':
+        sets += ', active = :inactive'
+        values[':inactive'] = 'N'
+        changes['active'] = [record.get('active', 'Y'), 'N']
+    if comment:
+        changes['comment'] = ['', comment]
+    condition, condition_values = _version_condition(ent, record.get('updatedAt'))
+    try:
+        saved = _table(ent['table']).update_item(
+            Key={ent['key']: key_value}, UpdateExpression=sets, ConditionExpression=condition,
+            ExpressionAttributeValues={**values, **condition_values}, ReturnValues='ALL_NEW')['Attributes']
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'ConditionalCheckFailedException':
+            raise
+        raise _stale(ent, key_value) from None
+
+    print(f"review {ent['key']}={key_value} decision={decision} target={target} by={app}:{by}")
+    _write_history(ent, key_value, f'{app}:{by}', 'review', changes)
+    return saved

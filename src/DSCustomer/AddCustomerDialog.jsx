@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CUSTOMER_CATEGORIES, CUSTOMER_TYPES, isValidBizNo, nextPersonCode } from './customerExcel';
-import { createCustomer } from '../utils/globaldbCreateApi';
+import { createCustomer, uploadEvidence, EVIDENCE_DOC_TYPES, EVIDENCE_ACCEPT } from '../utils/globaldbCreateApi';
 
 /**
  * 거래처 신규 추가 — 서버(POST /dscustomer/create)가 저장한다. 이미 있는 코드는 덮어쓰지 않음.
@@ -8,6 +8,8 @@ import { createCustomer } from '../utils/globaldbCreateApi';
  * - 법인: 거래처코드 = 사업자등록번호 10자리 (이카운트 관례). 이미 있으면 409
  * - 개인: 거래처코드 = P00001 형식, 서버가 순번을 정한다. 주민등록번호는 받지 않는다
  * 화면의 중복·검증 표시는 빠른 안내용이고, 최종 판단은 서버가 한다.
+ * 등록 요청이다 (docs/gdb-request-registration-queue.md): 법인은 증빙(사업자등록증·세금계산서 등)을 같이 올리고
+ * 번호 검증이 통과하면 바로 등록, 아니면 재고 슈퍼관리자 승인 대기. 코드는 어느 경우든 바로 쓸 수 있다.
  */
 const EMPTY_FORM = {
   custType: 'corp',
@@ -25,9 +27,14 @@ const EMPTY_FORM = {
 export default function AddCustomerDialog({ isOpen, onClose, customers, onCreated }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
+  const [evidenceType, setEvidenceType] = useState(EVIDENCE_DOC_TYPES[0]);
+  const [evidenceFile, setEvidenceFile] = useState(null);
 
   useEffect(() => {
-    if (isOpen) setForm(EMPTY_FORM);
+    if (isOpen) {
+      setForm(EMPTY_FORM);
+      setEvidenceFile(null);
+    }
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -53,7 +60,11 @@ export default function AddCustomerDialog({ isOpen, onClose, customers, onCreate
 
     setIsSaving(true);
     try {
-      const { status, body } = await createCustomer({
+      // 증빙은 법인만 (개인 문서에는 주민등록번호가 있을 수 있음)
+      const evidence = isCorp && evidenceFile
+        ? { docType: evidenceType, bizNo: bizNoDigits, fileKey: await uploadEvidence(evidenceType, evidenceFile) }
+        : undefined;
+      const { status, body, autoApproved, autoReason } = await createCustomer({
         custType: form.custType,
         bizNo: isCorp ? bizNoDigits : undefined,
         allowInvalidBizNo: Boolean(codeWarning),   // 위에서 확인을 받은 경우만
@@ -65,7 +76,7 @@ export default function AddCustomerDialog({ isOpen, onClose, customers, onCreate
         email: form.email,
         category: form.category,
         memo: form.memo,
-      });
+      }, evidence);
       if (status === 409) {
         alert(`이미 있는 거래처입니다: ${body.existing?.name || ''} (${body.existing?.custcd || custcd})`);
         return;
@@ -75,7 +86,13 @@ export default function AddCustomerDialog({ isOpen, onClose, customers, onCreate
         return;
       }
       onCreated(body);
-      alert(`추가했습니다: ${body.custcd} ${body.name}`);
+      alert(autoApproved
+        ? `등록했습니다 (증빙 확인): ${body.custcd} ${body.name}
+이카운트 등록은 재고 슈퍼관리자 승인 뒤에 합니다.`
+        : `등록 요청했습니다: ${body.custcd} ${body.name}
+코드는 바로 쓸 수 있습니다. 등록 확인과 이카운트 등록은 재고 슈퍼관리자 승인 뒤에 합니다.`
+          + (evidence ? `
+(증빙으로 인정되지 않음: ${autoReason})` : ''));
       onClose();
     } catch (err) {
       console.error('Failed to create customer:', err);
@@ -140,6 +157,24 @@ export default function AddCustomerDialog({ isOpen, onClose, customers, onCreate
                 {CUSTOMER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
+            {isCorp && (
+              <div className="col-span-2">
+                <label className="label">증빙 (선택) — 사업자번호가 찍힌 문서</label>
+                <div className="flex gap-2">
+                  <select className="select select-bordered select-sm" value={evidenceType}
+                    onChange={(e) => setEvidenceType(e.target.value)}>
+                    {EVIDENCE_DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <input type="file" accept={EVIDENCE_ACCEPT} className="file-input file-input-bordered file-input-sm flex-1"
+                    onChange={(e) => setEvidenceFile(e.target.files?.[0] || null)} />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {evidenceFile && !codeWarning
+                    ? '증빙이 있고 번호 검증이 통과하면 바로 등록됩니다. 이카운트 등록만 승인을 받습니다.'
+                    : '증빙이 없으면 재고 슈퍼관리자 승인 대기로 등록됩니다 (코드는 바로 쓸 수 있음).'}
+                </p>
+              </div>
+            )}
             <div className="col-span-2">
               <label className="label">메모</label>
               <textarea className="textarea textarea-bordered w-full" rows={2} value={form.memo} onChange={set('memo')} />
@@ -149,7 +184,7 @@ export default function AddCustomerDialog({ isOpen, onClose, customers, onCreate
           <div className="modal-action">
             <button type="button" className="btn" onClick={onClose} disabled={isSaving}>취소</button>
             <button type="submit" className="btn btn-primary" disabled={!canSave}>
-              {isSaving ? '저장 중...' : '추가'}
+              {isSaving ? '저장 중...' : '등록 요청'}
             </button>
           </div>
         </form>

@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { isEcountApproved } from '../utils/regStatus';
 import { downloadExcel } from '../utils/excelExport';
 
 /**
@@ -235,9 +236,10 @@ const sameName = (a, b) => (a || '').replace(/\s/g, '') === (b || '').replace(/\
  * - confirmed: 같은 코드·같은 이름으로 이카운트에 있는 것 (등록 확인 → ecountSyncedAt 기록)
  * - conflicts: 같은 코드가 이카운트에 다른 이름으로 있는 것
  * 로 나눈다. ecountSyncedAt 이 있는 거래처는 예전 엑셀로 비교해도 다시 나오지 않는다.
+ * 이카운트 등록 승인이 끝난 것(ecountStatus approved)만 본다 — 승인 대기·제외·반려는 나오지 않는다.
  */
 export const findLocalCustomerStatus = (allCodes, customers) => {
-  const pending = customers.filter(c => c.origin === 'local' && !c.ecountSyncedAt);
+  const pending = customers.filter(c => isEcountApproved(c) && !c.ecountSyncedAt);
   const inEcount = pending.filter(c => c.custcd in allCodes);
   return {
     unsynced: pending.filter(c => !(c.custcd in allCodes)),

@@ -3,7 +3,7 @@
 외부 앱과 텔레그램 봇에서 글로벌 DB의 **약품**과 **거래처** 데이터를 읽어 쓰기 위한 안내입니다.
 데이터는 이 저장소의 웹(dsglobaldb_manager)에서 관리하고, 외부에서는 아래 API로 읽습니다.
 
-> 2026-10-06 기준. 약품 약 660건, 거래처 1,486건, 창고 19건. 새로 추가는 create API(6장), 수정·별칭은 update/alias API(6.4 거래처, 6.5 약품)로 한다.
+> 2026-10-12 기준. 약품 약 660건, 거래처 1,486건, 창고 19건. 새로 추가는 create API(6장) — **등록 요청**이며 승인은 재고 슈퍼관리자가 한다(6.6). 수정·별칭은 update/alias API(6.4 거래처, 6.5 약품)로 한다.
 > 무엇이 언제 바뀌었는지는 [GLOBALDB_API_CHANGELOG.md](GLOBALDB_API_CHANGELOG.md)에 있다.
 
 ---
@@ -203,11 +203,35 @@ def unwrap(res_json):
 - `origin = local`이고 `ecountSyncedAt`이 없으면 **이카운트에는 아직 없는 코드**입니다. 이 코드로 이카운트 전표·견적을 만들면 실패할 수 있습니다.
 - 이카운트와 맞춰야 하는 작업에서는 `origin === 'ecount' || ecountSyncedAt` 인 데이터만 쓰는 게 안전합니다.
 
+### 5.1 등록 요청 상태 (2026-10-12부터)
+
+create API로 만든 약품·거래처는 **등록 요청**입니다. 코드는 바로 쓸 수 있고, 승인은 재고 시스템 슈퍼관리자가 합니다([6.6](#66-등록-요청--증빙--승인)).
+
+| 필드 | 값 | 뜻 |
+|---|---|---|
+| `regStatus` | `requested` / `approved` / `rejected` | **등록 승인** — 이 품목·거래처가 맞는가. **없으면 `approved`로 봅니다** (이카운트에서 온 것, 이전 데이터) |
+| `ecountStatus` | `pending` / `approved` / `excluded` | **이카운트 등록 승인** — 이카운트에 올려도 되는가. 없으면 `origin = ecount`는 해당 없음, `local`은 `approved`로 봅니다 |
+| `regRequest` | `{app, channel, by, byId, at, note, ref}` | 요청 정보. `app`(`inv` `quote` `web`, 키 없으면 `unknown`)은 **서버가 API 키로 정합니다**. 비슷한 품목 확인 후 등록은 `confirmSimilar: true`, 검증번호가 틀린 사업자번호는 `allowInvalidBizNo: true`가 붙습니다 |
+| `regEvidence` | `{docType, bizNo, fileKey, extracted, readAt, readBy}` | 거래처 증빙. **증빙으로 바로 등록된 거래처에만** 있습니다 |
+| `regDecision` | `{by, byId, at, comment, target, decision}` | 마지막 결정. `target`은 `registration`(등록) / `ecount`(이카운트 등록), `decision`은 `approve` `reject` `exclude`. 증빙 자동 등록은 `by: "증빙 자동"` |
+
+- **반려**(`rejected`)되면 `active = 'N'`이 됩니다. 지우지는 않습니다(이미 그 코드를 쓴 기록이 있을 수 있음).
+- **이카운트 제외**(`excluded`)는 거래처·품목은 그대로 쓰고, 이카운트에만 올리지 않습니다.
+- 이카운트 업로드 파일에는 지금처럼 `origin = ecount` 또는 `ecountSyncedAt`이 있는 것만 넣으세요. 승인(`ecountStatus = approved`)된 것을 사람이 이카운트에 등록하고, 글로벌 DB 웹에서 [등록 완료로 반영]하면 `ecountSyncedAt`이 생깁니다.
+
 ---
 
 ## 6. 새로 추가 — create API
 
-새 약품·거래처는 **이 API로만** 추가하세요. 웹도 같은 API를 씁니다.
+새 약품·거래처는 **이 API로만** 추가하세요. 웹도 같은 API를 씁니다. create는 **등록 요청**입니다([5.1](#51-등록-요청-상태-2026-10-12부터), [6.6](#66-등록-요청--증빙--승인)).
+
+- **`x-api-key` 헤더와 `request` 블록을 붙이세요.** 지금은 없어도 받지만 `regRequest.app = "unknown"`으로 기록되고, **곧 둘 다 필수가 됩니다**(날짜는 따로 알림).
+  ```json
+  "request": { "channel": "telegram", "by": "홍길동", "byId": "tg:123456", "note": "", "ref": "inv#input-501" }
+  ```
+  `channel`은 `telegram` / `web`, `byId`는 Cognito sub 또는 `tg:<텔레그램 id>`, `ref`는 요청한 앱의 원본(`inv#input-501`, `quote#Q2026-0123`)입니다.
+- 새 항목은 `regStatus: requested`, `ecountStatus: pending`으로 만들어집니다. 거래처는 증빙 조건(6.2)을 채우면 `regStatus: approved`로 바로 등록됩니다.
+- `201` 응답에는 저장된 레코드에 더해 `autoApproved`(증빙으로 바로 등록됐는지)와 `autoReason`(아니라면 이유)이 들어 있습니다. 이 두 값은 저장되는 필드가 아닙니다.
 
 - **코드는 서버가 정합니다.** 보낸 `dsids`·`custcd`(개인), `origin`, `createdAt`, `ecountSyncedAt`은 무시됩니다.
 - **이미 있는 코드는 절대 덮어쓰지 않습니다.** 동시에 추가해도 서로 다른 코드를 받습니다.
@@ -292,10 +316,28 @@ POST /dscustomer/create
 - 개인 코드는 서버가 `P00001`부터 순서대로 정합니다. **주민등록번호는 보내지 마세요.**
 - 거래처는 비슷한 이름 확인을 하지 않습니다.
 
+**증빙으로 바로 등록** — `evidence` 블록을 붙입니다 (파일은 먼저 [6.6.1](#661-증빙-파일-올리기--post-dscustomerevidence-upload)로 올림):
+
+```json
+"evidence": { "docType": "세금계산서", "bizNo": "123-45-67890", "fileKey": "2026/3f2a...e1.jpg",
+              "extracted": { "bizNo": "1234567890", "name": "(주)그린필드", "ceo": "김민수", "bizType": "도소매",
+                             "bizItem": "비료", "address": "", "tel": "031-000-0000", "email": "" },
+              "readAt": "2026-10-12T02:00:00.000Z", "readBy": "홍길동" }
+```
+
+서버가 아래를 **모두** 확인하면 `regStatus: approved`(증빙 자동)로 만듭니다. 하나라도 빠지면 오류가 아니라 보통 요청(`requested`)으로 만들고 `autoReason`에 이유를 넣습니다.
+1. `custType = corp` — **개인은 증빙을 받지 않습니다**(주민등록번호가 찍힌 문서가 섞일 수 있음). 보내도 무시합니다
+2. `docType`이 `사업자등록증` `세금계산서` `영수증` `견적서` `거래명세서` 중 하나
+3. `evidence.bizNo`가 본문 `bizNo`와 같고(숫자만 비교) **검증번호 통과** — `allowInvalidBizNo`로 넘긴 번호는 증빙으로 치지 않습니다
+4. `fileKey`가 실제로 올라온 파일
+
+- `extracted`는 앱이 문서에서 읽은 값입니다. 서버는 저장만 합니다(웹 "등록 요청" 화면에서 지금 값과 나란히 보여 줌).
+- 세금계산서·견적서·명세서는 공급자와 공급받는자 칸이 둘 다 있습니다. **우리(㈜동성그린)가 아닌 쪽**을 읽으세요.
+
 | statusCode | 의미 | body |
 |---|---|---|
-| `201` | 추가됨 | 저장된 레코드 전체 (`custcd` 포함) |
-| `409` | 같은 사업자번호의 거래처가 이미 있음 (덮어쓰지 않음) | `message`, `existing: { custcd, name }` |
+| `201` | 추가됨 (등록 요청 또는 증빙 자동 등록) | 저장된 레코드 전체 (`custcd` 포함) + `autoApproved`, `autoReason` |
+| `409` | 같은 사업자번호의 거래처가 이미 있음 (덮어쓰지 않음) — 그 거래처를 쓰고, 필요하면 별칭 저장 | `message`, `existing: { custcd, name }` |
 | `422` | 사업자번호 검증번호가 맞지 않음 | `message`. 사용자 확인 후 `allowInvalidBizNo: true`로 다시 보내기 |
 | `400` | 입력 오류 | `message` |
 
@@ -456,6 +498,67 @@ def add_alias(custcd, name, by, confirm):
 POST /dschemical/alias
 { "dsids": "A30410", "add": ["데브리놀"], "updatedBy": "inv:a@b.com" }
 ```
+
+### 6.6 등록 요청 · 증빙 · 승인
+
+| 요청 | 동작 | API 키 |
+|---|---|---|
+| `POST /dscustomer/evidence-upload` | 증빙 파일 올릴 주소 받기 | **필요** (모든 앱 키) |
+| `GET /regrequests` | 등록 요청 목록 (약품·거래처 함께) | **필요** (모든 앱 키) |
+| `POST /dschemical/review` · `POST /dscustomer/review` | 승인 · 반려 · 이카운트 제외 | **`globaldb-inv` 키만** — 다른 키는 `statusCode 403` |
+
+키가 없으면 API Gateway가 HTTP 403을 돌려줍니다(6.4와 같음). 승인은 **재고 시스템 슈퍼관리자**만 합니다. 슈퍼관리자인지는 재고 앱이 확인합니다.
+
+#### 6.6.1 증빙 파일 올리기 — `POST /dscustomer/evidence-upload`
+
+```json
+POST /dscustomer/evidence-upload
+{ "docType": "세금계산서", "contentType": "image/jpeg" }
+→ { "fileKey": "2026/3f2a…e1.jpg", "uploadUrl": "https://dsbaseinfo.s3.amazonaws.com/…", "contentType": "image/jpeg", "expiresIn": 600 }
+```
+
+- `contentType`: `image/jpeg` `image/png` `image/heic` `image/webp` `application/pdf`.
+- 받은 `uploadUrl`로 **10분 안에** 원본을 `PUT` 하세요. 헤더 `Content-Type`은 응답의 `contentType`과 같아야 합니다. 그다음 create의 `evidence.fileKey`에 `fileKey`를 넣습니다.
+- 파일은 비공개(S3 `dsbaseinfo/evidence/customers/`)로 5년 보관합니다. 볼 때는 `GET /regrequests`의 `regEvidence.viewUrl`(1시간)을 씁니다.
+
+```python
+import requests
+r = gdb_post('/dscustomer/evidence-upload', {'docType': '세금계산서', 'contentType': 'image/jpeg'})   # x-api-key 포함
+requests.put(r['uploadUrl'], data=photo_bytes, headers={'Content-Type': r['contentType']}).raise_for_status()
+evidence = {'docType': '세금계산서', 'bizNo': biz_no, 'fileKey': r['fileKey'], 'extracted': read_values}
+```
+
+#### 6.6.2 등록 요청 목록 — `GET /regrequests`
+
+| 쿼리 | 값 |
+|---|---|
+| `pending` | `registration`(등록 승인 대기) / `ecount`(이카운트 승인 대기) / `any`(둘 중 하나). 없으면 전체 |
+| `kind` | `item` / `customer` |
+| `app` | `inv` / `quote` / `web` / `unknown` |
+| `changedSince` | ISO 8601. `updatedAt`이 이 시각보다 뒤인 것만 (폴링용 — 마지막으로 받은 줄의 `updatedAt`을 저장해 두고 다음에 보냄) |
+
+- `regRequest`가 있는 레코드(create API로 만든 것)만, 요청 시각 새것부터 돌려줍니다.
+- 각 줄: `kind` `code` `name` `regStatus` `ecountStatus` `regRequest` `regDecision` `updatedAt` `active` `ecountSyncedAt`
+  - 품목: `unit` `infoL1` `infoL2` `infoL3` `vendors` `IN_PRICE` `OUT_PRICE` `OUT_PRICE1`
+  - 거래처: `custType` `bizNo`(법인) `category` `ceo` `bizType` `bizItem`, 증빙이 있으면 `regEvidence`(+ `viewUrl`)
+
+#### 6.6.3 결정 — `POST /dschemical/review` · `POST /dscustomer/review` (재고 키만)
+
+```json
+POST /dscustomer/review
+{ "id": "1234567890", "decision": "exclude", "comment": "한 번만 거래", "by": "조윤제", "byId": "<Cognito sub>",
+  "expectedUpdatedAt": "2026-10-12T02:00:00.000Z" }
+```
+
+| 지금 상태 | `approve` | `reject` | `exclude` |
+|---|---|---|---|
+| `requested` (등록 승인 대기) | 등록·이카운트 둘 다 승인 | 반려: `rejected` · `excluded` · `active = N` | 등록은 승인, 이카운트만 제외 |
+| `approved` + `ecountStatus = pending` (증빙 자동 등록) | 이카운트 승인 | **400** — 증빙 등록은 반려 대신 `exclude` | 이카운트 제외 |
+| 그 밖 (이미 결정됨, 이카운트 출처) | 409 `decided` | 409 `decided` | 409 `decided` |
+
+- `reject`·`exclude`는 `comment`(사유) 필수, 없으면 **422**. `by`(결정한 사람 이름) 필수.
+- `expectedUpdatedAt`은 선택입니다. 보내면, 그사이 고쳐졌을 때 **409 `stale`**와 지금 레코드(`current`)를 돌려줍니다. 이미 처리된 건은 `stale`보다 **409 `decided`**(`regDecision` 포함)를 먼저 알립니다.
+- `200`이면 바뀐 레코드 전체. 결정은 변경 이력(`action: "review"`)에 남습니다.
 
 ### 6.3 수정·삭제 API (웹 전용, 참고)
 

@@ -7,6 +7,13 @@ const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json; charset=utf-8' },
 });
 
+// 약품 전체 (기존 Lambda GET /dschemical). 저장 직전에 최신 레코드를 다시 읽을 때 쓴다
+export const fetchChemicals = async () => {
+  const res_ = (await apiClient.get('/dschemical')).data;
+  const data = typeof res_ === 'string' ? JSON.parse(res_) : res_;
+  return typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
+};
+
 // 상태 코드를 그대로 돌려준다 (409 conflict / aliasTaken 은 화면에서 처리)
 const withStatus = (response) => {
   const res_ = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;

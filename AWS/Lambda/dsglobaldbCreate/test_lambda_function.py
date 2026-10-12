@@ -597,3 +597,181 @@ def test_chemical_alias_validation(chem):
     assert chem_alias({'dsids': 'A30410', 'add': [3]})[0] == 400
     assert chem_alias({'dsids': 'NOPE', 'add': ['x']})[0] == 404
     assert call('POST', '/dschemical/alias', {'dsids': 'A30410', 'add': ['x']})[0] == 400   # updatedBy 없음
+
+
+# ---------------------------------------------------------------- 등록 요청 (gdb-request-registration-queue.md 4장)
+
+import hashlib  # noqa: E402
+
+KEYS = {'inv': 'k-inv-test', 'quote': 'k-quote-test', 'web': 'k-web-test'}
+VALID_BIZ = '2208162517'
+
+
+def keyed(method, path, body=None, query=None, app=None):
+    ev = event(method, path, body, query)
+    if app:
+        ev['params']['header'] = {'X-Api-Key': KEYS[app]}
+    res = lf.lambda_handler(ev, None)
+    return res['statusCode'], json.loads(res['body'])
+
+
+@pytest.fixture
+def reg(aws, monkeypatch):
+    monkeypatch.setenv('KEY_APPS', json.dumps({hashlib.sha256(v.encode()).hexdigest(): k for k, v in KEYS.items()}))
+    for name, key in [(lf.CUSTOMER_HISTORY_TABLE, 'custcd'), (lf.CHEMICAL_HISTORY_TABLE, 'dsids')]:
+        aws.create_table(TableName=name,
+                         KeySchema=[{'AttributeName': key, 'KeyType': 'HASH'}, {'AttributeName': 'at', 'KeyType': 'RANGE'}],
+                         AttributeDefinitions=[{'AttributeName': key, 'AttributeType': 'S'}, {'AttributeName': 'at', 'AttributeType': 'S'}],
+                         BillingMode='PAY_PER_REQUEST')
+    return aws
+
+
+def put_evidence(file_key='2026/' + 'a' * 32 + '.jpg'):
+    boto3.client('s3', region_name='us-east-1').put_object(Bucket=lf.EVIDENCE_BUCKET, Key=lf.EVIDENCE_PREFIX + file_key, Body=b'x')
+    return file_key
+
+
+def corp(**extra):
+    return {'custType': 'corp', 'bizNo': VALID_BIZ, 'name': '(주)그린필드', 'category': '매입처', **extra}
+
+
+REQ = {'channel': 'telegram', 'by': '홍길동', 'byId': 'tg:1', 'note': '', 'ref': 'inv#input-501'}
+
+
+def test_create_without_key_is_unknown_request(reg):
+    status, body = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'})
+    assert status == 201 and body['regStatus'] == 'requested' and body['ecountStatus'] == 'pending'
+    assert body['regRequest']['app'] == 'unknown' and body['autoApproved'] is False
+
+
+def test_create_records_app_from_key_and_request(reg):
+    status, body = keyed('POST', '/dschemical/create',
+                         {'name': '그린영양제X', 'infoL1': '비료', 'request': {**REQ, 'app': 'web'}}, app='inv')
+    assert status == 201
+    assert body['regRequest'] == {**REQ, 'app': 'inv', 'at': body['createdAt']}    # app 은 본문이 아니라 키로
+    _, hist = call('GET', '/dschemical/history', query={'id': body['dsids']})
+    assert hist[0]['action'] == 'create' and hist[0]['by'] == 'inv:홍길동'
+
+
+def test_customer_evidence_auto_approved(reg):
+    file_key = put_evidence()
+    evidence = {'docType': '세금계산서', 'bizNo': '220-81-62517', 'fileKey': file_key,
+                'extracted': {'name': '(주)그린필드', 'ceo': '김민수', 'other': 'x'}}
+    status, body = keyed('POST', '/dscustomer/create', corp(request=REQ, evidence=evidence), app='quote')
+    assert status == 201 and body['autoApproved'] is True and body['autoReason'] == ''
+    assert body['regStatus'] == 'approved' and body['ecountStatus'] == 'pending'
+    assert body['regDecision']['by'] == '증빙 자동' and body['regDecision']['target'] == 'registration'
+    assert body['regEvidence']['extracted'] == {'name': '(주)그린필드', 'ceo': '김민수'}
+    assert body['regEvidence']['readBy'] == '홍길동'
+
+
+@pytest.mark.parametrize('change, reason', [
+    ({'custType': 'person'}, '개인'),
+    ({'evidence': {'docType': '메모'}}, '문서 종류'),
+    ({'evidence': {'bizNo': '1234567890'}}, '다릅니다'),
+    ({'evidence': {'fileKey': '2026/' + 'b' * 32 + '.jpg'}}, '파일'),            # 올라오지 않은 파일
+    ({'evidence': {'fileKey': '../secret.jpg'}}, '파일'),
+])
+def test_customer_evidence_not_accepted(reg, change, reason):
+    evidence = {'docType': '사업자등록증', 'bizNo': VALID_BIZ, 'fileKey': put_evidence(), **change.get('evidence', {})}
+    body = corp(evidence=evidence, **{k: v for k, v in change.items() if k != 'evidence'})
+    status, res = keyed('POST', '/dscustomer/create', body, app='inv')
+    assert status == 201 and res['autoApproved'] is False and reason in res['autoReason']
+    assert res['regStatus'] == 'requested' and 'regEvidence' not in res
+
+
+def test_customer_invalid_biz_no_is_not_evidence(reg):
+    body = corp(bizNo='1234567890', allowInvalidBizNo=True,
+                evidence={'docType': '영수증', 'bizNo': '1234567890', 'fileKey': put_evidence()})
+    status, res = keyed('POST', '/dscustomer/create', body, app='inv')
+    assert status == 201 and res['regStatus'] == 'requested' and res['regRequest']['allowInvalidBizNo'] is True
+
+
+def test_evidence_upload(reg):
+    assert keyed('POST', '/dscustomer/evidence-upload', {'docType': '영수증', 'contentType': 'image/jpeg'})[0] == 403
+    assert keyed('POST', '/dscustomer/evidence-upload', {'docType': '메모', 'contentType': 'image/jpeg'}, app='quote')[0] == 400
+    assert keyed('POST', '/dscustomer/evidence-upload', {'docType': '영수증', 'contentType': 'text/html'}, app='quote')[0] == 400
+    status, body = keyed('POST', '/dscustomer/evidence-upload', {'docType': '영수증', 'contentType': 'application/pdf'}, app='quote')
+    assert status == 200 and lf.FILE_KEY_RE.fullmatch(body['fileKey']) and body['fileKey'].endswith('.pdf')
+    assert lf.EVIDENCE_PREFIX + body['fileKey'] in body['uploadUrl'].replace('%2F', '/')
+
+
+def test_regrequests_filters(reg):
+    reg.Table(lf.CUSTOMER_TABLE).put_item(Item={'custcd': '1111111111', 'name': '이카운트', 'origin': 'ecount'})
+    keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료', 'request': REQ}, app='inv')
+    _, auto = keyed('POST', '/dscustomer/create', corp(request=REQ, evidence={
+        'docType': '세금계산서', 'bizNo': VALID_BIZ, 'fileKey': put_evidence()}), app='quote')
+
+    assert keyed('GET', '/regrequests')[0] == 403
+    _, rows = keyed('GET', '/regrequests', app='web')
+    assert [r['kind'] for r in rows] == ['customer', 'item']          # 요청 시각 새것부터, 이카운트 거래처는 없음
+    assert rows[0]['regEvidence']['viewUrl'].startswith('https://')
+    assert [r['kind'] for r in keyed('GET', '/regrequests', query={'pending': 'registration'}, app='web')[1]] == ['item']
+    assert len(keyed('GET', '/regrequests', query={'pending': 'ecount'}, app='web')[1]) == 2
+    assert [r['code'] for r in keyed('GET', '/regrequests', query={'app': 'quote'}, app='inv')[1]] == [VALID_BIZ]
+    assert keyed('GET', '/regrequests', query={'kind': 'item'}, app='inv')[1][0]['infoL1'] == '비료'
+    assert keyed('GET', '/regrequests', query={'changedSince': auto['updatedAt']}, app='inv')[1] == []
+    assert keyed('GET', '/regrequests', query={'pending': 'x'}, app='inv')[0] == 400
+
+
+def review(kind, body, app='inv'):
+    return keyed('POST', f'/{kind}/review', {'by': '조윤제', 'byId': 'sub-1', **body}, app=app)
+
+
+def test_review_permissions_and_validation(reg):
+    _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='quote')
+    assert review('dschemical', {'id': item['dsids'], 'decision': 'approve'}, app='quote')[0] == 403
+    assert keyed('POST', '/dschemical/review', {'id': item['dsids'], 'decision': 'approve', 'by': 'x'})[0] == 403
+    assert review('dschemical', {'id': item['dsids'], 'decision': 'reject'})[0] == 422      # 사유 없음
+    assert review('dschemical', {'id': item['dsids'], 'decision': 'maybe'})[0] == 400
+    assert review('dschemical', {'id': 'NOPE', 'decision': 'approve'})[0] == 404
+    assert keyed('POST', '/dschemical/review', {'id': item['dsids'], 'decision': 'approve'}, app='inv')[0] == 400  # by 없음
+
+
+def test_review_approve_then_decided(reg):
+    _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='quote')
+    status, body = review('dschemical', {'id': item['dsids'], 'decision': 'approve', 'expectedUpdatedAt': item['updatedAt']})
+    assert status == 200 and body['regStatus'] == 'approved' and body['ecountStatus'] == 'approved'
+    assert body['regDecision']['target'] == 'registration' and body['updatedBy'] == 'inv:조윤제'
+    status, res = review('dschemical', {'id': item['dsids'], 'decision': 'reject', 'comment': '중복'})
+    assert status == 409 and res['reason'] == 'decided' and res['regDecision']['by'] == '조윤제'
+    _, hist = call('GET', '/dschemical/history', query={'id': item['dsids']})
+    assert hist[0]['action'] == 'review' and hist[0]['changes']['regStatus'] == ['requested', 'approved']
+
+
+def test_review_reject_deactivates(reg):
+    _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='quote')
+    status, body = review('dschemical', {'id': item['dsids'], 'decision': 'reject', 'comment': '이미 있는 품목'})
+    assert status == 200 and body['regStatus'] == 'rejected' and body['ecountStatus'] == 'excluded'
+    assert body['active'] == 'N' and body['regDecision']['comment'] == '이미 있는 품목'
+
+
+def test_review_exclude_requested_keeps_registration(reg):
+    _, cust = keyed('POST', '/dscustomer/create', corp(), app='web')
+    status, body = review('dscustomer', {'id': cust['custcd'], 'decision': 'exclude', 'comment': '한 번만 거래'})
+    assert status == 200 and body['regStatus'] == 'approved' and body['ecountStatus'] == 'excluded'
+    assert body['active'] == 'Y'
+
+
+def test_review_evidence_customer(reg):
+    _, cust = keyed('POST', '/dscustomer/create', corp(evidence={
+        'docType': '세금계산서', 'bizNo': VALID_BIZ, 'fileKey': put_evidence()}), app='quote')
+    assert review('dscustomer', {'id': VALID_BIZ, 'decision': 'reject', 'comment': 'x'})[0] == 400
+    status, body = review('dscustomer', {'id': VALID_BIZ, 'decision': 'approve'})
+    assert status == 200 and body['regStatus'] == 'approved' and body['ecountStatus'] == 'approved'
+    assert body['regDecision']['target'] == 'ecount'
+
+
+def test_review_stale_and_legacy(reg):
+    _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='quote')
+    status, res = review('dschemical', {'id': item['dsids'], 'decision': 'approve', 'expectedUpdatedAt': '2020-01-01T00:00:00.000Z'})
+    assert status == 409 and res['reason'] == 'stale' and res['current']['dsids'] == item['dsids']
+    reg.Table(lf.CUSTOMER_TABLE).put_item(Item={'custcd': '1111111111', 'name': '이카운트', 'origin': 'ecount'})
+    status, res = review('dscustomer', {'id': '1111111111', 'decision': 'approve'})
+    assert status == 409 and res['reason'] == 'decided' and res['ecountStatus'] is None
+
+
+def test_effective_status_defaults():
+    assert lf.effective_status({'origin': 'ecount'}) == ('approved', None)
+    assert lf.effective_status({'origin': 'local'}) == ('approved', 'approved')
+    assert lf.effective_status({'regStatus': 'requested', 'ecountStatus': 'pending'}) == ('requested', 'pending')

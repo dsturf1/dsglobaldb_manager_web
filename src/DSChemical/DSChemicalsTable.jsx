@@ -5,6 +5,7 @@ import EditChemicalDialog from './EditChemicalDialog';
 import EcountCompareDialog from './EcountCompareDialog';
 import ChemicalExcelUploadDialog from './ChemicalExcelUploadDialog';
 import { downloadChemicalList } from './chemicalExcel';
+import { regBadges } from '../utils/regStatus';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 /**
@@ -225,16 +226,9 @@ export default function DSChemicalsTable() {
         <td className="w-32 text-xs">{chemical.infoL1}</td>
         <td className="w-28 text-sm">
           {chemical.dsids}
-          {chemical.origin === 'local' && (
-            <span
-              className={`badge badge-xs ml-1 ${chemical.ecountSyncedAt ? 'badge-success' : 'badge-warning'}`}
-              title={chemical.ecountSyncedAt
-                ? `여기서 만든 약품 · 이카운트 등록 확인 ${new Date(chemical.ecountSyncedAt).toLocaleDateString('ko-KR')}`
-                : '여기서 만든 약품 · 이카운트 미등록'}
-            >
-              자체·{chemical.ecountSyncedAt ? '등록됨' : '미등록'}
-            </span>
-          )}
+          {regBadges(chemical).map(b => (
+            <span key={b.label} className={`badge badge-xs ml-1 ${b.className}`} title={b.title}>{b.label}</span>
+          ))}
         </td>
         <td className="text-sm">{chemical.name}</td>
         <td className="text-xs">{chemical.unit}</td>

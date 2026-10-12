@@ -1,9 +1,13 @@
 import axios from 'axios';
+import { fetchUserAttributes } from 'aws-amplify/auth';
+import { WRITE_HEADERS } from './globaldbWriteHeaders';
 
 /**
  * 안전한 추가 API (Lambda dsglobaldbCreate, docs/GLOBALDB_SAFE_CREATE_API.md).
  * 코드는 서버가 정하고, 이미 있는 코드는 덮어쓰지 않는다.
  * 약품은 비슷한 이름·같은 이름+같은 용량이 있으면 409(reason=similar) → 사용자 확인 후 confirmSimilar 로 다시 보낸다.
+ * create 는 등록 요청이다 (docs/gdb-request-registration-queue.md): 웹 키 + request 블록을 붙이면
+ * 서버가 regStatus·ecountStatus·regRequest(app=web)를 정한다. 승인은 재고 슈퍼관리자가 한다.
  */
 const apiClient = axios.create({
   baseURL: 'https://jyipsj28s9.execute-api.us-east-1.amazonaws.com/dev',
@@ -17,6 +21,23 @@ const unwrap = (response) => {
   return { status: res_.statusCode, body };
 };
 
+// 요청한 사람 (regRequest 의 by·byId). 로그인 정보를 못 읽으면 비워 둔다
+export const webRequest = async (note = '') => {
+  try {
+    const attrs = await fetchUserAttributes();
+    return { channel: 'web', by: attrs.name || attrs.email || '', byId: attrs.sub || '', note, ref: '' };
+  } catch {
+    return { channel: 'web', by: '', byId: '', note, ref: '' };
+  }
+};
+
+// 201 응답의 autoApproved·autoReason 은 저장된 필드가 아니므로 떼어 낸다
+const created = ({ status, body }) => {
+  if (status !== 201) return { status, body };
+  const { autoApproved, autoReason, ...record } = body;
+  return { status, body: record, autoApproved, autoReason };
+};
+
 // 다음 약품 코드(확정 아님) + 비슷한 이름 확인 결과 { dsids, sameName, sameUnit, similar }
 export const previewChemicalCode = async ({ infoL1, name, unit }) => {
   const { status, body } = unwrap(await apiClient.get('/dschemical/next-code', { params: { infoL1, name, unit } }));
@@ -25,16 +46,40 @@ export const previewChemicalCode = async ({ infoL1, name, unit }) => {
 };
 
 // 약품 추가 → { status: 201 | 409 | 400 ..., body }
-export const createChemical = async (chemical, { confirmSimilar = false } = {}) =>
-  unwrap(await apiClient.post('/dschemical/create', { ...chemical, confirmSimilar }));
+export const createChemical = async (chemical, { confirmSimilar = false } = {}) => created(unwrap(
+  await apiClient.post('/dschemical/create', { ...chemical, confirmSimilar, request: await webRequest() },
+    { headers: WRITE_HEADERS })));
 
-// 거래처 추가 → { status: 201 | 409(이미 있음) | 422(사업자번호 검증 실패) | 400, body }
-export const createCustomer = async (customer) =>
-  unwrap(await apiClient.post('/dscustomer/create', customer));
+// 거래처 추가 → { status: 201 | 409(이미 있음) | 422(사업자번호 검증 실패) | 400, body, autoApproved, autoReason }
+// evidence: { docType, bizNo, fileKey, readBy } — 증빙 파일을 uploadEvidence 로 먼저 올린 경우
+export const createCustomer = async (customer, evidence) => created(unwrap(
+  await apiClient.post('/dscustomer/create', { ...customer, request: await webRequest(), ...(evidence ? { evidence } : {}) },
+    { headers: WRITE_HEADERS })));
 
 // 창고 추가 → { status: 201 | 409(reason: 'code' 코드 중복 / 'name' 이름 중복) | 400, body }
 export const createWarehouse = async (warehouse) =>
   unwrap(await apiClient.post('/dswarehouse/create', warehouse));
+
+// 증빙 파일 올리기: 서버에서 올릴 주소를 받아 S3 로 바로 PUT → fileKey
+export const EVIDENCE_DOC_TYPES = ['사업자등록증', '세금계산서', '영수증', '견적서', '거래명세서'];
+export const EVIDENCE_ACCEPT = 'image/jpeg,image/png,image/heic,image/webp,application/pdf';
+
+export const uploadEvidence = async (docType, file) => {
+  const contentType = file.type || 'application/octet-stream';
+  const { status, body } = unwrap(await apiClient.post('/dscustomer/evidence-upload', { docType, contentType },
+    { headers: WRITE_HEADERS }));
+  if (status !== 200) throw new Error(body?.message || `증빙 업로드 주소를 받지 못했습니다 (status ${status})`);
+  const response = await fetch(body.uploadUrl, { method: 'PUT', headers: { 'Content-Type': body.contentType }, body: file });
+  if (!response.ok) throw new Error(`증빙 파일을 올리지 못했습니다 (HTTP ${response.status})`);
+  return body.fileKey;
+};
+
+// 등록 요청 목록 (약품·거래처). query: { pending, kind, app, changedSince }
+export const fetchRegRequests = async (query = {}) => {
+  const { status, body } = unwrap(await apiClient.get('/regrequests', { params: query, headers: WRITE_HEADERS }));
+  if (status >= 400) throw new Error(body?.message || `등록 요청 목록을 불러오지 못했습니다 (status ${status})`);
+  return body;
+};
 
 // 409 similar 응답 → 확인 창 문구
 export const describeSimilar = ({ sameName = [], sameUnit, similar = [] }) => {

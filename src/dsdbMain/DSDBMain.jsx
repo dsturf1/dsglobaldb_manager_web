@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, Routes, Route, useLocation } from 'react-router-dom';
 import DSChemicalsTable from '../DSChemical/DSChemicalsTable';
 import DSWorkforceTable from '../DSWorkforce/DSWorkforceTable';
@@ -9,10 +9,22 @@ import BaseInfoManager from '../DSBaseInfo/BaseInfoManager';
 import DSMapCourse from '../DSMapCourse/DSMapCourse';
 import DSWorkCourse from '../DSWorkCourse/DSWorkCourse';
 import DSWorkBaseInfo from '../DSWorkBaseInfo/DSWorkBaseInfo';
+import DSRegRequests from '../DSRegRequests/DSRegRequests';
+import { fetchRegRequests } from '../utils/globaldbCreateApi';
 // 사이드바 컴포넌트
 const Sidebar = () => {
   const location = useLocation();
+  const [pendingCount, setPendingCount] = useState(null);
+
+  // 승인 대기 건수 (재고 슈퍼관리자가 처리) — 메뉴를 옮길 때마다 다시 센다
+  useEffect(() => {
+    fetchRegRequests({ pending: 'any' })
+      .then(rows => setPendingCount(rows.length))
+      .catch(() => setPendingCount(null));
+  }, [location.pathname]);
+
   const menuItems = [
+    { path: '/dsdb/regrequests', label: '등록 요청', count: pendingCount },
     { path: '/dsdb', label: '약품정보' },
     { path: '/dsdb/workforce', label: '인력정보' },
     { path: '/dsdb/equipment', label: '장비정보' },
@@ -38,6 +50,7 @@ const Sidebar = () => {
               }`}
             >
               {item.label}
+              {item.count > 0 && <span className="badge badge-warning badge-sm ml-1">{item.count}</span>}
             </Link>
           </li>
         ))}
@@ -60,6 +73,7 @@ export default function DSDBMain() {
         <div className="p-4">
           <Routes>
             <Route path="/" element={<DSChemicalsTable />} />
+            <Route path="/regrequests" element={<DSRegRequests />} />
             <Route path="/workforce" element={<DSWorkforceTable />} />
             <Route path="/equipment" element={<DSEquipmentTable />} />
             <Route path="/customer" element={<DSCustomerTable />} />

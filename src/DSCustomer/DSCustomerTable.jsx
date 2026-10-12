@@ -4,6 +4,7 @@ import { CUSTOMER_CATEGORIES, CUSTOMER_TYPES, formatAliases } from './customerEx
 import EditCustomerDialog from './EditCustomerDialog';
 import AddCustomerDialog from './AddCustomerDialog';
 import CustomerExcelCompareDialog from './CustomerExcelCompareDialog';
+import { regBadges } from '../utils/regStatus';
 
 /**
  * 거래처 목록 (DynamoDB dscustomers).
@@ -171,16 +172,12 @@ export default function DSCustomerTable() {
                   <td className="text-center text-xs">{index + 1}</td>
                   <td className="text-xs">
                     {c.custcd}
-                    {c.origin === 'local' && (
-                      <span
-                        className={`badge badge-xs ml-1 ${c.ecountSyncedAt ? 'badge-success' : 'badge-warning'}`}
-                        title={c.ecountSyncedAt
-                          ? `여기서 만든 거래처 · 이카운트 등록 확인 ${new Date(c.ecountSyncedAt).toLocaleDateString('ko-KR')}`
-                          : '여기서 만든 거래처 · 이카운트 미등록'}
-                      >
-                        자체{c.custType ? `·${CUSTOMER_TYPES[c.custType]}` : ''}·{c.ecountSyncedAt ? '등록됨' : '미등록'}
-                      </span>
+                    {c.origin === 'local' && c.custType && (
+                      <span className="badge badge-ghost badge-xs ml-1" title="여기서 만든 거래처">{CUSTOMER_TYPES[c.custType]}</span>
                     )}
+                    {regBadges(c).map(b => (
+                      <span key={b.label} className={`badge badge-xs ml-1 ${b.className}`} title={b.title}>{b.label}</span>
+                    ))}
                     {(c.ecountDirtyFields || []).length > 0 && (
                       <span className="badge badge-warning badge-xs ml-1"
                         title={`여기서 고침 — 이카운트에도 고쳐야 함: ${c.ecountDirtyFields.join(', ')}`}>

@@ -9,6 +9,8 @@ import {
   findLocalChemicalStatus,
   downloadChemicalsForEcount,
 } from './ecountCompare';
+import { fetchChemicals } from './chemicalApi';
+import { isEcountApproved } from '../utils/regStatus';
 
 /**
  * 이카운트 품목과 약품 DB 비교.
@@ -120,8 +122,20 @@ export default function EcountCompareDialog({ isOpen, onClose }) {
     setIsSaving(true);
     const now = new Date().toISOString();
     const failed = [];
+    // 전체 덮어쓰기라, 화면을 연 사이 바뀐 내용(재고 승인 등)을 지우지 않도록 저장 직전에 최신 레코드를 다시 읽는다
+    let latest;
+    try {
+      latest = new Map((await fetchChemicals()).map(c => [c.dsids, c]));
+    } catch (err) {
+      console.error('Failed to reload chemicals:', err);
+      setIsSaving(false);
+      alert(`최신 약품 정보를 읽지 못했습니다: ${err.message}`);
+      return;
+    }
     for (const chemical of targets) {
-      const ok = await updateGlobalChemical({ ...chemical, ecountSyncedAt: now });
+      const fresh = latest.get(chemical.dsids);
+      if (!fresh || fresh.ecountSyncedAt || !isEcountApproved(fresh)) continue;   // 그사이 처리됐거나 승인이 바뀜
+      const ok = await updateGlobalChemical({ ...fresh, ecountSyncedAt: now });
       if (ok !== true) failed.push(chemical.dsids);
     }
     setIsSaving(false);

@@ -1,7 +1,7 @@
 # 글로벌 DB API 변경 이력 · 공유 프로젝트 안내
 
 > **받는 곳**: 글로벌 DB API(`jyipsj28s9 … /dev`)를 쓰는 모든 프로젝트 — 견적 시스템(`quotation mg`), 재고 관리(`inv mg`), 텔레그램 봇, 그 밖의 외부 앱
-> **보낸 곳**: `dsglobaldb_manager` · 최종 갱신 **2026-10-08**
+> **보낸 곳**: `dsglobaldb_manager` · 최종 갱신 **2026-10-12**
 > 이 문서를 각 프로젝트의 `docs/`에 복사해 두고, 그 저장소의 Claude Code가 읽고 반영할 것을 정하면 된다. 새로 바뀌면 이 문서의 맨 위에 추가한다.
 > 자세한 요청·응답 형식은 `EXTERNAL_API_GUIDE.md`(같이 복사할 것). 그 문서에만 Base URL이 있다.
 
@@ -12,15 +12,15 @@
 | 프로젝트 | 해야 할 일 |
 |---|---|
 | **읽기만 하는 앱** | 깨지는 변경은 없다. 다만 3장의 **새 필드**를 무시하도록 되어 있는지 확인한다. 특히 거래처 별칭의 `code`가 빈 문자열일 수 있다 |
-| **견적 시스템** | create API를 쓴다면 409(`similar`)·422 처리가 있는지 확인한다(2026-10-02 항목). 거래처·약품 수정·별칭이 필요하면 키 `globaldb-quote`를 관리자에게 받는다 |
-| **재고 관리** | 요청한 수정·별칭·이력 API가 준비됐다(2026-10-06 항목). 키 `globaldb-inv`를 관리자에게 받아 `.env`에 둔다 |
+| **견적 시스템** | create에 키(`globaldb-quote`)와 `request` 블록을 붙이고, 이카운트 승인 단계를 재고로 넘긴다 — 요청서 `gdb-request-registration-queue.md` 7장 (2026-10-12 항목). 409(`similar`)·422 처리도 확인 |
+| **재고 관리** | 등록 요청 승인 창구가 된다 — `GET /regrequests` 폴링, `review` API(재고 키만), 증빙 자동 등록. 요청서 6장 (2026-10-12 항목) |
 | **텔레그램 봇** | 별칭으로 찾을 때 거래처 별칭(`{name, code, source}`)과 약품 별칭(문자열)의 형식이 다르다. 같은 이름의 거래처가 여럿일 수 있다(39개 이름) |
 
-**미리 알림**: 지금은 create API(`/…/create`)에 키가 필요 없다. 하지만 **나중에 create에도 API 키를 걸 예정**이다. 날짜는 쓰는 프로젝트와 맞춘 뒤 정한다. create를 쓰는 프로젝트는 지금 받는 키를 create 요청에도 미리 붙여 두면 그때 바꿀 것이 없다(지금 붙여도 무시되고 문제없다).
+**미리 알림**: 지금은 create API(`/…/create`)에 키가 없어도 받는다. 하지만 **곧 create에 키와 `request` 블록이 필수가 된다** (요청서 4.7의 4단계, 재고·견적 배포 뒤). 지금 키를 붙이면 요청한 앱(`regRequest.app`)으로 기록되고, 없으면 `unknown`으로 남는다.
 
 ---
 
-## 2. 지금의 API 한눈에 보기 (2026-10-06)
+## 2. 지금의 API 한눈에 보기 (2026-10-12)
 
 모든 응답은 HTTP 200 + `{statusCode, body}`이고 `body`는 JSON 문자열이다. 예외는 **API 키가 없거나 틀린 경우의 HTTP 403**뿐이다(이때는 래핑이 없다).
 
@@ -30,13 +30,33 @@
 | 거래처 | `GET /dscustomer` | `POST /dscustomer/create` | `POST /dscustomer/update`, `/dscustomer/alias` | `GET /dscustomer/history?id=` | 웹 전용 |
 | 창고 | `GET /dswarehouse` | `POST /dswarehouse/create` | (없음) | (없음) | 웹 전용 |
 
-- **외부 앱이 쓸 수 있는 것**: 조회, create, update/alias.
+- **등록 요청** (모두 키 필요): `POST /dscustomer/evidence-upload`(증빙 파일), `GET /regrequests`(목록), `POST /dschemical/review`·`/dscustomer/review`(승인 — **재고 키만**).
+- **외부 앱이 쓸 수 있는 것**: 조회, create, update/alias, evidence-upload, regrequests. review는 재고만.
 - **웹 전용**: 전체 덮어쓰기 `PUT/POST /dschemical`·`/dscustomer`·`/dswarehouse`와 `DELETE`. 외부 앱은 쓰지 않는다. 덮어쓰기라 다른 수정을 지울 수 있다.
 - **API 키**: `x-api-key` 헤더에 넣는다. 앱마다 따로 발급하고(`globaldb-inv`·`globaldb-quote`·`globaldb-web`), 관리자에게 받아 서버 `.env`에만 둔다. 코드·문서·커밋에 넣지 않는다. 키가 새어 나가면 관리자가 그 키만 끈다.
 
 ---
 
 ## 3. 변경 이력
+
+### 2026-10-12 — 등록 요청 · 증빙 자동 등록 · 승인 (docs/gdb-request-registration-queue.md 1단계)
+
+**create 는 이제 "등록 요청"** (가이드 5.1, 6장)
+- 새 약품·거래처에 `regStatus` `ecountStatus` `regRequest`가 붙는다. 코드는 지금처럼 바로 쓸 수 있다.
+- create 에 **`x-api-key`와 `request` 블록**(`{channel, by, byId, note, ref}`)을 붙인다. 지금은 없어도 받지만 `app = "unknown"`으로 남고, **곧 필수**가 된다.
+- 거래처는 `evidence`(사업자등록증·세금계산서·영수증·견적서·거래명세서, 검증번호 통과, 올라온 파일)가 있으면 **바로 등록**(`regStatus = approved`). 응답에 `autoApproved`·`autoReason`.
+
+**새 API** (가이드 6.6) — 모두 API 키 필요
+- `POST /dscustomer/evidence-upload`: 증빙 파일을 올릴 주소(10분).
+- `GET /regrequests?pending=&kind=&app=&changedSince=`: 등록 요청 목록과 결정.
+- `POST /dschemical/review`, `POST /dscustomer/review`: 승인·반려·이카운트 제외. **재고 키(`globaldb-inv`)만** 받는다.
+
+**읽는 앱이 주의할 것**
+- 필드가 없는 이전 데이터는 `regStatus = approved`로 본다. `ecountStatus`가 없으면 `origin = ecount`는 해당 없음, `local`은 `approved`.
+- 반려되면 `active = 'N'`이 된다. 이카운트 제외는 계속 쓰는 거래처·품목이다.
+- 이카운트 업로드 대상 규칙(`origin = ecount` 또는 `ecountSyncedAt`)은 그대로다.
+
+**앱별로 할 일** — 재고: 요청서 6장(승인 카드·승인 화면, 1분 폴링). 견적: 7장(키·request, 이카운트 승인 단계 제거, 결과 알림 폴링). 작업일지: 없음.
 
 ### 2026-10-08 — 거래처 분류 `잔디농장`
 

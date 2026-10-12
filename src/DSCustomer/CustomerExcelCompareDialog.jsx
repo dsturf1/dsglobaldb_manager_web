@@ -12,7 +12,8 @@ import {
   downloadCustomersForEcount,
   CUSTOMER_TYPES,
 } from './customerExcel';
-import { saveCustomers } from './customerApi';
+import { saveCustomers, fetchCustomers } from './customerApi';
+import { isEcountApproved } from '../utils/regStatus';
 
 /**
  * 이카운트 거래처등록 엑셀(ESA001M)을 올려 DB와 비교: 신규 / 변경 → 선택 반영.
@@ -114,11 +115,16 @@ export default function CustomerExcelCompareDialog({ isOpen, onClose, customers,
   // 이카운트에 등록된 것으로 확인된 자체 거래처에 ecountSyncedAt 기록
   const handleConfirmSynced = async () => {
     const now = new Date().toISOString();
-    const targets = localStatus.confirmed.map(c => ({ ...c, ecountSyncedAt: now }));
-    if (!window.confirm(`${targets.length}건을 이카운트 등록 완료로 표시하시겠습니까?`)) return;
+    if (!window.confirm(`${localStatus.confirmed.length}건을 이카운트 등록 완료로 표시하시겠습니까?`)) return;
 
-    setProgress({ done: 0, total: targets.length });
+    setProgress({ done: 0, total: localStatus.confirmed.length });
     try {
+      // 전체 덮어쓰기라, 화면을 연 사이 바뀐 내용(재고 승인 등)을 지우지 않도록 저장 직전에 최신 레코드를 다시 읽는다
+      const latest = new Map((await fetchCustomers()).map(c => [c.custcd, c]));
+      const targets = localStatus.confirmed
+        .map(c => latest.get(c.custcd))
+        .filter(c => c && !c.ecountSyncedAt && isEcountApproved(c))
+        .map(c => ({ ...c, ecountSyncedAt: now }));
       await saveCustomers(targets, (done, total) => setProgress({ done, total }));
       onSaved(targets);
     } catch (err) {
