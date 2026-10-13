@@ -55,7 +55,7 @@
 ### 2026-10-12 — 등록 요청 · 증빙 자동 등록 · 승인 (docs/gdb-request-registration-queue.md 1단계)
 
 **create 는 이제 "등록 요청"** (가이드 5.1, 6장)
-- 새 약품·거래처에 `regStatus` `ecountStatus` `regRequest`가 붙는다. 코드는 지금처럼 바로 쓸 수 있다.
+- 새 약품·거래처에 `regStatus` `ecountStatus` `regRequest`가 붙는다. 코드는 지금처럼 바로 쓸 수 있다. (→ 2026-10-13 요청서 5차 개정부터 **등록 승인 전에는 쓰지 않는다**, 견적 거래처만 예외 — 가이드 5.1)
 - create 에 **`x-api-key`와 `request` 블록**(`{channel, by, byId, note, ref}`)을 붙인다. (2026-10-13부터 필수 — 위 항목)
 - 거래처는 `evidence`(사업자등록증·세금계산서·영수증·견적서·거래명세서, 검증번호 통과, 올라온 파일)가 있으면 **바로 등록**(`regStatus = approved`). 응답에 `autoApproved`·`autoReason`.
 

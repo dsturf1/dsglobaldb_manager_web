@@ -42,7 +42,14 @@ export const regBadges = (record) => {
   const decided = decision ? ` · ${decision.by} ${new Date(decision.at).toLocaleDateString('ko-KR')}` : '';
   const badges = [];
   if (reg === 'requested') {
-    badges.push({ label: '승인 대기', className: 'badge-warning', title: '등록 승인 대기 — 코드는 이미 쓸 수 있음' });
+    // (5차) 승인 전에는 어느 앱도 쓰지 않는다 / (6차) 예외: 견적의 거래처는 승인 대기에도 견적에 쓴다
+    const quoteCustomer = (record.kind === 'customer' || record.custcd) && record.regRequest?.app === 'quote';
+    badges.push({
+      label: '승인 대기', className: 'badge-warning',
+      title: quoteCustomer
+        ? '등록 승인 대기 — 견적에서는 승인 전에도 이 코드로 쓰는 중 (재고 등 다른 앱은 승인 뒤에 씀)'
+        : '등록 승인 대기 — 승인 전에는 이 코드를 쓰지 않음 (승인되면 요청한 앱이 씀)',
+    });
   }
   if (reg === 'rejected') {
     badges.push({ label: '반려', className: 'badge-error', title: `반려: ${decision?.comment || ''}${decided}` });
