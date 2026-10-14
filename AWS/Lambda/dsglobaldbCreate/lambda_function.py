@@ -40,7 +40,7 @@ import os
 import re
 import unicodedata
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
 import boto3
@@ -155,6 +155,8 @@ def lambda_handler(event, context):
             return respond(200, review_record(ent, event.get('body-json') or {}, _required_app(event)))
         if path == '/regreview':
             return respond(200, web_review(method, event))
+        if path == '/gdbsettings':
+            return respond(200, web_settings(method, event))
         if path.startswith('/internal/'):
             return respond(200, internal(path, event.get('body-json') or {}))
         if ent and method == 'GET' and action == 'history':
@@ -1089,18 +1091,17 @@ def web_review(method, event):
     """웹 승인 — API Gateway Cognito 권한 부여자가 확인한 로그인 사람(claims)이 슈퍼관리자일 때만.
     GET: {isOwner, email} / POST {kind, id, decision, comment, expectedUpdatedAt}: 결정."""
     ctx = event.get('context') or {}
-    email = (ctx.get('claims-email') or '').strip().lower()
-    if not email:
-        raise ApiError(401, '로그인이 필요합니다')
-    is_owner = email in _owner_emails()
+    email = _claims_email(event)
+    people = approvers()
+    me = people.get(email)
     if method == 'GET':
-        return {'isOwner': is_owner, 'email': email}
+        return {'isOwner': bool(me and me['role'] == 'owner'), 'isApprover': bool(me), 'email': email}
     if method != 'POST':
         raise ApiError(405, f'Method not allowed: {method}')
-    if not is_owner:
-        raise ApiError(403, '승인은 글로벌 DB 슈퍼관리자만 할 수 있습니다')
+    if not me:
+        raise ApiError(403, '승인은 글로벌 DB 승인자만 할 수 있습니다 (설정에서 슈퍼관리자가 추가)')
     body = dict(event.get('body-json') or {})
-    body['by'] = (ctx.get('claims-name') or '').strip() or email
+    body['by'] = me['name'] or (ctx.get('claims-name') or '').strip() or email
     body['byId'] = ctx.get('claims-sub') or ''
     return decide(_entity(_text(body, 'kind')), body, 'gdb-web')
 
@@ -1109,9 +1110,219 @@ def internal(path, body):
     """봇 Lambda 전용 (Lambda 직접 호출). request: 한 건 / pending: 승인 대기 / review: 봇에서 결정."""
     if path == '/internal/pending':
         return [r for r in list_requests({'pending': 'any'})]
+    if path == '/internal/approvers':
+        return approver_telegrams()
+    if path == '/internal/redeem':
+        return redeem_link_code(body)
     ent = _entity(_text(body, 'kind'))
     if path == '/internal/request':
         return _request_row(_kind_of(ent), _get_record(ent, _text(body, 'id')))
     if path == '/internal/review':
         return _request_row(_kind_of(ent), decide(ent, body, 'gdb-bot'))
     raise ApiError(404, f'없는 내부 경로: {path}')
+
+
+# ---------------------------------------------------------------- 설정: 승인자 · 텔레그램 연결 (웹 "설정")
+# 슈퍼관리자 = GDB_OWNER_EMAILS (웹에서 못 바꿈, 설정을 고칠 수 있는 사람). 승인자 = 슈퍼관리자가 웹에서 추가.
+# 텔레그램은 번호를 치지 않고, 웹에서 만든 한 번만 쓰는 링크(t.me/<봇>?start=<코드>)로 연결한다 (재고 앱과 같은 방식).
+# 저장: 봇 테이블 (BOT_TABLE, pk/sk, ttl)
+#   approver / <email>           {name, addedBy, addedAt}
+#   tglink   / <email>#<tg id>   {email, telegramId, username, tgName, linkedAt}
+#   tgcode   / <sha256(코드)>     {codeId, email, kind(self|invite), createdBy, expiresAt, usedAt, cancelledAt, ttl}
+
+LINK_CODE_MINUTES = 10        # 본인 연결 링크
+INVITE_HOURS = 48             # 슈퍼관리자가 만든 초대 링크
+EMAIL_ONLY_RE = re.compile(r'[^@\s]+@[^@\s]+\.[^@\s]+')
+
+
+def _settings_table():
+    return _table(os.environ.get('BOT_TABLE', 'dsglobaldb-bot'))
+
+
+def _query_pk(pk):
+    items, kwargs = [], {'KeyConditionExpression': Key('pk').eq(pk)}
+    while True:
+        r = _settings_table().query(**kwargs)
+        items.extend(r.get('Items', []))
+        if 'LastEvaluatedKey' not in r:
+            return items
+        kwargs['ExclusiveStartKey'] = r['LastEvaluatedKey']
+
+
+def approvers():
+    """{email: {email, name, role(owner|approver), addedBy, addedAt}} — 슈퍼관리자 + 웹에서 추가한 승인자."""
+    out = {e: {'email': e, 'name': '', 'role': 'owner', 'addedBy': '', 'addedAt': ''} for e in _owner_emails()}
+    for it in _query_pk('approver'):
+        email = it['sk']
+        rec = out.get(email) or {'email': email, 'role': 'approver'}
+        rec.update({'name': it.get('name', ''), 'addedBy': it.get('addedBy', ''), 'addedAt': it.get('addedAt', '')})
+        out[email] = rec
+    return out
+
+
+def _links():
+    return [{'email': it['email'], 'telegramId': int(it['telegramId']), 'username': it.get('username', ''),
+             'tgName': it.get('tgName', ''), 'linkedAt': it.get('linkedAt', '')} for it in _query_pk('tglink')]
+
+
+def approver_telegrams():
+    """봇용 {텔레그램 번호(문자열): 이름} — 승인자에게 연결된 텔레그램만."""
+    people = approvers()
+    return {str(l['telegramId']): people[l['email']]['name'] or l['tgName'] or l['email']
+            for l in _links() if l['email'] in people}
+
+
+def _claims_email(event):
+    email = ((event.get('context') or {}).get('claims-email') or '').strip().lower()
+    if not email:
+        raise ApiError(401, '로그인이 필요합니다')
+    return email
+
+
+def _code_hash(code):
+    return hashlib.sha256(code.encode()).hexdigest()
+
+
+def _new_link_code(email, kind, created_by):
+    code = ('i_' if kind == 'invite' else 'l_') + uuid.uuid4().hex + uuid.uuid4().hex[:8]   # 텔레그램 start 값: 64자 안, [A-Za-z0-9_-]
+    now = datetime.now(timezone.utc)
+    expires = now + (timedelta(hours=INVITE_HOURS) if kind == 'invite' else timedelta(minutes=LINK_CODE_MINUTES))
+    code_id = uuid.uuid4().hex[:10]
+    _settings_table().put_item(Item={
+        'pk': 'tgcode', 'sk': _code_hash(code), 'codeId': code_id, 'email': email, 'kind': kind, 'createdBy': created_by,
+        'createdAt': now.isoformat(timespec='seconds'), 'expiresAt': expires.isoformat(timespec='seconds'),
+        'ttl': int(expires.timestamp()) + 86400})
+    bot = os.environ.get('GDB_BOT_USERNAME', '')
+    return {'codeId': code_id, 'url': f'https://t.me/{bot}?start={code}' if bot else '', 'code': code,
+            'expiresAt': expires.isoformat(timespec='seconds'), 'kind': kind}
+
+
+def _open_invites(people):
+    now = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    return sorted(({'codeId': it['codeId'], 'email': it['email'], 'name': people.get(it['email'], {}).get('name', ''),
+                    'createdBy': it.get('createdBy', ''), 'expiresAt': it['expiresAt']}
+                   for it in _query_pk('tgcode')
+                   if it.get('kind') == 'invite' and not it.get('usedAt') and not it.get('cancelledAt')
+                   and it['expiresAt'] > now), key=lambda x: x['expiresAt'])
+
+
+def settings_view(email):
+    people = approvers()
+    links = _links()
+    me = people.get(email)
+    rows = []
+    for p in sorted(people.values(), key=lambda p: (p['role'] != 'owner', p['name'] or p['email'])):
+        rows.append({**p, 'telegram': [l for l in links if l['email'] == p['email']]})
+    return {'me': {'email': email, 'role': me['role'] if me else None,
+                   'telegram': [l for l in links if l['email'] == email]},
+            'approvers': rows if me else [],                      # 승인자가 아니면 목록을 보여 주지 않음
+            'invites': _open_invites(people) if me and me['role'] == 'owner' else [],
+            'botUsername': os.environ.get('GDB_BOT_USERNAME', ''),
+            'linkMinutes': LINK_CODE_MINUTES, 'inviteHours': INVITE_HOURS}
+
+
+def web_settings(method, event):
+    """웹 "설정" — GET: 화면 내용 / POST {action, ...}: 승인자 추가·이름 바꾸기·빼기, 연결 링크, 초대 취소, 연결 끊기."""
+    email = _claims_email(event)
+    if method == 'GET':
+        return settings_view(email)
+    if method != 'POST':
+        raise ApiError(405, f'Method not allowed: {method}')
+    body = event.get('body-json') or {}
+    action = _text(body, 'action')
+    people = approvers()
+    me = people.get(email)
+    is_owner = bool(me and me['role'] == 'owner')
+    target = _text(body, 'email').lower()
+
+    def owner_only():
+        if not is_owner:
+            raise ApiError(403, '설정은 글로벌 DB 슈퍼관리자만 바꿀 수 있습니다')
+
+    if action == 'saveApprover':                           # 추가 또는 이름 바꾸기
+        owner_only()
+        name = _text(body, 'name')[:50]
+        if not EMAIL_ONLY_RE.fullmatch(target):
+            raise ApiError(400, '이메일 형식이 아닙니다 (글로벌 DB 웹에 로그인하는 이메일)', field='email')
+        if not name:
+            raise ApiError(400, '이름은 필수입니다 (승인 기록에 남는 이름)', field='name')
+        existing = people.get(target)
+        _settings_table().put_item(Item={'pk': 'approver', 'sk': target, 'name': name,
+                                         'addedBy': (existing or {}).get('addedBy') or email,
+                                         'addedAt': (existing or {}).get('addedAt') or _now()})
+        print(f'설정: 승인자 저장 {target} by={email}')
+    elif action == 'removeApprover':
+        owner_only()
+        if target in _owner_emails():
+            raise ApiError(400, '슈퍼관리자(GDB_OWNER_EMAILS)는 여기서 뺄 수 없습니다')
+        if target not in people:
+            raise ApiError(404, '없는 승인자입니다')
+        _settings_table().delete_item(Key={'pk': 'approver', 'sk': target})
+        for l in _links():
+            if l['email'] == target:
+                _settings_table().delete_item(Key={'pk': 'tglink', 'sk': f"{target}#{l['telegramId']}"})
+        print(f'설정: 승인자 뺌 {target} by={email}')
+    elif action == 'linkCode':                             # 본인 연결 링크 / 슈퍼관리자는 남의 초대 링크
+        who = target or email
+        if who != email:
+            owner_only()
+        if who not in people:
+            raise ApiError(403, '승인자만 텔레그램을 연결할 수 있습니다')
+        if not os.environ.get('GDB_BOT_USERNAME'):
+            raise ApiError(503, '봇이 아직 준비되지 않아 링크를 만들 수 없습니다 (GDB_BOT_USERNAME)')
+        link = _new_link_code(who, 'self' if who == email else 'invite', email)
+        return {**settings_view(email), 'link': link}
+    elif action == 'cancelInvite':
+        owner_only()
+        code_id = _text(body, 'codeId')
+        found = next((it for it in _query_pk('tgcode') if it.get('codeId') == code_id), None)
+        if not found:
+            raise ApiError(404, '없는 초대입니다')
+        _settings_table().update_item(Key={'pk': 'tgcode', 'sk': found['sk']}, UpdateExpression='SET cancelledAt = :t',
+                                      ExpressionAttributeValues={':t': _now()})
+    elif action == 'unlink':                               # 본인 것 또는 슈퍼관리자
+        who = target or email
+        if who != email:
+            owner_only()
+        tg = _text(body, 'telegramId')
+        if not re.fullmatch(r'-?\d+', tg):
+            raise ApiError(400, 'telegramId 가 필요합니다', field='telegramId')
+        _settings_table().delete_item(Key={'pk': 'tglink', 'sk': f'{who}#{int(tg)}'})
+        print(f'설정: 텔레그램 끊음 {who}#{tg} by={email}')
+    else:
+        raise ApiError(400, 'action 은 saveApprover, removeApprover, linkCode, cancelInvite, unlink 중 하나입니다',
+                       field='action')
+    return settings_view(email)
+
+
+def redeem_link_code(body):
+    """봇 /start <코드> → 연결. {email, name} / 400 이유."""
+    code = _text(body, 'code')
+    tg = _text(body, 'telegramId')
+    if not code or not re.fullmatch(r'-?\d+', tg):
+        raise ApiError(400, '코드와 텔레그램 번호가 필요합니다')
+    key = {'pk': 'tgcode', 'sk': _code_hash(code)}
+    it = _settings_table().get_item(Key=key).get('Item')
+    if not it or it.get('cancelledAt'):
+        raise ApiError(400, '없거나 취소된 링크입니다. 웹 글로벌 DB → 설정에서 새 링크를 만드세요')
+    if it.get('usedAt'):
+        raise ApiError(400, '이미 사용한 링크입니다. 웹 글로벌 DB → 설정에서 새 링크를 만드세요')
+    if it['expiresAt'] < datetime.now(timezone.utc).isoformat(timespec='seconds'):
+        raise ApiError(400, '기간이 지난 링크입니다. 웹 글로벌 DB → 설정에서 새 링크를 만드세요')
+    people = approvers()
+    if it['email'] not in people:
+        raise ApiError(400, '승인자에서 빠진 계정입니다')
+    try:
+        _settings_table().update_item(Key=key, UpdateExpression='SET usedAt = :t, usedByTg = :tg',
+                                      ConditionExpression='attribute_not_exists(usedAt)',
+                                      ExpressionAttributeValues={':t': _now(), ':tg': int(tg)})
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'ConditionalCheckFailedException':
+            raise
+        raise ApiError(400, '이미 사용한 링크입니다. 웹 글로벌 DB → 설정에서 새 링크를 만드세요') from None
+    _settings_table().put_item(Item={'pk': 'tglink', 'sk': f"{it['email']}#{int(tg)}", 'email': it['email'],
+                                     'telegramId': int(tg), 'username': _text(body, 'username')[:64],
+                                     'tgName': _text(body, 'tgName')[:100], 'linkedAt': _now(), 'via': it['kind']})
+    print(f"설정: 텔레그램 연결 {it['email']} via={it['kind']}")
+    person = people[it['email']]
+    return {'email': it['email'], 'name': person['name'], 'role': person['role']}

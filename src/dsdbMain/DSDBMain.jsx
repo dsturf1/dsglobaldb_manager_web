@@ -10,6 +10,7 @@ import DSMapCourse from '../DSMapCourse/DSMapCourse';
 import DSWorkCourse from '../DSWorkCourse/DSWorkCourse';
 import DSWorkBaseInfo from '../DSWorkBaseInfo/DSWorkBaseInfo';
 import DSRegRequests from '../DSRegRequests/DSRegRequests';
+import DSSettings from '../DSSettings/DSSettings';
 import { fetchRegRequests } from '../utils/globaldbCreateApi';
 // 사이드바 컴포넌트
 const Sidebar = () => {
@@ -33,7 +34,8 @@ const Sidebar = () => {
     { path: '/dsdb/baseinfo', label: '기본정보' },
     { path: '/dsdb/mapcourse', label: '맵코스' },
     { path: '/dsdb/workcourse', label: '방제작업코스' },
-    { path: '/dsdb/workbaseinfo', label: '방제기본정보' }
+    { path: '/dsdb/workbaseinfo', label: '방제기본정보' },
+    { path: '/dsdb/settings', label: '설정' },
   ];
 
   return (
@@ -74,6 +76,7 @@ export default function DSDBMain() {
           <Routes>
             <Route path="/" element={<DSChemicalsTable />} />
             <Route path="/regrequests" element={<DSRegRequests />} />
+            <Route path="/settings" element={<DSSettings />} />
             <Route path="/workforce" element={<DSWorkforceTable />} />
             <Route path="/equipment" element={<DSEquipmentTable />} />
             <Route path="/customer" element={<DSCustomerTable />} />

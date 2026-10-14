@@ -33,7 +33,8 @@ def env(monkeypatch):
         bot._cache.clear()
         monkeypatch.setenv('GDB_OWNER_TG', f'{OWNER}:조윤제')
         monkeypatch.setenv('WEBHOOK_SECRET', 's3cret')
-        sent, calls, state = [], [], {'records': {('item', 'B05012'): dict(ITEM), ('customer', '1234567890'): dict(EVIDENCE)}}
+        sent, calls, state = [], [], {'records': {('item', 'B05012'): dict(ITEM), ('customer', '1234567890'): dict(EVIDENCE)},
+                                      'linked': {}}
 
         def tg(method, **params):
             sent.append((method, params))
@@ -41,6 +42,13 @@ def env(monkeypatch):
 
         def core(path, body=None):
             calls.append((path, body))
+            if path == '/internal/approvers':                # 웹 설정에서 연결한 승인자
+                return 200, dict(state['linked'])
+            if path == '/internal/redeem':
+                if body['code'] != 'l_good':
+                    return 400, {'message': '기간이 지난 링크입니다. 웹 글로벌 DB → 설정에서 새 링크를 만드세요'}
+                state['linked'][body['telegramId']] = '김승인'
+                return 200, {'email': 'kim@ds.com', 'name': '김승인', 'role': 'approver'}
             key = (body or {}).get('kind'), (body or {}).get('id')
             rec = state['records'].get(key)
             if path == '/internal/pending':
@@ -164,9 +172,26 @@ def test_reject_asks_reason_then_decides(env):
 def test_non_owner_and_bad_secret(env):
     sent, calls, _ = env
     press('ra:i:B05012', user=999)
-    assert sent[-1][0] == 'answerCallbackQuery' and sent[-1][1]['show_alert'] is True and not calls
+    assert sent[-1][0] == 'answerCallbackQuery' and sent[-1][1]['show_alert'] is True
+    assert [p for p, _ in calls] == ['/internal/approvers']           # 승인자 목록만 읽고, 결정은 안 함
     say('/start', user=999)
-    assert '당신의 텔레그램 번호: 999' in sent[-1][1]['text']
+    assert '설정 → [내 텔레그램 연결]' in sent[-1][1]['text']
+
+
+def test_start_with_link_code_connects_approver(env):
+    sent, calls, state = env
+    say('/start l_old', user=777)
+    assert sent[-1][1]['text'].startswith('연결하지 못했습니다: 기간이 지난 링크')
+    press('ra:i:B05012', user=777)
+    assert sent[-1][1]['show_alert'] is True                            # 아직 승인자 아님
+    say('/start l_good', user=777)
+    assert ('/internal/redeem', {'code': 'l_good', 'telegramId': '777', 'username': '', 'tgName': 'Y'}) in calls
+    assert sent[-1][1]['text'].startswith('연결됐습니다: 김승인 (kim@ds.com)')
+    assert bot.owners() == {OWNER: '조윤제', 777: '김승인'}             # 비상용 번호 + 웹에서 연결한 승인자
+    bot.lambda_handler({'action': 'card', 'row': ITEM}, None)
+    assert sorted(p['chat_id'] for m, p in sent if m == 'sendMessage' and p.get('reply_markup')) == sorted([777, OWNER])
+    press('ra:i:B05012', user=777)
+    assert any(c == '/internal/review' and b['by'] == '김승인' for c, b in calls)
     before = len(sent)
     assert webhook({'message': {}}, secret='wrong')['statusCode'] == 403 and len(sent) == before
 

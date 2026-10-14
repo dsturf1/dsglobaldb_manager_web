@@ -101,6 +101,22 @@ export const reviewRequest = async ({ kind, code, decision, comment = '', expect
   unwrap(await apiClient.post('/regreview', { kind, id: code, decision, comment, expectedUpdatedAt },
     { headers: await authHeaders() }));
 
+// ---- 설정: 승인자 · 텔레그램 연결 (로그인 토큰) ----
+// { me: {email, role(owner|approver|null), telegram[]}, approvers[], invites[], botUsername, linkMinutes, inviteHours }
+export const fetchSettings = async () => {
+  const { status, body } = unwrap(await apiClient.get('/gdbsettings', { headers: await authHeaders() }));
+  if (status !== 200) throw new Error(body?.message || `설정을 불러오지 못했습니다 (status ${status})`);
+  return body;
+};
+
+// action: saveApprover {email, name} / removeApprover {email} / linkCode {email?} / cancelInvite {codeId} / unlink {email?, telegramId}
+// → 바뀐 설정 화면 (linkCode 는 + link {url, expiresAt, kind})
+export const settingsAction = async (body) => {
+  const { status, body: res } = unwrap(await apiClient.post('/gdbsettings', body, { headers: await authHeaders() }));
+  if (status !== 200) throw new Error(res?.message || `처리하지 못했습니다 (status ${status})`);
+  return res;
+};
+
 // 409 similar 응답 → 확인 창 문구
 export const describeSimilar = ({ sameName = [], sameUnit, similar = [] }) => {
   const lines = [];

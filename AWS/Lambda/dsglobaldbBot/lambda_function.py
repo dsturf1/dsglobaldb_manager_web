@@ -67,13 +67,27 @@ def _token():
     return _cache['token']
 
 
+APPROVER_CACHE_SECONDS = 60
+
+
 def owners():
-    """{텔레그램 번호: 이름}. GDB_OWNER_TG = "123,456:조윤제" (이름이 없으면 텔레그램 이름을 쓴다)."""
+    """승인 카드를 받고 누를 수 있는 사람 {텔레그램 번호: 이름}.
+    웹 "설정"에서 텔레그램을 연결한 승인자(core /internal/approvers) + 비상용 GDB_OWNER_TG("123,456:조윤제")."""
+    cached = _cache.get('owners')
+    if cached and cached[0] > time.time():
+        return cached[1]
     result = {}
     for part in os.environ.get('GDB_OWNER_TG', '').split(','):
         num, _, name = part.strip().partition(':')
         if num.strip().lstrip('-').isdigit():
             result[int(num)] = name.strip()
+    try:
+        status, linked = core('/internal/approvers')
+        if status == 200:
+            result.update({int(k): v for k, v in linked.items()})
+    except Exception as e:  # noqa: BLE001 — 설정을 못 읽어도 비상용 번호로는 동작
+        print(f'승인자 목록을 읽지 못함: {type(e).__name__} {e}')
+    _cache['owners'] = (time.time() + APPROVER_CACHE_SECONDS, result)
     return result
 
 
@@ -309,7 +323,7 @@ def on_callback(cq):
         tg('answerCallbackQuery', callback_query_id=cq['id'], text=text, show_alert=alert)
 
     if user['id'] not in owners():
-        return answer('승인은 글로벌 DB 슈퍼관리자만 할 수 있습니다.', alert=True)
+        return answer('승인은 글로벌 DB 승인자만 할 수 있습니다.', alert=True)
     action, _, rest = data.partition(':')
     k, _, code = rest.partition(':')
     if action not in ('ra', 'rr', 'rx', 're') or k not in KIND_OF or not code:
@@ -358,13 +372,26 @@ def on_message(msg):
     chat_id, is_owner = chat['id'], user.get('id') in owners()
 
     if text.startswith('/start'):
+        code = text[len('/start'):].strip()
+        if code:                                            # 웹 "설정"에서 만든 연결 링크
+            status, body = core('/internal/redeem', {
+                'code': code, 'telegramId': str(user.get('id')), 'username': user.get('username', ''),
+                'tgName': ' '.join(filter(None, [user.get('last_name'), user.get('first_name')]))})
+            _cache.pop('owners', None)
+            if status == 200:
+                tg('sendMessage', chat_id=chat_id, text=(
+                    f"연결됐습니다: {body.get('name') or body['email']} ({body['email']})\n"
+                    '이제 품목·거래처 등록 승인 카드를 여기로 보냅니다. /help 를 보세요.'))
+            else:
+                tg('sendMessage', chat_id=chat_id, text=f"연결하지 못했습니다: {body.get('message', status)}")
+            return
         tg('sendMessage', chat_id=chat_id, text=(
-            f"글로벌 DB 봇입니다.\n당신의 텔레그램 번호: {user.get('id')}\n"
+            '글로벌 DB 봇입니다.\n'
             + ('승인 카드를 여기로 보냅니다. /help 를 보세요.' if is_owner
-               else '승인자로 등록하려면 관리자에게 이 번호를 알려 주세요.')))
+               else '승인자는 글로벌 DB 웹 → 설정 → [내 텔레그램 연결]에서 링크를 만들어 열면 연결됩니다.')))
         return
     if not is_owner:
-        tg('sendMessage', chat_id=chat_id, text='승인은 글로벌 DB 슈퍼관리자만 할 수 있습니다.')
+        tg('sendMessage', chat_id=chat_id, text='승인은 글로벌 DB 승인자만 할 수 있습니다. 글로벌 DB 웹 → 설정에서 텔레그램을 연결하세요.')
         return
 
     reply_to = msg.get('reply_to_message')

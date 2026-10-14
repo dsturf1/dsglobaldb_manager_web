@@ -633,6 +633,9 @@ def reg(aws, monkeypatch):
                          KeySchema=[{'AttributeName': key, 'KeyType': 'HASH'}, {'AttributeName': 'at', 'KeyType': 'RANGE'}],
                          AttributeDefinitions=[{'AttributeName': key, 'AttributeType': 'S'}, {'AttributeName': 'at', 'AttributeType': 'S'}],
                          BillingMode='PAY_PER_REQUEST')
+    aws.create_table(TableName='dsglobaldb-bot', BillingMode='PAY_PER_REQUEST',      # 승인자·텔레그램 연결 (설정)
+                     KeySchema=[{'AttributeName': 'pk', 'KeyType': 'HASH'}, {'AttributeName': 'sk', 'KeyType': 'RANGE'}],
+                     AttributeDefinitions=[{'AttributeName': 'pk', 'AttributeType': 'S'}, {'AttributeName': 'sk', 'AttributeType': 'S'}])
     return aws
 
 
@@ -871,8 +874,8 @@ def web_review(method, body=None, email='owner@ds.com', name='조윤제'):
 def test_web_review_owner_only(reg, monkeypatch):
     monkeypatch.setenv('GDB_OWNER_EMAILS', 'Owner@ds.com, other@ds.com')
     _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='inv')
-    assert web_review('GET') == (200, {'isOwner': True, 'email': 'owner@ds.com'})
-    assert web_review('GET', email='staff@ds.com')[1]['isOwner'] is False
+    assert web_review('GET') == (200, {'isOwner': True, 'isApprover': True, 'email': 'owner@ds.com'})
+    assert web_review('GET', email='staff@ds.com')[1] == {'isOwner': False, 'isApprover': False, 'email': 'staff@ds.com'}
     assert web_review('GET', email='')[0] == 401
     assert web_review('POST', {'kind': 'item', 'id': item['dsids'], 'decision': 'approve'}, email='staff@ds.com')[0] == 403
     status, body = web_review('POST', {'kind': 'item', 'id': item['dsids'], 'decision': 'reject', 'comment': '중복',
@@ -899,3 +902,99 @@ def test_internal_routes_for_bot(reg):
     status, body = internal_call('/internal/review', {'kind': 'item', 'id': item['dsids'], 'decision': 'approve', 'by': 'x'})
     assert status == 409 and body['reason'] == 'decided'
     assert internal_call('/internal/nope', {'kind': 'item'})[0] == 404
+
+
+# ---------------------------------------------------------------- 설정: 승인자 · 텔레그램 연결
+
+def settings(method, body=None, email='owner@ds.com'):
+    ev = event(method, '/gdbsettings', body, app=None)
+    ev['context'].update({'claims-email': email, 'claims-sub': 'sub', 'claims-name': ''})
+    res = lf.lambda_handler(ev, None)
+    return res['statusCode'], json.loads(res['body'])
+
+
+@pytest.fixture
+def owners(reg, monkeypatch):
+    monkeypatch.setenv('GDB_OWNER_EMAILS', 'owner@ds.com')
+    monkeypatch.setenv('GDB_BOT_USERNAME', 'dsgreen_gdb_bot')
+    return reg
+
+
+def test_settings_owner_adds_approver_who_can_then_review(owners):
+    status, view = settings('GET')
+    assert status == 200 and view['me']['role'] == 'owner' and [a['email'] for a in view['approvers']] == ['owner@ds.com']
+    status, view = settings('POST', {'action': 'saveApprover', 'email': 'Kim@DS.com', 'name': '김승인'})
+    assert status == 200 and {a['email']: a['role'] for a in view['approvers']} == {'owner@ds.com': 'owner', 'kim@ds.com': 'approver'}
+    # 승인자는 웹 승인 가능, 결정 기록에 설정의 이름
+    _, item = keyed('POST', '/dschemical/create', {'name': '그린영양제X', 'infoL1': '비료'}, app='inv')
+    assert web_review('GET', email='kim@ds.com')[1] == {'isOwner': False, 'isApprover': True, 'email': 'kim@ds.com'}
+    status, body = web_review('POST', {'kind': 'item', 'id': item['dsids'], 'decision': 'approve'}, email='kim@ds.com', name='')
+    assert status == 200 and body['regDecision']['by'] == '김승인'
+    # 승인자는 설정을 못 바꾸고, 남이 아니면 목록은 본다
+    assert settings('POST', {'action': 'saveApprover', 'email': 'x@ds.com', 'name': 'x'}, email='kim@ds.com')[0] == 403
+    assert len(settings('GET', email='kim@ds.com')[1]['approvers']) == 2
+    assert settings('GET', email='nobody@ds.com')[1]['approvers'] == []
+    # 빼기 — 슈퍼관리자는 못 뺌
+    assert settings('POST', {'action': 'removeApprover', 'email': 'owner@ds.com'})[0] == 400
+    assert settings('POST', {'action': 'removeApprover', 'email': 'kim@ds.com'})[0] == 200
+    assert web_review('GET', email='kim@ds.com')[1]['isApprover'] is False
+
+
+@pytest.mark.parametrize('body, status', [
+    ({'action': 'saveApprover', 'email': 'not-email', 'name': 'x'}, 400),
+    ({'action': 'saveApprover', 'email': 'a@ds.com', 'name': ''}, 400),
+    ({'action': 'removeApprover', 'email': 'none@ds.com'}, 404),
+    ({'action': 'nope'}, 400),
+])
+def test_settings_validation(owners, body, status):
+    assert settings('POST', body)[0] == status
+
+
+def internal_redeem(code, tg=555, username='kim'):
+    return internal_call('/internal/redeem', {'code': code, 'telegramId': str(tg), 'username': username, 'tgName': '김'})
+
+
+def test_self_link_code_and_redeem(owners):
+    status, view = settings('POST', {'action': 'linkCode'})
+    link = view['link']
+    assert status == 200 and link['kind'] == 'self' and link['url'] == f"https://t.me/dsgreen_gdb_bot?start={link['code']}"
+    assert link['code'].startswith('l_') and len(link['code']) <= 64
+    stored = owners.Table('dsglobaldb-bot').scan()['Items']
+    assert all(link['code'] not in json.dumps(it, default=str) for it in stored)          # 코드는 해시만 저장
+    status, who = internal_redeem(link['code'])
+    assert status == 200 and who['email'] == 'owner@ds.com'
+    assert internal_redeem(link['code'])[1]['message'].startswith('이미 사용한 링크')
+    _, view = settings('GET')
+    assert view['me']['telegram'][0]['telegramId'] == 555 and view['me']['telegram'][0]['username'] == 'kim'
+    assert internal_call('/internal/approvers')[1] == {'555': '김'}
+    settings('POST', {'action': 'saveApprover', 'email': 'owner@ds.com', 'name': '조윤제'})      # 슈퍼관리자 이름
+    assert internal_call('/internal/approvers')[1] == {'555': '조윤제'}
+    settings('POST', {'action': 'unlink', 'telegramId': '555'})
+    assert internal_call('/internal/approvers')[1] == {}
+
+
+def test_invite_only_by_owner_cancel_and_expiry(owners, monkeypatch):
+    settings('POST', {'action': 'saveApprover', 'email': 'kim@ds.com', 'name': '김승인'})
+    assert settings('POST', {'action': 'linkCode', 'email': 'owner@ds.com'}, email='kim@ds.com')[0] == 403
+    assert settings('POST', {'action': 'linkCode', 'email': 'nobody@ds.com'})[0] == 403
+    _, view = settings('POST', {'action': 'linkCode', 'email': 'kim@ds.com'})
+    invite = view['link']
+    assert invite['kind'] == 'invite' and invite['code'].startswith('i_')
+    assert [i['email'] for i in view['invites']] == ['kim@ds.com']
+    _, view = settings('POST', {'action': 'cancelInvite', 'codeId': invite['codeId']})
+    assert view['invites'] == [] and internal_redeem(invite['code'])[1]['message'].startswith('없거나 취소된')
+    # 지난 링크
+    _, view = settings('POST', {'action': 'linkCode'})
+    monkeypatch.setattr(lf, 'LINK_CODE_MINUTES', -1)
+    _, old = settings('POST', {'action': 'linkCode'})
+    assert internal_redeem(old['link']['code'])[1]['message'].startswith('기간이 지난')
+    assert internal_redeem('l_nope')[0] == 400 and internal_call('/internal/redeem', {'code': 'x'})[0] == 400
+
+
+def test_link_code_needs_bot_username(owners, monkeypatch):
+    monkeypatch.delenv('GDB_BOT_USERNAME')
+    assert settings('POST', {'action': 'linkCode'})[0] == 503
+
+
+def test_settings_requires_login(owners):
+    assert settings('GET', email='')[0] == 401

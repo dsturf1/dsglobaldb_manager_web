@@ -48,7 +48,7 @@ export default function DSRegRequests() {
 
   useEffect(() => {
     fetchReviewer()
-      .then(r => setIsOwner(Boolean(r.isOwner)))
+      .then(r => setIsOwner(Boolean(r.isApprover)))   // 승인자(설정에서 추가)면 버튼
       .catch(err => {
         console.warn('승인 권한 확인 실패:', err.message);
         setIsOwner(false);
@@ -131,7 +131,7 @@ ${r.regStatus === 'requested'
       <div className="alert alert-info text-sm py-2 mb-3">
         {isOwner
           ? '승인 대기 줄의 버튼으로 결정합니다. 글로벌 DB 봇 카드로도 할 수 있고, 먼저 한 결정만 남습니다.'
-          : '승인은 글로벌 DB 슈퍼관리자가 글로벌 DB 봇이나 이 화면에서 합니다. 여기서는 요청과 결정을 보고, 오타만 고칩니다.'}
+          : '승인은 글로벌 DB 승인자가 글로벌 DB 봇이나 이 화면에서 합니다 (승인자는 설정에서 슈퍼관리자가 추가). 여기서는 요청과 결정을 보고, 오타만 고칩니다.'}
       </div>
 
       <div className="flex flex-wrap items-center gap-4 mb-3">
