@@ -33,10 +33,10 @@ export const FIELD_LABELS = Object.fromEntries(COLUMNS.map(c => [c.field, c.head
 const flagText = (v) => (v === 'Y' ? '사용' : '미사용');
 
 // 화면에 보이는 순서·필터 그대로 내려받는다
-export const downloadChemicalList = (chemicals) => downloadExcel(chemicals, COLUMNS.map(({ field, header }) => ({
+export const downloadChemicalList = (chemicals, fileName = '약품목록') => downloadExcel(chemicals, COLUMNS.map(({ field, header }) => ({
   header,
   value: c => (FLAG_FIELDS.includes(field) ? flagText(c[field]) : PRICE_FIELDS.includes(field) ? Number(c[field] || 0) : c[field] ?? ''),
-})), '약품목록', '약품');
+})), fileName, '약품');
 
 // '1,500' '1500원' 처럼 써도 된다. 빈 칸은 0
 const parsePrice = (v) => {

@@ -23,10 +23,12 @@ const EMPTY_FORM = {
   flgOut: 'Y'
 };
 
-export default function AddChemicalDialog({ isOpen, onClose }) {
+// defaults: 탭에 맞는 첫 분류 (약품정보 = 농약/살균제, 기타 코드 = 잔디/잔디)
+export default function AddChemicalDialog({ isOpen, onClose, defaults }) {
   const { setGlobalChemicals } = useGlobalComponent();
+  const emptyForm = { ...EMPTY_FORM, ...defaults };
   const [isSaving, setIsSaving] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState(emptyForm);
   const [preview, setPreview] = useState(null);       // { dsids, sameName, sameUnit, similar }
   const [previewError, setPreviewError] = useState('');
 
@@ -52,7 +54,7 @@ export default function AddChemicalDialog({ isOpen, onClose }) {
   }, [isOpen, form.infoL1, form.name, form.unit]);
 
   const handleClose = () => {
-    setForm(EMPTY_FORM);
+    setForm(emptyForm);
     setPreview(null);
     onClose();
   };

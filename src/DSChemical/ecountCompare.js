@@ -23,11 +23,14 @@ export const ECOUNT_PREFIX_CLASS = {
   G0: { infoL2: '잔디', infoL1: '잔디' },
 };
 
-// 위에 없는 접두어(B5, G5 등)는 첫 글자로 분류. 기타물품(D)·S로 시작하는 중복 코드 등은 약품 아님
+// 위에 없는 접두어(B5, G5 등)는 첫 글자로 분류. S·X 로 시작하는 중복 코드 등은 넣지 않음
+// D·E·G 는 웹 '기타 코드(잔디/물품)' 탭에 나온다 (같은 표, codeGroups.js)
 const LETTER_CLASS = {
   A: { infoL2: '농약', infoL1: '농약' },
   B: { infoL2: '비료', infoL1: '비료' },
   C: { infoL2: '기타약재', infoL1: '기타약재' },
+  D: { infoL2: '기타물품', infoL1: '기타물품' },
+  E: { infoL2: '기타', infoL1: '기타' },
   G: { infoL2: '잔디', infoL1: '잔디' },
 };
 
@@ -63,7 +66,7 @@ const EXCEL_COLUMNS = {
 
 /**
  * 이카운트 품목등록 엑셀(ESA009M.xlsx) → fetchEcountProducts 와 같은 형태.
- * 약품 코드(A·B·C·G) 품목 중 사용=YES 만 남긴다.
+ * 약품·기타 코드(A·B·C·D·E·G) 품목 중 사용=YES 만 남긴다.
  */
 export const parseEcountProductExcel = (arrayBuffer, fileName) => {
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });

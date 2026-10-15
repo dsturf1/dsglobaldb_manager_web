@@ -6,19 +6,24 @@ import EcountCompareDialog from './EcountCompareDialog';
 import ChemicalExcelUploadDialog from './ChemicalExcelUploadDialog';
 import { downloadChemicalList } from './chemicalExcel';
 import { regBadges } from '../utils/regStatus';
+import { CODE_GROUPS, groupOf } from './codeGroups';
 import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 
 /**
- * 
+ *
  * 약품을 정보를 Edit, Add, Delete 할 수 있는 테이블
  * Add기능은 일단 로컬 메모리에 저장하고, 나중에 서버에 저장하는 하는것은 수정 저장과 같은 방식으로 처리.
+ * group: 'chemical' = 약품정보(A·B·C) / 'other' = 기타 코드(잔디/물품, D·E·G). 같은 표를 코드 첫 글자로 나눠 보여 준다.
  */
 
 
-export default function DSChemicalsTable() {
-  
-  const { globalChemicals, setGlobalChemicals, updateGlobalChemical, deleteGlobalChemical } = useGlobalComponent();
-  
+export default function DSChemicalsTable({ group = 'chemical' }) {
+
+  const { globalChemicals: allChemicals, setGlobalChemicals, updateGlobalChemical, deleteGlobalChemical } = useGlobalComponent();
+  const groupDef = CODE_GROUPS[group];
+  // 이 탭의 코드만 (아래 코드는 globalChemicals 이름을 그대로 쓴다)
+  const globalChemicals = useMemo(() => allChemicals.filter(c => groupOf(c.dsids) === group), [allChemicals, group]);
+
   // 검색어 상태 추가
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -35,12 +40,8 @@ export default function DSChemicalsTable() {
   // 고유한 필터 옵션 추출
   const filterOptions = useMemo(() => {
     const defaultL3 = ['all', '중요도1', '중요도2', '중요도3', '중요도4', '중요도5'];
-    const defaultL2 = ['all', '농약', '비료', '기타약재'];
-    const defaultL1 = {
-      '농약': ['all', '살균제', '살충제', '제초제'],
-      '비료': ['all', '비료'],
-      '기타약재': ['all', '기타약재']
-    };
+    const defaultL2 = ['all', ...groupDef.infoL2];
+    const defaultL1 = Object.fromEntries(Object.entries(groupDef.infoL1).map(([l2, l1s]) => [l2, ['all', ...l1s]]));
     
     const uniqueL3 = [...new Set(globalChemicals.map(c => c.infoL3))];
     const uniqueL2 = [...new Set(globalChemicals.map(c => c.infoL2))];
@@ -54,9 +55,7 @@ export default function DSChemicalsTable() {
     const getL1Options = (selectedL2) => {
       if (selectedL2 === 'all') {
         return ['all', ...new Set([
-          ...defaultL1['농약'],
-          ...defaultL1['비료'],
-          ...defaultL1['기타약재'],
+          ...Object.values(defaultL1).flat(),
           ...filteredL1
         ].filter(item => item !== 'all'))];
       }
@@ -68,7 +67,7 @@ export default function DSChemicalsTable() {
       infoL2: [...defaultL2, ...filteredL2],
       infoL1: getL1Options(filters.infoL2)  // 현재 선택된 대분류에 따른 중분류 옵션
     };
-  }, [globalChemicals, filters.infoL2]);  // filters.infoL2 의존성 추가
+  }, [globalChemicals, filters.infoL2, groupDef]);  // filters.infoL2 의존성 추가
 
   // 필터 변경 핸들러
   const handleFilterChange = (filterType, value) => {
@@ -81,22 +80,10 @@ export default function DSChemicalsTable() {
   // 필터링 및 정렬된 데이터에 검색 기능 추가
   const filteredAndSortedChemicals = useMemo(() => {
     // 대분류 우선순위 정의
-    const infoL2Priority = {
-      '농약': 1,
-      '비료': 2,
-      '기타약재': 3,
-      '': 9999
-    };
+    const infoL2Priority = Object.fromEntries(groupDef.infoL2.map((l2, i) => [l2, i + 1]));
 
     // 중분류 우선순위 정의
-    const infoL1Priority = {
-      '살균제': 1,
-      '살충제': 2,
-      '제초제': 3,
-      '비료': 4,
-      '기타약재': 5,
-      '': 9999
-    };
+    const infoL1Priority = Object.fromEntries(Object.values(groupDef.infoL1).flat().map((l1, i) => [l1, i + 1]));
 
     return [...globalChemicals]
       .filter(chemical => {
@@ -141,7 +128,7 @@ export default function DSChemicalsTable() {
         // 4. 코드순
         return a.dsids.localeCompare(b.dsids);
       });
-  }, [globalChemicals, filters, searchTerm]);
+  }, [globalChemicals, filters, searchTerm, groupDef]);
 
   // 필터 선택 컴포넌트
   const FilterSelect = ({ label, value, onChange, options }) => (
@@ -277,7 +264,7 @@ export default function DSChemicalsTable() {
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-semibold">약품 목록</h2>
+          <h2 className="text-xl font-semibold">{groupDef.title}</h2>
           <div className="form-control">
             <input
               type="text"
@@ -301,7 +288,7 @@ export default function DSChemicalsTable() {
           </button>
           <button
             className="btn btn-outline btn-sm"
-            onClick={() => downloadChemicalList(filteredAndSortedChemicals)}
+            onClick={() => downloadChemicalList(filteredAndSortedChemicals, groupDef.excelName)}
             disabled={filteredAndSortedChemicals.length === 0}
             title="지금 보이는 목록(필터·정렬 그대로)을 엑셀로 내려받습니다"
           >
@@ -414,6 +401,7 @@ export default function DSChemicalsTable() {
       <AddChemicalDialog
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+        defaults={groupDef.addDefault}
       />
 
       {/* 이카운트 비교 다이얼로그 */}

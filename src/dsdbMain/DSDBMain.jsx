@@ -27,6 +27,7 @@ const Sidebar = () => {
   const menuItems = [
     { path: '/dsdb/regrequests', label: '등록 요청', count: pendingCount },
     { path: '/dsdb', label: '약품정보' },
+    { path: '/dsdb/othercodes', label: '기타 코드(잔디/물품)' },
     { path: '/dsdb/workforce', label: '인력정보' },
     { path: '/dsdb/equipment', label: '장비정보' },
     { path: '/dsdb/customer', label: '거래처정보' },
@@ -74,7 +75,8 @@ export default function DSDBMain() {
       <div className="flex-grow overflow-y-auto">
         <div className="p-4">
           <Routes>
-            <Route path="/" element={<DSChemicalsTable />} />
+            <Route path="/" element={<DSChemicalsTable key="chemical" group="chemical" />} />
+            <Route path="/othercodes" element={<DSChemicalsTable key="other" group="other" />} />
             <Route path="/regrequests" element={<DSRegRequests />} />
             <Route path="/settings" element={<DSSettings />} />
             <Route path="/workforce" element={<DSWorkforceTable />} />
