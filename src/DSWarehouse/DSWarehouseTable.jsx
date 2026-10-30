@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useGlobalComponent } from '../context/GlobalComponentContext';
 import { fetchWarehouses, saveWarehouses, deleteWarehouse } from './warehouseApi';
+import { fetchCourses } from '../DSMapCourse/courseApi';
 import { FIELD_LABELS, countChemicalsUsingName } from './warehouseExcel';
 import AddWarehouseDialog from './AddWarehouseDialog';
 import WarehouseExcelCompareDialog from './WarehouseExcelCompareDialog';
 
 /**
  * 창고 목록 (DynamoDB dswarehouses).
- * 이카운트 창고등록 엑셀로 추가·갱신하고, 메모만 여기서 관리한다.
+ * 이카운트 창고등록 엑셀로 추가·갱신하고, 메모와 골프장(mapdscourseid)은 여기서 관리한다.
+ * 골프장 = 용역 현장 창고가 속한 골프장. 재고·작업 보고·투입비가 창고 ↔ 골프장 짝으로 쓴다 (한 골프장에 창고 하나).
  * '약품' 열은 창고명으로 연결된 약품 수 (약품.warehouse 가 창고명을 쓴다).
  */
 export default function DSWarehouseTable() {
@@ -20,6 +22,7 @@ export default function DSWarehouseTable() {
   const [editing, setEditing] = useState(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [courses, setCourses] = useState([]);
 
   const load = async () => {
     setIsLoading(true);
@@ -36,12 +39,15 @@ export default function DSWarehouseTable() {
 
   useEffect(() => {
     load();
+    fetchCourses().then(setCourses).catch(err => console.error('Error fetching courses:', err));
   }, []);
+
+  const courseName = (id) => courses.find(c => c.id === id)?.name || id;
 
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return warehouses
-      .filter(w => (term === '' || [w.whcd, w.name, w.memo].some(v => (v || '').toLowerCase().includes(term)))
+      .filter(w => (term === '' || [w.whcd, w.name, w.memo, w.mapdscourseid].some(v => (v || '').toLowerCase().includes(term)))
         && (filters.active === 'all' || w.active === filters.active)
         && (filters.origin === 'all' || (w.origin === 'local') === (filters.origin === 'local')))
       .sort((a, b) => a.whcd.localeCompare(b.whcd, 'ko', { numeric: true }));
@@ -57,6 +63,12 @@ export default function DSWarehouseTable() {
   };
 
   const handleSaveMemo = async (warehouse) => {
+    const other = warehouse.mapdscourseid
+      && warehouses.find(w => w.whcd !== warehouse.whcd && w.mapdscourseid === warehouse.mapdscourseid);
+    if (other) {
+      alert(`${courseName(warehouse.mapdscourseid)} 은(는) 이미 창고 ${other.whcd} ${other.name} 에 연결되어 있습니다.`);
+      return;
+    }
     try {
       const updated = { ...warehouse, updatedAt: new Date().toISOString() };
       await saveWarehouses(updated);
@@ -133,6 +145,7 @@ export default function DSWarehouseTable() {
                 <th className="w-16">구분</th>
                 <th className="w-20">사용</th>
                 <th className="w-20 text-right">약품</th>
+                <th>골프장</th>
                 <th>추가사업장명</th>
                 <th>메모</th>
                 <th className="w-20">작업</th>
@@ -157,6 +170,7 @@ export default function DSWarehouseTable() {
                     </span>
                   </td>
                   <td className="text-xs text-right">{countChemicalsUsingName(globalChemicals, w.name) || ''}</td>
+                  <td className="text-xs">{w.mapdscourseid ? `${courseName(w.mapdscourseid)} (${w.mapdscourseid})` : ''}</td>
                   <td className="text-xs">{w.site}</td>
                   <td className="text-xs">{w.memo}</td>
                   <td>
@@ -171,7 +185,7 @@ export default function DSWarehouseTable() {
         </div>
       )}
 
-      {editing && <EditMemoDialog warehouse={editing} onClose={() => setEditing(null)} onSave={handleSaveMemo} />}
+      {editing && <EditMemoDialog warehouse={editing} courses={courses} onClose={() => setEditing(null)} onSave={handleSaveMemo} />}
       <AddWarehouseDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} warehouses={warehouses}
         onCreated={(w) => mergeSaved([w])} />
       <WarehouseExcelCompareDialog isOpen={isCompareOpen} onClose={() => setIsCompareOpen(false)}
@@ -180,9 +194,10 @@ export default function DSWarehouseTable() {
   );
 }
 
-// 이카운트 항목은 읽기 전용(엑셀 비교로만 갱신), 메모만 수정
-function EditMemoDialog({ warehouse, onClose, onSave }) {
+// 이카운트 항목은 읽기 전용(엑셀 비교로만 갱신), 메모·골프장만 수정
+function EditMemoDialog({ warehouse, courses, onClose, onSave }) {
   const [memo, setMemo] = useState(warehouse.memo || '');
+  const [courseId, setCourseId] = useState(warehouse.mapdscourseid || '');
   const rows = ['whcd', 'name', 'whType', 'process', 'outCust', 'site'];
   return (
     <dialog className="modal modal-open">
@@ -197,11 +212,21 @@ function EditMemoDialog({ warehouse, onClose, onSave }) {
           ))}
         </div>
         <p className="text-xs text-gray-400 mb-3">위 항목은 이카운트 엑셀 비교로만 바뀝니다.</p>
+        <label className="label">골프장 <span className="text-xs text-gray-400">용역 현장 창고만</span></label>
+        <select className="select select-bordered select-sm w-full mb-2" value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+          <option value="">— 없음 —</option>
+          {courseId && !courses.some(c => c.id === courseId) && <option value={courseId}>{courseId}</option>}
+          {courses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.id})</option>)}
+        </select>
         <label className="label">메모</label>
         <textarea className="textarea textarea-bordered w-full" rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} />
         <div className="modal-action">
           <button className="btn" onClick={onClose}>취소</button>
-          <button className="btn btn-primary" onClick={() => onSave({ ...warehouse, memo })}>저장</button>
+          <button className="btn btn-primary" onClick={() => {
+            const next = { ...warehouse, memo, mapdscourseid: courseId };
+            if (!courseId) delete next.mapdscourseid;
+            onSave(next);
+          }}>저장</button>
         </div>
       </div>
     </dialog>
