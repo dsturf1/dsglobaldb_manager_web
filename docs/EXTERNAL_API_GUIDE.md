@@ -180,12 +180,13 @@ def unwrap(res_json):
 | `process`, `outCust` | string | 생산공정명, 외주거래처명 (지금은 모두 비어 있음) | |
 | `memo` | string | 메모 (글로벌 DB에서 관리) | |
 | `mapdscourseid` | string \| 없음 | 이 창고가 속한 골프장 ID (`mapcourse_info.id`). **용역 현장 창고만** 채움, 한 골프장에 창고 하나. 글로벌 DB 웹 창고 화면에서 고친다 (2026-10-30) | `MGC042` |
+| `dscourseids` | string \| 없음 | 이 창고의 방제작업코스 ID (GCxxx). 용역 현장 창고만. `mapdscourseid` 는 이 GC 에서 내려받은 값 (2026-10-31) | `GC024` |
 
 동기화 관련 필드(`origin`, `createdAt`, `updatedAt`, `ecountSyncedAt`)는 [5장](#5-출처와-이카운트-동기화-필드)과 같습니다.
 
 - **다른 데이터는 창고를 코드가 아니라 창고명으로 가리킵니다.** 약품의 `warehouse`(예: `"본사창고"`, 여러 개면 `"본사창고,용역 코리아"`)와 방제 기본 정보의 `warehouse`·`outwarehouse`가 그렇습니다. 연결할 때는 `name`으로 맞추세요. 2026-10-05 기준 모두 정확히 일치합니다.
 - 이름 규칙: `용역 {골프장}`은 용역 현장 창고, `본사창고`·`중부방제`·`남부방제`·`중부팀`·`남부팀`은 내부 창고입니다.
-- **골프장 ↔ 거래처**: 골프장 목록(`mapcourse_info`, baseinfo API)의 각 골프장에 `custcd`(고객사 거래처 코드 = 대부분 사업자번호)와 `custName`이 있을 수 있습니다. 글로벌 DB 웹 골프장 수정 창에서 고릅니다. 그래서 `창고.mapdscourseid → 골프장.custcd → 거래처`로 용역 현장의 창고·골프장·고객사를 한 번에 찾을 수 있습니다.
+- **용역 현장 짝 (2026-10-31)**: 원본은 **방제작업코스**(`dsworkcourse_info`, baseinfo API `GET /dscourse_info`)입니다. 각 GC 에 `mapdscourseid`(골프장), `custcd`·`custName`(고객사 거래처, `custcd` = 대부분 사업자번호), `outwhcd`(용역창고 코드, 이름은 `outwarehouse`)가 있습니다. 찾는 길: `GC → custcd → 거래처`, `GC → outwhcd → 창고`. 골프장(`mapcourse_info`)의 `dscourseids`·`custcd` 와 창고의 `dscourseids`·`mapdscourseid` 는 GC 에서 내려받은 사본이라 GC 가 비어 있을 때만 대신 쓰세요. 자세히: `docs/용역현장_짝_창고-골프장-거래처.md`.
 
 ---
 
