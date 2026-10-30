@@ -1,52 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { useBase } from '../context/BaseContext';
-import { fetchCustomers } from '../DSCustomer/customerApi';
-
-// 고객사 거래처 고르기 — 이름·별칭·거래처코드(사업자번호)로 찾기. 골프장 분류를 앞에
-function CustomerPicker({ custcd, custName, onPick }) {
-  const [customers, setCustomers] = useState(null);
-  const [term, setTerm] = useState('');
-  useEffect(() => {
-    fetchCustomers().then(setCustomers).catch(() => setCustomers([]));
-  }, []);
-  const norm = (v) => (v || '').toLowerCase().replace(/[\s()㈜.-]|\(주\)|주식회사/g, '');
-  const q = norm(term);
-  const hits = !q || !customers ? [] : customers
-    .filter(c => c.active !== 'N'
-      && [c.name, c.custcd, ...(c.aliases || []).map(a => a.name)].some(v => norm(v).includes(q)))
-    .sort((a, b) => (a.category !== '골프장') - (b.category !== '골프장') || (a.name || '').localeCompare(b.name || '', 'ko'))
-    .slice(0, 12);
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700">고객사 거래처 <span className="text-xs text-gray-400">용역 기성 청구 상대 (투입비·서류에 사업자번호로 씀)</span></label>
-      <div className="mt-1 flex items-center gap-2 text-sm">
-        {custcd
-          ? <span className="bg-gray-100 rounded-md px-2 py-1">{custName || custcd} · {custcd}
-              <button onClick={() => onPick(null)} className="ml-2 text-red-500 hover:text-red-700">×</button></span>
-          : <span className="text-gray-400">연결 안 됨</span>}
-      </div>
-      <input type="text" value={term} onChange={(e) => setTerm(e.target.value)}
-        placeholder={customers ? '거래처 이름·별칭·사업자번호로 찾기' : '거래처 불러오는 중…'} disabled={!customers}
-        className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
-      {hits.length > 0 && (
-        <div className="mt-1 border rounded-md max-h-48 overflow-y-auto">
-          {hits.map(c => (
-            <button key={c.custcd} onClick={() => { onPick(c); setTerm(''); }}
-              className="block w-full text-left text-sm px-2 py-1 hover:bg-blue-50">
-              {c.name} · {c.custcd} <span className="text-xs text-gray-400">{c.category}{c.aliases?.length ? ` · ${c.aliases.map(a => a.name).slice(0, 3).join(', ')}` : ''}</span>
-            </button>))}
-        </div>)}
-    </div>
-  );
-}
+import CustomerPicker from '../DSCustomer/CustomerPicker';
+import { fetchWorkCourses, workCourseLabel } from '../DSWorkCourse/workCourseApi';
 
 const CourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
   const [editedCourse, setEditedCourse] = useState(null);
   const [newOrg, setNewOrg] = useState('');
   const [newCourseName, setNewCourseName] = useState('');
   const [newAccessCourseId, setNewAccessCourseId] = useState('');
+  const [workCourses, setWorkCourses] = useState([]);
   const { dsOrgList } = useBase();
+
+  useEffect(() => {
+    fetchWorkCourses().then(setWorkCourses).catch(err => console.error('Error fetching work courses:', err));
+  }, []);
 
   useEffect(() => {
     if (course) {
@@ -122,9 +90,12 @@ const CourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
     setEditedCourse(prev => ({ ...prev, custcd: c ? c.custcd : '', custName: c ? c.name : '' }));
   };
 
+  // 방제작업코스(GC)가 원본: GC 에 고객사가 있으면 그것을 쓰고, 없을 때만 여기서 고른다
+  const gc = editedCourse && workCourses.find(g => g.dscourseids === editedCourse.dscourseids);
+
   const handleSave = () => {
     if (editedCourse) {
-      onSave(editedCourse);
+      onSave(gc?.custcd ? { ...editedCourse, custcd: gc.custcd, custName: gc.custName || '' } : editedCourse);
       onClose();
     }
   };
@@ -161,7 +132,27 @@ const CourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
               />
             </div>
             
-            <CustomerPicker custcd={editedCourse.custcd} custName={editedCourse.custName} onPick={handlePickCustomer} />
+            <div>
+              <label className="block text-sm font-medium text-gray-700">방제작업코스 <span className="text-xs text-gray-400">고르면 고객사 거래처를 거기서 불러옴</span></label>
+              <select
+                name="dscourseids"
+                value={editedCourse.dscourseids || ''}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="">— 없음 —</option>
+                {editedCourse.dscourseids && !gc && <option value={editedCourse.dscourseids}>{editedCourse.dscourseids}</option>}
+                {workCourses.map(g => <option key={g.dscourseids} value={g.dscourseids}>{workCourseLabel(g)}</option>)}
+              </select>
+            </div>
+
+            {gc?.custcd
+              ? <div>
+                  <label className="block text-sm font-medium text-gray-700">고객사 거래처</label>
+                  <div className="mt-1 text-sm"><span className="bg-blue-50 rounded-md px-2 py-1">{gc.custName || gc.custcd} · {gc.custcd}</span>
+                    <span className="ml-2 text-xs text-gray-400">{gc.dscourseids} 에서 불러옴 — 바꾸려면 방제작업코스 화면에서</span></div>
+                </div>
+              : <CustomerPicker custcd={editedCourse.custcd} custName={editedCourse.custName} onPick={handlePickCustomer} />}
 
             <div>
               <label className="block text-sm font-medium text-gray-700">홀 수</label>

@@ -84,6 +84,8 @@ const DSWorkCourse = () => {
       filtered = filtered.filter(course => 
         course.name.toLowerCase().includes(term) ||
         course.dscourseids.toLowerCase().includes(term) ||
+        (course.custName || '').toLowerCase().includes(term) ||
+        (course.custcd || '').includes(term) ||
         course.org.toLowerCase().includes(term)
       );
     }
@@ -116,6 +118,9 @@ const DSWorkCourse = () => {
       outsource: '',
       outorg: '',
       outwarehouse: '',
+      outwhcd: '',
+      custcd: '',
+      custName: '',
       course_names: [],
       access_org: [],
       mapdscourseid: ''
@@ -249,6 +254,7 @@ const DSWorkCourse = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">용역</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">용역조직</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">용역창고</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">고객사</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">코스</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">접근가능조직</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">수정</th>
@@ -266,7 +272,8 @@ const DSWorkCourse = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{course.warehouse}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{course.outsource}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{course.outorg}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{course.outwarehouse}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{course.outwarehouse}{course.outwhcd ? ` (${course.outwhcd})` : ''}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{course.custcd ? `${course.custName || ''} (${course.custcd})` : ''}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">
                   <div className="flex flex-wrap gap-1">
                     {course.course_names.map((name, index) => (

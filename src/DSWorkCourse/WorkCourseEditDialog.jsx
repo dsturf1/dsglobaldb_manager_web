@@ -1,12 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { useBase } from '../context/BaseContext';
+import CustomerPicker from '../DSCustomer/CustomerPicker';
+import { fetchCourses } from '../DSMapCourse/courseApi';
+import { fetchWarehouses } from '../DSWarehouse/warehouseApi';
+
+// 방제작업코스(GC)가 용역 현장 짝의 원본: 맵코스(mapdscourseid)·고객사(custcd·custName)·용역창고(outwhcd + 이름 outwarehouse).
+// 골프장·창고 화면은 GC 를 골라 여기 값을 불러온다. outwarehouse 는 약품·방제 기본정보가 이름으로 쓰므로 이름도 같이 둔다.
 
 const WorkCourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
   const [editedCourse, setEditedCourse] = useState(null);
   const [newOrg, setNewOrg] = useState('');
   const [newCourseName, setNewCourseName] = useState('');
+  const [mapCourses, setMapCourses] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const { dsOrgList } = useBase();
+
+  useEffect(() => {
+    fetchCourses().then(setMapCourses).catch(err => console.error('Error fetching courses:', err));
+    fetchWarehouses().then(ws => setWarehouses(ws.filter(w => w.active !== 'N')
+      .sort((a, b) => (!a.name.includes('용역')) - (!b.name.includes('용역')) || a.name.localeCompare(b.name, 'ko'))))
+      .catch(err => console.error('Error fetching warehouses:', err));
+  }, []);
 
   useEffect(() => {
     if (course) {
@@ -56,9 +71,22 @@ const WorkCourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
     }));
   };
 
+  const handlePickCustomer = (c) => {
+    setEditedCourse(prev => ({ ...prev, custcd: c ? c.custcd : '', custName: c ? c.name : '' }));
+  };
+
+  const handlePickOutWarehouse = (e) => {
+    const w = warehouses.find(x => x.whcd === e.target.value);
+    setEditedCourse(prev => ({ ...prev, outwhcd: w ? w.whcd : '', outwarehouse: w ? w.name : '' }));
+  };
+
+  // 이름만 있고 코드가 없던 예전 값은 이름으로 찾아 보여 준다
+  const outWh = editedCourse && (warehouses.find(w => w.whcd === editedCourse.outwhcd)
+    || warehouses.find(w => w.name === editedCourse.outwarehouse));
+
   const handleSave = () => {
     if (editedCourse) {
-      onSave(editedCourse);
+      onSave(outWh && !editedCourse.outwhcd ? { ...editedCourse, outwhcd: outWh.whcd } : editedCourse);
       onClose();
     }
   };
@@ -69,7 +97,7 @@ const WorkCourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel className="mx-auto max-w-2xl w-full bg-white rounded-lg p-6">
+        <Dialog.Panel className="mx-auto max-w-2xl w-full bg-white rounded-lg p-6 max-h-[90vh] overflow-y-auto">
           <Dialog.Title className="text-lg font-medium mb-4">골프장 정보 수정</Dialog.Title>
           
           <div className="space-y-4">
@@ -89,17 +117,14 @@ const WorkCourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
                 <label className="block text-sm font-medium text-gray-700">mapdscourseid</label>
                 <select
                   name="mapdscourseid"
-                  value={editedCourse.mapdscourseid}
+                  value={editedCourse.mapdscourseid || ''}
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
-                  <option value="">mapdscourseid를 선택하세요</option>
-                  {Array.from({length: 1000}, (_, i) => {
-                    const num = i.toString().padStart(3, '0');
-                    return `MGC${num}`;
-                  }).map(id => (
-                    <option key={id} value={id}>{id}</option>
-                  ))}
+                  <option value="">맵코스를 선택하세요</option>
+                  {editedCourse.mapdscourseid && !mapCourses.some(c => c.id === editedCourse.mapdscourseid)
+                    && <option value={editedCourse.mapdscourseid}>{editedCourse.mapdscourseid}</option>}
+                  {mapCourses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.id})</option>)}
                 </select>
               </div>
             </div>
@@ -196,15 +221,18 @@ const WorkCourseEditDialog = ({ isOpen, onClose, course, onSave }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">용역창고</label>
-                <input
-                  type="text"
-                  name="outwarehouse"
-                  value={editedCourse.outwarehouse}
-                  onChange={handleChange}
+                <select
+                  value={outWh?.whcd || ''}
+                  onChange={handlePickOutWarehouse}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
+                >
+                  <option value="">{editedCourse.outwarehouse && !outWh ? `${editedCourse.outwarehouse} (창고 목록에 없음)` : '— 없음 —'}</option>
+                  {warehouses.map(w => <option key={w.whcd} value={w.whcd}>{w.name} ({w.whcd})</option>)}
+                </select>
               </div>
             </div>
+
+            <CustomerPicker custcd={editedCourse.custcd} custName={editedCourse.custName} onPick={handlePickCustomer} />
 
             <div>
               <label className="block text-sm font-medium text-gray-700">접근 가능 조직</label>

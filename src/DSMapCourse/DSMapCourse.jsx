@@ -140,8 +140,11 @@ const DSMapCourse = () => {
                   <MapPinIcon className="h-5 w-5 mr-2" />
                   <span>{course.address}</span>
                 </div>
-                {course.custcd && (
-                  <div className="text-sm text-gray-600">고객사: {course.custName || ''} ({course.custcd})</div>
+                {(course.dscourseids || course.custcd) && (
+                  <div className="text-sm text-gray-600">
+                    {course.dscourseids && <span className="mr-2">방제 {course.dscourseids}</span>}
+                    {course.custcd && <span>고객사: {course.custName || ''} ({course.custcd})</span>}
+                  </div>
                 )}
                 <div className="flex items-center text-gray-600">
                   <FlagIcon className="h-5 w-5 mr-2" />

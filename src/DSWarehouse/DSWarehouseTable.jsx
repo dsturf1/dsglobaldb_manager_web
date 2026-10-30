@@ -2,13 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { useGlobalComponent } from '../context/GlobalComponentContext';
 import { fetchWarehouses, saveWarehouses, deleteWarehouse } from './warehouseApi';
 import { fetchCourses } from '../DSMapCourse/courseApi';
+import { fetchWorkCourses, workCourseLabel } from '../DSWorkCourse/workCourseApi';
 import { FIELD_LABELS, countChemicalsUsingName } from './warehouseExcel';
 import AddWarehouseDialog from './AddWarehouseDialog';
 import WarehouseExcelCompareDialog from './WarehouseExcelCompareDialog';
 
 /**
  * 창고 목록 (DynamoDB dswarehouses).
- * 이카운트 창고등록 엑셀로 추가·갱신하고, 메모와 골프장(mapdscourseid)은 여기서 관리한다.
+ * 이카운트 창고등록 엑셀로 추가·갱신하고, 메모와 방제작업코스(dscourseids)·골프장(mapdscourseid)은 여기서 관리한다.
+ * 방제작업코스(GC)를 고르면 골프장은 GC 의 mapdscourseid 를 불러오고, GC 에 없을 때만 직접 고른다.
  * 골프장 = 용역 현장 창고가 속한 골프장. 재고·작업 보고·투입비가 창고 ↔ 골프장 짝으로 쓴다 (한 골프장에 창고 하나).
  * '약품' 열은 창고명으로 연결된 약품 수 (약품.warehouse 가 창고명을 쓴다).
  */
@@ -23,6 +25,7 @@ export default function DSWarehouseTable() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [courses, setCourses] = useState([]);
+  const [workCourses, setWorkCourses] = useState([]);
 
   const load = async () => {
     setIsLoading(true);
@@ -40,6 +43,7 @@ export default function DSWarehouseTable() {
   useEffect(() => {
     load();
     fetchCourses().then(setCourses).catch(err => console.error('Error fetching courses:', err));
+    fetchWorkCourses().then(setWorkCourses).catch(err => console.error('Error fetching work courses:', err));
   }, []);
 
   const courseName = (id) => courses.find(c => c.id === id)?.name || id;
@@ -47,7 +51,7 @@ export default function DSWarehouseTable() {
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return warehouses
-      .filter(w => (term === '' || [w.whcd, w.name, w.memo, w.mapdscourseid].some(v => (v || '').toLowerCase().includes(term)))
+      .filter(w => (term === '' || [w.whcd, w.name, w.memo, w.mapdscourseid, w.dscourseids].some(v => (v || '').toLowerCase().includes(term)))
         && (filters.active === 'all' || w.active === filters.active)
         && (filters.origin === 'all' || (w.origin === 'local') === (filters.origin === 'local')))
       .sort((a, b) => a.whcd.localeCompare(b.whcd, 'ko', { numeric: true }));
@@ -63,6 +67,12 @@ export default function DSWarehouseTable() {
   };
 
   const handleSaveMemo = async (warehouse) => {
+    const gcOther = warehouse.dscourseids
+      && warehouses.find(w => w.whcd !== warehouse.whcd && w.dscourseids === warehouse.dscourseids);
+    if (gcOther) {
+      alert(`방제작업코스 ${warehouse.dscourseids} 은(는) 이미 창고 ${gcOther.whcd} ${gcOther.name} 에 연결되어 있습니다.`);
+      return;
+    }
     const other = warehouse.mapdscourseid
       && warehouses.find(w => w.whcd !== warehouse.whcd && w.mapdscourseid === warehouse.mapdscourseid);
     if (other) {
@@ -170,7 +180,10 @@ export default function DSWarehouseTable() {
                     </span>
                   </td>
                   <td className="text-xs text-right">{countChemicalsUsingName(globalChemicals, w.name) || ''}</td>
-                  <td className="text-xs">{w.mapdscourseid ? `${courseName(w.mapdscourseid)} (${w.mapdscourseid})` : ''}</td>
+                  <td className="text-xs">
+                    {w.dscourseids && <span className="badge badge-ghost badge-xs mr-1">{w.dscourseids}</span>}
+                    {w.mapdscourseid ? `${courseName(w.mapdscourseid)} (${w.mapdscourseid})` : ''}
+                  </td>
                   <td className="text-xs">{w.site}</td>
                   <td className="text-xs">{w.memo}</td>
                   <td>
@@ -185,7 +198,7 @@ export default function DSWarehouseTable() {
         </div>
       )}
 
-      {editing && <EditMemoDialog warehouse={editing} courses={courses} onClose={() => setEditing(null)} onSave={handleSaveMemo} />}
+      {editing && <EditMemoDialog warehouse={editing} courses={courses} workCourses={workCourses} onClose={() => setEditing(null)} onSave={handleSaveMemo} />}
       <AddWarehouseDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} warehouses={warehouses}
         onCreated={(w) => mergeSaved([w])} />
       <WarehouseExcelCompareDialog isOpen={isCompareOpen} onClose={() => setIsCompareOpen(false)}
@@ -194,10 +207,15 @@ export default function DSWarehouseTable() {
   );
 }
 
-// 이카운트 항목은 읽기 전용(엑셀 비교로만 갱신), 메모·골프장만 수정
-function EditMemoDialog({ warehouse, courses, onClose, onSave }) {
+// 이카운트 항목은 읽기 전용(엑셀 비교로만 갱신), 메모·방제작업코스·골프장만 수정
+function EditMemoDialog({ warehouse, courses, workCourses, onClose, onSave }) {
   const [memo, setMemo] = useState(warehouse.memo || '');
+  // 처음 열 때 GC 가 없으면 용역창고 이름이 같은 GC 를 제안
+  const [gcId, setGcId] = useState(warehouse.dscourseids
+    || workCourses.find(g => g.outwhcd === warehouse.whcd || (g.outwarehouse && g.outwarehouse === warehouse.name))?.dscourseids || '');
   const [courseId, setCourseId] = useState(warehouse.mapdscourseid || '');
+  const gc = workCourses.find(g => g.dscourseids === gcId);
+  const gcCourse = gc?.mapdscourseid || '';
   const rows = ['whcd', 'name', 'whType', 'process', 'outCust', 'site'];
   return (
     <dialog className="modal modal-open">
@@ -212,19 +230,30 @@ function EditMemoDialog({ warehouse, courses, onClose, onSave }) {
           ))}
         </div>
         <p className="text-xs text-gray-400 mb-3">위 항목은 이카운트 엑셀 비교로만 바뀝니다.</p>
-        <label className="label">골프장 <span className="text-xs text-gray-400">용역 현장 창고만</span></label>
-        <select className="select select-bordered select-sm w-full mb-2" value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+        <label className="label">방제작업코스 <span className="text-xs text-gray-400">용역 현장 창고만 · 고르면 골프장을 불러옴</span></label>
+        <select className="select select-bordered select-sm w-full mb-2" value={gcId} onChange={(e) => setGcId(e.target.value)}>
           <option value="">— 없음 —</option>
-          {courseId && !courses.some(c => c.id === courseId) && <option value={courseId}>{courseId}</option>}
-          {courses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.id})</option>)}
+          {gcId && !gc && <option value={gcId}>{gcId}</option>}
+          {workCourses.map(g => <option key={g.dscourseids} value={g.dscourseids}>{workCourseLabel(g)}</option>)}
         </select>
+        <label className="label">골프장</label>
+        {gcCourse
+          ? <div className="text-sm mb-2"><span className="badge badge-info badge-outline">{courses.find(c => c.id === gcCourse)?.name || gcCourse} ({gcCourse})</span>
+              <span className="ml-2 text-xs text-gray-400">{gc.dscourseids} 에서 불러옴</span></div>
+          : <select className="select select-bordered select-sm w-full mb-2" value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+              <option value="">— 없음 —</option>
+              {courseId && !courses.some(c => c.id === courseId) && <option value={courseId}>{courseId}</option>}
+              {courses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.id})</option>)}
+            </select>}
         <label className="label">메모</label>
         <textarea className="textarea textarea-bordered w-full" rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} />
         <div className="modal-action">
           <button className="btn" onClick={onClose}>취소</button>
           <button className="btn btn-primary" onClick={() => {
-            const next = { ...warehouse, memo, mapdscourseid: courseId };
-            if (!courseId) delete next.mapdscourseid;
+            const cid = gcCourse || courseId;
+            const next = { ...warehouse, memo, dscourseids: gcId, mapdscourseid: cid };
+            if (!gcId) delete next.dscourseids;
+            if (!cid) delete next.mapdscourseid;
             onSave(next);
           }}>저장</button>
         </div>
