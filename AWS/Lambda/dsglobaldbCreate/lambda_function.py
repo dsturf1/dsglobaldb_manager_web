@@ -1,4 +1,4 @@
-"""글로벌 DB 안전한 추가 API (docs/GLOBALDB_SAFE_CREATE_API.md).
+"""글로벌 DB 안전한 추가 API (docs/old/GLOBALDB_SAFE_CREATE_API.md).
 
 API Gateway jyipsj28s9 (패스스루 매핑 템플릿, 인증 없음)
     POST /dschemical/create      약품 새로 추가. 코드는 서버가 정한다
@@ -12,9 +12,9 @@ API Gateway jyipsj28s9 (패스스루 매핑 템플릿, 인증 없음)
     POST /dschemical/alias       약품 별칭 추가·삭제 (문자열 별칭)
     GET  /dschemical/history     약품 변경 이력
     update/alias 는 API 키(x-api-key) 필요 — API Gateway 사용량 계획 'globaldb-write'
-    (docs/gdb-update-api-request.md)
+    (docs/old/gdb-update-api-request.md)
 
-등록 요청 (docs/gdb-request-registration-queue.md 4장)
+등록 요청 (docs/old/gdb-request-registration-queue.md 4장)
     create 는 등록 요청이다: regStatus · ecountStatus · regRequest(app 은 API 키로 정함) 를 붙인다.
     거래처는 증빙(evidence)이 조건을 모두 채우면 바로 등록(regStatus=approved), 아니면 requested.
     POST /dscustomer/evidence-upload   증빙 파일 올릴 주소 (S3 presigned PUT, 10분)          — 키 필요
@@ -521,7 +521,7 @@ def create_warehouse(body):
 
 
 # ---------------------------------------------------------------- 부분 수정 · 별칭 · 이력 (거래처 · 약품)
-# docs/gdb-update-api-request.md. 로그에는 키 · 바뀐 필드 이름 · updatedBy 만 남긴다 (대표자·전화·이메일 값은 남기지 않음)
+# docs/old/gdb-update-api-request.md. 로그에는 키 · 바뀐 필드 이름 · updatedBy 만 남긴다 (대표자·전화·이메일 값은 남기지 않음)
 
 EMAIL_RE = re.compile(r'[^@\s]+@[^@\s]+\.[^@\s]+')
 COMPANY_MARKS = re.compile(r'\(주\)|㈜|주식회사|\(유\)|유한회사|\(사\)|사단법인|\(재\)|재단법인')
@@ -786,7 +786,7 @@ def record_history(ent, key_value):
              'changes': item.get('changes', {})} for item in response.get('Items', [])]
 
 
-# ---------------------------------------------------------------- 등록 요청 (docs/gdb-request-registration-queue.md)
+# ---------------------------------------------------------------- 등록 요청 (docs/old/gdb-request-registration-queue.md)
 # 앱은 API 키로 정한다. KEY_APPS 환경 변수 = {sha256(키 값): "inv"|"quote"|"web"} (배포 노트북 (L1-6) 이 넣음, 키 값은 두지 않음)
 
 def _key_apps():

@@ -34,7 +34,7 @@ export const saveCustomers = async (customers, onProgress) => {
 export const deleteCustomer = async (custcd) =>
   unwrap(await apiClient.delete('/dscustomer', { params: { id: custcd } }));
 
-// ---- 부분 수정 · 별칭 · 이력 (Lambda dsglobaldbCreate, docs/gdb-update-api-request.md) ----
+// ---- 부분 수정 · 별칭 · 이력 (Lambda dsglobaldbCreate, docs/old/gdb-update-api-request.md) ----
 
 // 상태 코드를 그대로 돌려준다 (409 conflict / aliasTaken 은 화면에서 처리)
 const withStatus = (response) => {

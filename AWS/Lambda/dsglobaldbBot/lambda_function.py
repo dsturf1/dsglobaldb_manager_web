@@ -1,4 +1,4 @@
-"""글로벌 DB 봇 — 품목·거래처 등록 승인 창구 (docs/gdb-request-registration-queue.md 4.8, 5.6).
+"""글로벌 DB 봇 — 품목·거래처 등록 승인 창구 (docs/old/gdb-request-registration-queue.md 4.8, 5.6).
 
 받는 길
     POST /tgbot (API Gateway jyipsj28s9, 텔레그램 webhook)  X-Telegram-Bot-Api-Secret-Token 헤더로 확인

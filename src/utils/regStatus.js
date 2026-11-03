@@ -1,5 +1,5 @@
 /**
- * 등록 요청 상태 (docs/gdb-request-registration-queue.md 3장). 약품·거래처 공통.
+ * 등록 요청 상태 (docs/old/gdb-request-registration-queue.md 3장). 약품·거래처 공통.
  * - regStatus: 등록 승인 requested / approved / rejected — 없으면 approved (이카운트에서 온 것, 이전 데이터)
  * - ecountStatus: 이카운트 등록 승인 pending / approved / excluded — 없으면 ecount 출처는 해당 없음(null), local 은 approved
  * 서버 effective_status 와 같은 규칙.

@@ -809,5 +809,5 @@ new = create_chemical({"name": "신승", "infoL1": "살균제", "unit": "1ℓ"},
 ## 9. 문의 · 관련 문서
 
 - 데이터 관리 화면: dsglobaldb_manager 웹 → 약품정보 / 거래처정보
-- 다른 API(인력, 장비, 유지보수 등): [DATA_AND_API.md](DATA_AND_API.md)
+- 다른 API(인력, 장비, 유지보수, 기본정보 등)와 전체 구성: dsglobaldb_manager `docs/시스템_구성도.md`
 - Lambda 소스: `AWS/Lambda/dscustomerDynamoDB/`, AWS의 `dschemicalDynamoDB` (다운로드: `AWS/Lambda/(L0-0) Download Lambda functions.ipynb`)

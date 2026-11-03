@@ -8,7 +8,7 @@ import { createCustomer, uploadEvidence, EVIDENCE_DOC_TYPES, EVIDENCE_ACCEPT } f
  * - 법인: 거래처코드 = 사업자등록번호 10자리 (이카운트 관례). 이미 있으면 409
  * - 개인: 거래처코드 = P00001 형식, 서버가 순번을 정한다. 주민등록번호는 받지 않는다
  * 화면의 중복·검증 표시는 빠른 안내용이고, 최종 판단은 서버가 한다.
- * 글로벌 DB 웹에서 만든 것은 승인 없이 확정된다 (docs/gdb-request-registration-queue.md 4차).
+ * 글로벌 DB 웹에서 만든 것은 승인 없이 확정된다 (docs/old/gdb-request-registration-queue.md 4차).
  * 증빙(사업자등록증·세금계산서 등) 파일은 선택이고 기록용으로 남는다.
  */
 const EMPTY_FORM = {

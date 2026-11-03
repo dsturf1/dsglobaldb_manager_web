@@ -4,7 +4,7 @@ import { NumberInput, TextInput, UnitInput } from '../components/DSInputs';
 import { updateChemical, updateChemicalAliases, fetchChemicalHistory } from './chemicalApi';
 
 /**
- * 약품 수정 — 외부 앱(재고 봇 등)과 같은 API를 쓴다 (docs/gdb-update-api-request.md 4장).
+ * 약품 수정 — 외부 앱(재고 봇 등)과 같은 API를 쓴다 (docs/old/gdb-update-api-request.md 4장).
  * - 정보: 바뀐 필드만 POST /dschemical/update. 불러온 뒤 다른 곳에서 고쳤으면 409 → 최신 내용을 다시 보여준다
  * - 대분류·중분류는 코드 체계와 묶여 있어 수정 API가 받지 않는다. 바꾸면 확인 후 웹 전용 저장(PUT)으로 따로 저장한다
  * - 별칭: POST /dschemical/alias 로 바로 더하고 뺀다 / 변경 이력: GET /dschemical/history

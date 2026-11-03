@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { WRITE_HEADERS } from '../utils/globaldbWriteHeaders';
 
-// 약품 부분 수정 · 별칭 · 이력 (Lambda dsglobaldbCreate, docs/gdb-update-api-request.md 4장)
+// 약품 부분 수정 · 별칭 · 이력 (Lambda dsglobaldbCreate, docs/old/gdb-update-api-request.md 4장)
 const apiClient = axios.create({
   baseURL: 'https://jyipsj28s9.execute-api.us-east-1.amazonaws.com/dev',
   headers: { 'Content-Type': 'application/json; charset=utf-8' },

@@ -4,7 +4,7 @@ import { CUSTOMER_CATEGORIES, FIELD_LABELS } from './customerExcel';
 import { updateCustomer, updateCustomerAliases, fetchCustomerHistory } from './customerApi';
 
 /**
- * 거래처 편집 — 외부 앱(재고 봇 등)과 같은 API를 쓴다 (docs/gdb-update-api-request.md).
+ * 거래처 편집 — 외부 앱(재고 봇 등)과 같은 API를 쓴다 (docs/old/gdb-update-api-request.md).
  * - 정보 수정: 바뀐 필드만 POST /dscustomer/update. 불러온 뒤 다른 곳에서 고쳤으면 409 → 최신 내용을 다시 보여준다
  * - 별칭: POST /dscustomer/alias 로 바로 더하고 뺀다. 다른 거래처가 쓰는 이름이면 확인 후 force
  * - 변경 이력: GET /dscustomer/history

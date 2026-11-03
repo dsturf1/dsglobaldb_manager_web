@@ -3,10 +3,10 @@ import { fetchAuthSession, fetchUserAttributes } from 'aws-amplify/auth';
 import { WRITE_HEADERS } from './globaldbWriteHeaders';
 
 /**
- * 안전한 추가 API (Lambda dsglobaldbCreate, docs/GLOBALDB_SAFE_CREATE_API.md).
+ * 안전한 추가 API (Lambda dsglobaldbCreate, docs/old/GLOBALDB_SAFE_CREATE_API.md).
  * 코드는 서버가 정하고, 이미 있는 코드는 덮어쓰지 않는다.
  * 약품은 비슷한 이름·같은 이름+같은 용량이 있으면 409(reason=similar) → 사용자 확인 후 confirmSimilar 로 다시 보낸다.
- * create 는 등록 요청이다 (docs/gdb-request-registration-queue.md): 웹 키 + request 블록을 붙이면
+ * create 는 등록 요청이다 (docs/old/gdb-request-registration-queue.md): 웹 키 + request 블록을 붙이면
  * 서버가 regStatus·ecountStatus·regRequest(app=web)를 정한다. 웹에서 만든 것은 승인 없이 확정된다 (4차).
  * 재고·견적에서 온 요청의 승인은 글로벌 DB 슈퍼관리자가 글로벌 DB 봇이나 '등록 요청' 화면에서 한다.
  */

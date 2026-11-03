@@ -4,7 +4,7 @@ import { APP_LABELS, isQuoteCustomerInUse, regBadges, requestSource } from '../u
 import RegRequestDetail from './RegRequestDetail';
 
 /**
- * 등록 요청 (docs/gdb-request-registration-queue.md 4.4) — 재고·견적이 만든 품목·거래처 등록 요청과 결정.
+ * 등록 요청 (docs/old/gdb-request-registration-queue.md 4.4) — 재고·견적이 만든 품목·거래처 등록 요청과 결정.
  * 글로벌 DB 슈퍼관리자(서버 GDB_OWNER_EMAILS)로 로그인하면 승인·반려·이카운트 제외 버튼이 보인다 (4차).
  * 같은 결정을 글로벌 DB 봇 카드로도 할 수 있고, 어디서 결정하든 봇 카드는 결정 문구로 바뀐다.
  * 줄을 열면 증빙과 읽은 값을 보고, 오타는 [정보 수정]으로 고친다 (수정 API 그대로).
