@@ -33,3 +33,6 @@ AWS/Lambda/Downloaded/
 
 # 이카운트 원본 응답 (구매처 등 포함)
 AWS/Ecount/data/
+
+__pycache__/
+*.pyc
